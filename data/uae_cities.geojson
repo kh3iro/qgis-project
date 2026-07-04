@@ -1,0 +1,12 @@
+{
+  "type": "FeatureCollection",
+  "name": "uae_cities",
+  "features": [
+    { "type": "Feature", "properties": { "name": "Sharjah",   "population": 1800000 },
+      "geometry": { "type": "Point", "coordinates": [55.4209, 25.3463] } },
+    { "type": "Feature", "properties": { "name": "Dubai",     "population": 3600000 },
+      "geometry": { "type": "Point", "coordinates": [55.2708, 25.2048] } },
+    { "type": "Feature", "properties": { "name": "Abu Dhabi", "population": 1500000 },
+      "geometry": { "type": "Point", "coordinates": [54.3773, 24.4539] } }
+  ]
+}

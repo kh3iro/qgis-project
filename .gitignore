@@ -1,0 +1,24 @@
+# Secrets — NEVER commit API keys
+.env
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Conda envs should live outside the repo, but just in case
+gis-llm/
+
+# QGIS / generated output data
+buffered_cities.gpkg
+*.gpkg-shm
+*.gpkg-wal
+
+# VS Code (keep this light; some teams commit .vscode, we won't for now)
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
