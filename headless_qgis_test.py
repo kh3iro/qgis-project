@@ -42,7 +42,10 @@ from qgis.core import (  # noqa: E402  (imported after the env var on purpose)
 )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SAMPLE_DATA = os.path.join(HERE, "uae_cities.geojson")
+# Sample data lives in the project's data/ folder (the repo's designated home
+# for datasets). If it's missing, we recreate it there from the embedded copy
+# below — so the script is still self-contained if you only grabbed the .py.
+SAMPLE_DATA = os.path.join(HERE, "data", "uae_cities.geojson")
 OUTPUT_FILE = os.path.join(HERE, "buffered_cities.gpkg")
 
 # Embedded sample data so this script works even if you only download the .py
@@ -71,10 +74,12 @@ def fail(msg):
 
 
 def ensure_sample_data():
-    """Write the sample GeoJSON next to this script if it isn't already there."""
+    """Ensure data/uae_cities.geojson exists, recreating it if missing."""
     if os.path.exists(SAMPLE_DATA):
         ok(f"Using existing sample dataset: {SAMPLE_DATA}")
     else:
+        # Make sure the data/ folder exists before writing into it.
+        os.makedirs(os.path.dirname(SAMPLE_DATA), exist_ok=True)
         with open(SAMPLE_DATA, "w", encoding="utf-8") as f:
             f.write(SAMPLE_GEOJSON)
         ok(f"Created sample dataset: {SAMPLE_DATA}")

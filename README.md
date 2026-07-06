@@ -9,8 +9,10 @@ language, using an LLM that calls a headless QGIS backend.
 qgis-llm-project/
 ├── CLAUDE.md                 # Project briefing (Claude Code reads this automatically)
 ├── README.md                 # This file
+├── CHEATSHEET.md             # Handy command reference (qgis-start, gsave, ...)
 ├── .gitignore                # Keeps secrets and generated files out of git
 ├── WEEK2_SETUP_GUIDE.md      # Step-by-step Week 2 environment setup
+├── fix_qgis_env.sh           # Fixes PyQGIS imports in git bash on Windows
 ├── headless_qgis_test.py     # Week 2 deliverable: proves headless QGIS works
 └── data/
     └── uae_cities.geojson    # Sample dataset for testing
@@ -31,7 +33,7 @@ If every line prints `[OK]`, the environment is ready.
 ## Roadmap
 
 - [x] Week 1 — Learn QGIS + literature search
-- [ ] Week 2 — Headless QGIS Python environment
+- [x] Week 2 — Headless QGIS Python environment
 - [ ] Week 3 — REST API bridge over PyQGIS
 - [ ] Week 4 — LLM tool / function-calling schemas
 - [ ] Week 5 — LLM execution loop
