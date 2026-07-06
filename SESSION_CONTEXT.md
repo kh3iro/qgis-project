@@ -16,7 +16,8 @@ the project files, and write a Week 2 report for the professors.
 - Deleted the duplicate file from the project root.
 - Updated the docs and committed everything to git as the "Week 2 complete"
   milestone.
-- Wrote a Week 2 report and this context file.
+- Drafted a Week 2 report (the final version was written separately in the
+  Claude Desktop app) and wrote this context file.
 
 ### Files created or changed (all under `C:\Users\User\Downloads\Research Assisstant\qgis-project`)
 
@@ -28,11 +29,17 @@ the project files, and write a Week 2 report for the professors.
 - `fix_qgis_env.sh` — now tracked in git (was untracked before).
 - `CHEATSHEET.md` — now tracked in git (was untracked before).
 - `uae_cities.geojson` (in project root) — deleted (it was a duplicate).
-- `WEEK2_REPORT.md` — created. The report for the professors.
-- `SESSION_CONTEXT.md` — created. This file.
+- `SESSION_CONTEXT.md` — created. This file (kept updated as a running context
+  note for future chats, including the Claude Desktop app).
 
-Git commit: `d3aad6d` "Week 2 complete: verified headless QGIS end-to-end".
-`WEEK2_REPORT.md` and `SESSION_CONTEXT.md` are not committed yet.
+Note: a `WEEK2_REPORT.md` file was drafted in the project during the session but
+later deleted. The report for the professors was written in the Claude Desktop
+app instead, so no report file lives in this project.
+
+Git commits from this session:
+- `d3aad6d` "Week 2 complete: verified headless QGIS end-to-end"
+- `36adf92` "Add SESSION_CONTEXT.md handoff notes for Week 2"
+The working tree is clean (everything is committed).
 
 ## Key facts and numbers
 
