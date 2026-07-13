@@ -16,6 +16,17 @@ Claude Code resuming your last conversation. Type this every time you sit
 down to work.
 
 ```bash
+qgis-api
+```
+Starts the Week 3 REST API bridge in one go: goes to the project folder,
+activates `gis-llm`, fixes QGIS's environment variables, and launches the
+FastAPI server. **The terminal will look like it's frozen — that's correct, a
+server runs until you stop it.** Once you see `Uvicorn running on ...`, open
+**http://127.0.0.1:8000/docs** in your browser to try the endpoints. Press
+**Ctrl+C** in the terminal to stop the server (the link goes dead when you do).
+This alias occupies the terminal, so open a second git bash tab for other work.
+
+```bash
 gsave "short message describing what changed"
 ```
 Stages all changed files and commits them with your message, in one step.
@@ -85,6 +96,7 @@ shortcuts above:
 
 ```bash
 alias qgis-start="cd ~/Downloads/Research\ Assisstant/qgis-project && conda activate gis-llm && source fix_qgis_env.sh && claude -c"
+alias qgis-api="cd ~/Downloads/Research\ Assisstant/qgis-project && conda activate gis-llm && source fix_qgis_env.sh && uvicorn api:app --reload"
 gsave() {
   git add .
   git commit -m "$1"

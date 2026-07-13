@@ -1,74 +1,65 @@
 # Session Context
 
-**Date:** 6 July 2026
-**Week / task:** Week 2 — Headless QGIS Python environment (finishing and verifying it).
+**Date:** 13 July 2026
+**Week / task:** Week 3 — build the QGIS REST API bridge (FastAPI over PyQGIS).
 
 ## Goal for this session
 
-Take over the project, run the headless QGIS test, confirm it works, clean up
-the project files, and write a Week 2 report for the professors.
+Start Week 3: turn the Week 2 headless-QGIS script into a running web service so
+that JSON requests (eventually from an LLM) can trigger real QGIS operations.
 
 ## What was done
 
-- Ran `headless_qgis_test.py` end-to-end. It passed — every step printed `[OK]`.
-- Fixed a bug: the script was making a duplicate `uae_cities.geojson` in the
-  project root. It now uses the copy in `data/` instead.
-- Deleted the duplicate file from the project root.
-- Updated the docs and committed everything to git as the "Week 2 complete"
-  milestone.
-- Drafted a Week 2 report (the final version was written separately in the
-  Claude Desktop app) and wrote this context file.
+- Built the REST API bridge and verified it end-to-end.
+- New files:
+  - `qgis_engine.py` — the headless-QGIS startup from the Week 2 script, extracted
+    into a shared module. Boots QGIS once and keeps it alive; exposes
+    `start_qgis()`, `stop_qgis()`, `list_algorithms()`, `run_algorithm()`.
+  - `api.py` — the FastAPI server. Starts QGIS on boot (via lifespan), serves four
+    endpoints: `GET /health`, `GET /algorithms[?filter=]`, `POST /buffer`,
+    `POST /run` (generic algorithm runner).
+  - `requirements.txt` — records the new pip deps (fastapi, uvicorn), installed
+    into `gis-llm`.
+- Installed `fastapi` + `uvicorn` into the `gis-llm` env via pip.
+- Added a one-command shortcut `qgis-api` (to `~/.bashrc` and CHEATSHEET.md) that
+  cd's into the project, activates `gis-llm`, sources `fix_qgis_env.sh`, and runs
+  `uvicorn api:app --reload`.
+- Updated `.gitignore` to ignore the generated `outputs/` folder.
+- Updated `CLAUDE.md` (Week 3 status) and `CHEATSHEET.md` (new shortcut).
+- Wrote the Week 3 report at `C:\Users\User\Downloads\WEEK3_REPORT.docx` (short,
+  direct; matches the Week 2 report's Word styling; has two screenshot
+  placeholders). The report lives in Downloads, outside the repo — same as Week 2.
 
-### Files created or changed (all under `C:\Users\User\Downloads\Research Assisstant\qgis-project`)
+## How to run the API (git bash, from the project root)
 
-- `headless_qgis_test.py` — changed. Sample data path now points to
-  `data/uae_cities.geojson`.
-- `README.md` — changed. Week 2 marked done; file list updated.
-- `CLAUDE.md` — changed. Status updated; added a note about the Windows
-  file-lock problem.
-- `fix_qgis_env.sh` — now tracked in git (was untracked before).
-- `CHEATSHEET.md` — now tracked in git (was untracked before).
-- `uae_cities.geojson` (in project root) — deleted (it was a duplicate).
-- `SESSION_CONTEXT.md` — created. This file (kept updated as a running context
-  note for future chats, including the Claude Desktop app).
+```
+qgis-api        # the one-command shortcut (open a NEW terminal so the alias loads)
+```
+or manually:
+```
+conda activate gis-llm
+source fix_qgis_env.sh
+uvicorn api:app --reload
+```
+Then open http://127.0.0.1:8000/docs in a browser. A server keeps running until
+you press Ctrl+C — the /docs page only works while it's running.
 
-Note: a `WEEK2_REPORT.md` file was drafted in the project during the session but
-later deleted. The report for the professors was written in the Claude Desktop
-app instead, so no report file lives in this project.
+## Proof it works
 
-Git commits from this session:
-- `d3aad6d` "Week 2 complete: verified headless QGIS end-to-end"
-- `36adf92` "Add SESSION_CONTEXT.md handoff notes for Week 2"
-The working tree is clean (everything is committed).
+- `GET /health` → QGIS 3.44.11 running, 440 algorithms.
+- `POST /buffer` with `{"input_path":"data/uae_cities.geojson","distance":0.05}`
+  → 200 OK, `feature_count: 3`, output at `outputs/uae_cities_buffer.gpkg`.
+- `POST /run` with DISSOLVE:true → 1 merged polygon.
+- Missing input file → clean 400 error.
+- Output opened in QGIS Desktop over OpenStreetMap — three correct buffer zones.
 
-## Key facts and numbers
+## Key facts
 
-- Conda environment name: `gis-llm`.
-- Versions: QGIS 3.44.11-Solothurn, Python 3.12.13, GDAL 3.13.1 (all conda-forge).
-- To run any script (3 steps, in git bash):
-  ```
-  conda activate gis-llm
-  source fix_qgis_env.sh
-  python headless_qgis_test.py
-  ```
-- Test results: 32 data providers loaded, 440 processing algorithms available,
-  3 UAE cities loaded (Sharjah, Dubai, Abu Dhabi).
-- The test runs `native:buffer` and writes `buffered_cities.gpkg` (3 buffer
-  polygons). This file is git-ignored and is re-created on each run.
-- Sample data lives at `data/uae_cities.geojson`.
-
-## Problem hit and how it was solved
-
-`import qgis` fails in git bash on Windows unless `fix_qgis_env.sh` is sourced
-first — this was already known and is handled by the 3-step run above.
-
-New this session: re-running the script while `buffered_cities.gpkg` is open in
-QGIS Desktop gives `PermissionError: [WinError 32] ... used by another process`.
-This is Windows locking the open file, not a code bug. Fix: close the file in
-QGIS first, then re-run. Resolved.
+- Endpoints and their meaning are documented in the docstrings inside `api.py`.
+- Generated outputs go to `outputs/` (git-ignored).
+- The `/run` endpoint is the general form; Week 4's LLM "tools" will map onto it.
 
 ## Next step
 
-Start Week 3: build a lightweight REST API bridge (FastAPI over PyQGIS) that
-reuses the headless-startup code from `headless_qgis_test.py`. The LLM will
-later send JSON requests to this API to run QGIS operations.
+Week 4 — define the LLM function-calling "tools": strict JSON schemas the LLM
+fills out for each operation, which map onto the `/run` endpoint built this week.

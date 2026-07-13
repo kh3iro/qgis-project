@@ -49,9 +49,19 @@ don't "fix" it, it'll break the path.)
   Tiles → OpenStreetMap) and screenshotted for the weekly report. Sample data
   now lives in `data/uae_cities.geojson` (the script was fixed to stop dropping
   a duplicate copy in the project root).
-- **Week 3+**: not started yet. Next action: build the REST API bridge
-  (FastAPI over PyQGIS), reusing the headless-startup code from
-  `headless_qgis_test.py`.
+- **Week 3**: IN PROGRESS (started 2026-07-13). REST API bridge built and
+  verified end-to-end. New files: `qgis_engine.py` (headless startup extracted
+  from the Week 2 script into a shared, reusable module — QGIS boots once and
+  stays alive), `api.py` (FastAPI server), `requirements.txt` (fastapi +
+  uvicorn, installed into `gis-llm` via pip). Endpoints: `GET /health`,
+  `GET /algorithms[?filter=]`, `POST /buffer`, `POST /run` (generic algorithm
+  runner). Tested with curl: /buffer → 3 city buffers, /run with DISSOLVE → 1
+  merged polygon, missing-file → clean 400. Generated outputs go to `outputs/`
+  (git-ignored).
+  Run it: `conda activate gis-llm` → `source fix_qgis_env.sh` →
+  `uvicorn api:app --reload`, then browse http://127.0.0.1:8000/docs.
+  Next: harden/extend (more operations, input-path safety) then Week 4 —
+  define the LLM function-calling "tools" that map onto `/run`.
 
 ## Environment setup (read this before running anything)
 

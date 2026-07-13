@@ -1,0 +1,11 @@
+# Python packages for the Week 3 QGIS API bridge.
+#
+# NOTE: QGIS itself, PyQGIS, GDAL and Python are installed via conda-forge into
+# the 'gis-llm' environment (see CLAUDE.md) — they are NOT pip packages and are
+# deliberately not listed here. This file covers only the pure-Python web layer.
+#
+# Install into the active 'gis-llm' env with:
+#     pip install -r requirements.txt
+
+fastapi        # the web framework that defines the API endpoints
+uvicorn        # the ASGI server that actually runs the FastAPI app

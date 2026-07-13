@@ -16,6 +16,9 @@ buffered_cities.gpkg
 *.gpkg-shm
 *.gpkg-wal
 
+# Week 3 API: generated geoprocessing outputs
+outputs/
+
 # VS Code (keep this light; some teams commit .vscode, we won't for now)
 .vscode/
 
