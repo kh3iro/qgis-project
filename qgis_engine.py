@@ -225,3 +225,116 @@ def _jsonify(value):
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return str(value)
+
+
+# ---------------------------------------------------------------------------
+# Layer helpers (added in Week 4)
+# ---------------------------------------------------------------------------
+# Week 3 only ever needed "run an algorithm". Week 4 gives the LLM *inspection*
+# tools too — an agent has to be able to look at a layer before it can decide
+# what to do with it — plus the CRS maths that makes "buffer by 500 metres"
+# behave correctly on data stored in degrees.
+
+# Human-readable names for QgsWkbTypes geometry type codes (0/1/2/...).
+_GEOMETRY_TYPE_NAMES = {0: "point", 1: "line", 2: "polygon", 3: "unknown", 4: "null"}
+
+
+def load_layer(path, name="layer"):
+    """Open a vector file as a QgsVectorLayer, or raise a clear error.
+
+    Every tool that touches a file funnels through here so the error message for
+    "that file isn't a readable vector layer" is written in exactly one place.
+    """
+    layer = QgsVectorLayer(path, name, "ogr")
+    if not layer.isValid():
+        raise ValueError(
+            f"'{path}' could not be opened as a vector layer. Check that the "
+            f"file exists and is a format QGIS understands (.geojson, .gpkg, "
+            f".shp, ...)."
+        )
+    return layer
+
+
+def describe_layer(path):
+    """Summarise a vector layer: CRS, geometry type, feature count, fields, extent.
+
+    This is the single most useful thing an LLM agent can ask for. Without it the
+    model has to *guess* what's in a file — which field names exist, whether the
+    coordinates are in degrees or metres. With it, the model can look first and
+    act second, exactly like a human analyst opening the attribute table.
+    """
+    layer = load_layer(path)
+    crs = layer.crs()
+    extent = layer.extent()
+
+    fields = [
+        {"name": f.name(), "type": f.typeName()}
+        for f in layer.fields()
+    ]
+
+    info = {
+        "path": path,
+        "feature_count": layer.featureCount(),
+        "geometry_type": _GEOMETRY_TYPE_NAMES.get(layer.geometryType(), "unknown"),
+        "crs": crs.authid() or "unknown",
+        "crs_description": crs.description(),
+        # The practical question the LLM actually needs answered: are the numbers
+        # in this file degrees (lat/lon) or metres? It changes what a "distance"
+        # even means.
+        "crs_is_geographic": crs.isGeographic(),
+        "units": "degrees" if crs.isGeographic() else "metres (or other projected unit)",
+        "fields": fields,
+        "extent": {
+            "xmin": extent.xMinimum(), "ymin": extent.yMinimum(),
+            "xmax": extent.xMaximum(), "ymax": extent.yMaximum(),
+        } if layer.featureCount() else None,
+    }
+    del layer  # release the file handle (matters on Windows)
+    return info
+
+
+def metric_crs_for_layer(layer):
+    """Pick a sensible metre-based CRS for a layer stored in degrees.
+
+    WHY THIS EXISTS
+    ---------------
+    Our sample data is EPSG:4326 — coordinates are degrees of longitude/latitude.
+    QGIS's buffer algorithm works in *layer units*, so asking for `DISTANCE: 500`
+    on that layer means 500 DEGREES, which is nonsense (the Earth is 360 degrees
+    around). To buffer by real metres you must first project the data into a CRS
+    whose unit is the metre.
+
+    We choose the UTM zone that covers the middle of the layer. UTM is a family
+    of 60 metre-based projections, each 6 degrees of longitude wide, and inside
+    its own zone it keeps distances accurate to within ~0.1%. The alternative
+    people often reach for — Web Mercator / EPSG:3857 — is a bad choice here: it
+    stretches distances by 1/cos(latitude), which at the UAE's ~25°N would make a
+    500 m buffer come out ~10% too big.
+
+    Returns an EPSG authid string like 'EPSG:32640' (UTM zone 40N, the UAE).
+    """
+    centre = layer.extent().center()
+    # UTM zones are numbered 1-60 eastward from longitude -180.
+    zone = int((centre.x() + 180) / 6) + 1
+    zone = max(1, min(60, zone))
+    # 326xx = northern hemisphere, 327xx = southern.
+    epsg = 32600 + zone if centre.y() >= 0 else 32700 + zone
+    return f"EPSG:{epsg}"
+
+
+def run_step(algorithm_id, params):
+    """Run one algorithm and return its RAW result dict (no summary, no checks).
+
+    `run_algorithm()` above is the "one operation, then verify it" form used by
+    the API. Some Week 4 tools need to chain several algorithms together
+    (reproject -> buffer -> reproject back) where the intermediate steps produce
+    in-memory layers rather than files. This is the low-level form for those
+    middle steps; the final step still goes through `run_algorithm()` so the
+    caller gets a feature count.
+
+    Pass "TEMPORARY_OUTPUT" as the OUTPUT to keep a step's result in memory —
+    processing.run() then hands back a live QgsVectorLayer you can feed straight
+    into the next algorithm as its INPUT.
+    """
+    import processing  # lazy: only exists after start_qgis()
+    return processing.run(algorithm_id, params)

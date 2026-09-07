@@ -25,23 +25,93 @@ don't "fix" it, it'll break the path.)
 
 ## The professor's suggested steps (the roadmap)
 
-1. **Week 1 — Learn QGIS** + search the literature for similar projects.
-2. **Week 2 — Headless QGIS Python environment.** LLMs can't use the GUI, so set
-   up QGIS to run in headless mode via Python (PyQGIS).
-3. **Week 3 — QGIS API wrapper (the bridge).** A lightweight REST API middleman:
-   the LLM sends JSON requests, the API executes the PyQGIS commands.
-4. **Week 4 — Define LLM "tools" (function calling).** Strict JSON schemas the
-   LLM fills out, instead of asking it to write raw Python.
-5. **Week 5 — LLM execution loop.** Orchestration code connecting the user's
-   prompt, the LLM, and the QGIS API.
+Month 1: Foundation, Infrastructure, and API Development
+
+Week 1: QGIS Fundamentals & Literature Review
+Goal: Understand the domain and define the technical boundaries of the project.
+•	Tasks:
+o	QGIS GUI: Install QGIS. Spend time manually doing basic spatial operations (buffering, clipping, spatial joins, coordinate reference system (CRS) transformations) to understand the underlying logic.
+o	Literature Search: Search for papers on "Agentic GIS", "LLM-driven spatial analysis", "Headless QGIS", and "GeoAI".
+o	Scope Definition: Select the top 5-10 GIS operations your LLM must be able to perform for this specific project.
+
+Week 2: Headless QGIS Environment Setup
+Goal: Get QGIS running via Python without the Graphical User Interface (GUI).
+•	Tasks:
+o	Environment Setup: Install QGIS standalone. Set up a dedicated Python virtual environment.
+o	"Hello World" Script: Write a basic PyQGIS script that runs headlessly: initializes the QGIS application, loads a vector layer (e.g., GeoJSON/Shapefile), reads the feature count, and prints it.
+
+Week 3: Build the QGIS API Wrapper (The Bridge)
+Goal: Create the REST API that translates HTTP requests into PyQGIS commands.
+•	Tasks:
+o	Framework Selection: Set up a lightweight API framework (FastAPI is highly recommended due to its native JSON schema generation and async capabilities).
+o	State Management: Design how the API will hold layers in memory between requests (e.g., using a global dictionary or Redis) so the LLM can chain operations (Load -> Buffer -> Export).
+o	Endpoint Creation: Build the first few endpoints based on Week 1's scope (e.g., POST /load_layer, POST /buffer, POST /export_layer).
+
+Week 4: API Refinement & Mid-Point Checkpoint
+Goal: Ensure the API is robust, documented, and ready for LLM integration.
+•	Tasks:
+o	Expand Tools: Add the remaining GIS operations to the API.
+o	Error Handling: Implement strict error handling (e.g., returning proper HTTP 400/500 codes if a layer name doesn't exist or a CRS is invalid).
+o	Testing: Use Postman or Swagger UI to test the API manually. Ensure sequential workflows work perfectly.
+
+
+
+Month 2: LLM Integration, Orchestration, and Polish
+
+Week 5: Define LLM "Tools" (Function Calling)
+Goal: Translate your API endpoints into strict JSON schemas that the LLM can understand.
+•	Tasks:
+o	JSON Schemas: Define the function/tool schemas for your LLM provider (OpenAI,  or local). Map these exactly to your FastAPI endpoints.
+o	System Prompt Engineering: Write a strong system prompt. 
+o	Testing: Use the LLM provider's playground to test if the LLM correctly generates the JSON payloads for your tools based on natural language prompts.
+
+Week 6: Implement the LLM Execution Loop
+
+Goal: Build the orchestration code that connects the user, the LLM, and the QGIS API.
+•	Tasks:
+o	The Loop: Write the main Python script.
+1.	Receive user prompt.
+2.	Send to LLM with tools.
+3.	LLM returns tool call (JSON).
+4.	Python parses JSON and makes an HTTP request to your QGIS API.
+5.	API returns the result (e.g., "Buffer successful, 50 features").
+6.	Send result back to LLM to generate a human-readable final answer.
+o	Multi-step Reasoning: Implement logic to handle chained tasks 
+
+Week 7: End-to-End Testing, Edge Cases & Memory
+Goal: Make the system reliable and conversational.
+•	Tasks:
+o	Conversational Memory: Add a memory buffer so the LLM remembers previous layers and operations in the same session 
+o	Edge Case Handling: Test what happens when the LLM generates invalid JSON, or when the QGIS API fails. Implement fallback mechanisms (e.g., asking the user for clarification).
+o	Performance Tuning: Optimize the loop to reduce latency (e.g., streaming LLM responses).
+
+Week 8: Documentation, Deployment & Final Handover
+Goal: Wrap up the project, document the architecture, and prepare for presentation.
+•	Tasks:
+o	Documentation: Write a comprehensive README.md. Include architecture diagrams, setup instructions for the headless QGIS environment, and API documentation.
+o	Code Cleanup: Refactor code, add comments, and ensure PEP-8 compliance.
+o	Demo Preparation: Create a short script or video demonstrating the LLM successfully executing a complex, multi-step GIS workflow via natural language.
+
+Key Literature/Concepts to Research Along the Way:
+To supplement your work, search for these specific concepts in the literature:
+1.	ReAct Prompting (Reasoning and Acting): Essential for Week 6 to allow the LLM to plan multi-step GIS workflows.
+2.	PyQGIS Headless Initialization
+3.	LLM Tool Use / Function Calling Limits: Research how to handle context window limits if the LLM needs to read large GeoJSON properties. (Tip: Have the API return summaries or counts to the LLM, not raw spatial data).
+4.	CRS (Coordinate Reference System) Handling in LLMs: LLMs are notoriously bad at spatial math. 
+
 
 (Other steps from the literature are allowed. A colleague, Mohamed, can help.)
 
 ## Current status
 
-- **Week 1**: mostly done — understood conceptually what QGIS is. Still need
-  hands-on practice in QGIS Desktop and a proper literature search (see leads
-  below).
+**Month 1 (Weeks 1–4) is complete as of 2026-09-07.** Presentation materials are
+in `docs/`. Run `python test_tools.py` for the live proof that it all works.
+
+- **Week 1**: DONE. Conceptual understanding of QGIS, plus the literature search
+  written up in `docs/LITERATURE_REVIEW.md` (Autonomous GIS / LLM-Geo, GIS
+  Copilot, ChatGeoAI, IntelliGeo, the function-calling vs code-generation
+  evidence, and the 2025–26 benchmarks). Hands-on QGIS Desktop practice happened
+  through Weeks 2–3 (loading layers, OpenStreetMap basemap, inspecting outputs).
 - **Week 2**: DONE (verified end-to-end on 2026-07-06). `headless_qgis_test.py`
   runs clean — every step prints `[OK]`, QGIS 3.44 boots headless, runs
   `native:buffer`, and writes `buffered_cities.gpkg` (3 circular city buffers).
@@ -49,7 +119,7 @@ don't "fix" it, it'll break the path.)
   Tiles → OpenStreetMap) and screenshotted for the weekly report. Sample data
   now lives in `data/uae_cities.geojson` (the script was fixed to stop dropping
   a duplicate copy in the project root).
-- **Week 3**: IN PROGRESS (started 2026-07-13). REST API bridge built and
+- **Week 3**: DONE (2026-07-13). REST API bridge built and
   verified end-to-end. New files: `qgis_engine.py` (headless startup extracted
   from the Week 2 script into a shared, reusable module — QGIS boots once and
   stays alive), `api.py` (FastAPI server), `requirements.txt` (fastapi +
@@ -60,8 +130,38 @@ don't "fix" it, it'll break the path.)
   (git-ignored).
   Run it: `conda activate gis-llm` → `source fix_qgis_env.sh` →
   `uvicorn api:app --reload`, then browse http://127.0.0.1:8000/docs.
-  Next: harden/extend (more operations, input-path safety) then Week 4 —
-  define the LLM function-calling "tools" that map onto `/run`.
+
+- **Week 4**: DONE (2026-09-07). The LLM function-calling "tool" layer.
+  New files:
+  - `qgis_tools.py` — **the Week 4 deliverable**. 11 tools, each defined by a
+    Pydantic model that produces BOTH the strict JSON Schema sent to the LLM and
+    the validation applied to what comes back (one source of truth, so they can't
+    drift). Tools: `list_available_layers`, `describe_layer`, `buffer_layer`,
+    `clip_layer`, `intersect_layers`, `dissolve_layer`, `extract_by_expression`,
+    `spatial_join`, `centroids`, `convex_hull`, `reproject_layer`.
+    Also: a path sandbox (inputs confined to `data/`+`outputs/`, outputs forced
+    into `outputs/`), and errors written to be *read by the LLM* so it can
+    self-correct.
+  - `test_tools.py` — verification, no API key needed. **42/42 passing.** Checks
+    schemas are strict, every tool runs on the sample data, a 5 km buffer really
+    measures 5 km, and 12 kinds of bad tool call are refused with a useful
+    message.
+  - `llm_tool_demo.py` — one real round-trip: prompt → Claude picks a tool →
+    we validate and run it → result goes back → plain-English answer. Needs an
+    API key in `.env`; exits cleanly with instructions if there isn't one.
+  - `data/uae_emirates.geojson`, `data/uae_roads.geojson` — simplified polygon
+    and line layers (clearly labelled as teaching data, not real boundaries) so
+    clip / intersect / spatial-join can be demonstrated.
+  - `api.py` gained `GET /tools`, `POST /tools/execute`, `GET /layers`.
+  - `docs/LITERATURE_REVIEW.md`, `docs/MONTH1_REPORT.md`.
+
+  **The buffer tool is the one to demo.** Ask for 500 metres on EPSG:4326 data
+  and it reprojects to the correct UTM zone, buffers, and reprojects back —
+  because QGIS buffers in *layer units*, so a naive 500 would mean 500 degrees.
+
+  Next: Week 5 — the orchestration loop (multi-step tool chaining, error
+  recovery, conversation memory). `llm_tool_demo.py`'s `run_once()` is the
+  function that becomes that loop.
 
 ## Environment setup (read this before running anything)
 

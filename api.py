@@ -35,6 +35,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 import qgis_engine  # our shared headless-QGIS startup module (Week 3)
+import qgis_tools   # the LLM tool definitions + validated dispatch (Week 4)
 
 # Where generated outputs go by default. Kept separate from the repo's data/
 # folder (that's for *inputs*) and git-ignored so we don't commit heavy files.
@@ -194,11 +195,69 @@ def run(req: RunRequest):
     return {"status": "ok", **summary}
 
 
+# ---------------------------------------------------------------------------
+# Week 4 endpoints — the LLM-facing surface
+# ---------------------------------------------------------------------------
+# /algorithms and /run above expose QGIS *as QGIS sees itself*: 440 algorithms
+# with names like 'native:joinattributesbylocation' and parameters like
+# PREDICATE: [5]. That is the right interface for a programmer and the wrong one
+# for a language model.
+#
+# The two endpoints below expose the same engine as a small, described,
+# strictly-typed menu instead. /tools is what you show the model; /tools/execute
+# is what you call with whatever it sends back.
+class ToolCallRequest(BaseModel):
+    """One tool call, in exactly the shape an LLM produces it."""
+    name: str = Field(..., description="The tool the model chose, e.g. 'buffer_layer'.")
+    arguments: dict = Field(
+        default_factory=dict,
+        description="The arguments it filled in, e.g. "
+                    "{'layer': 'uae_roads', 'distance_meters': 500}.",
+    )
+
+
+@app.get("/tools")
+def tools():
+    """The tool catalogue — the JSON schemas we hand to the LLM.
+
+    Copy this straight into the Claude API's `tools` parameter. Each entry
+    carries a plain-English description and a strict JSON Schema, so the model
+    fills in a form instead of guessing QGIS parameter names.
+    """
+    definitions = qgis_tools.tool_definitions()
+    return {"count": len(definitions), "tools": definitions}
+
+
+@app.post("/tools/execute")
+def execute_tool(req: ToolCallRequest):
+    """Validate and run one tool call. The Week 4 endpoint Week 5's loop will use.
+
+    Returns 200 with the result, or 400 with an explanation written to be read by
+    the model itself — an LLM that gets "field 'populaton' does not exist;
+    available fields are: name, population" can fix its own mistake on the next
+    turn, which is the whole point of the design.
+    """
+    try:
+        return qgis_tools.execute_tool(req.name, req.arguments)
+    except qgis_tools.ToolError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/layers")
+def layers():
+    """List the vector layers available in data/ and outputs/."""
+    found = qgis_tools.list_layers()
+    return {"count": len(found), "layers": found}
+
+
 @app.get("/")
 def root():
     """Tiny landing response pointing you at the interactive docs."""
     return {
-        "service": "QGIS Bridge API (Week 3)",
+        "service": "QGIS Bridge API (Weeks 3-4)",
         "docs": "/docs",
-        "endpoints": ["/health", "/algorithms", "/buffer", "/run"],
+        "endpoints": {
+            "week_3_raw_qgis": ["/health", "/algorithms", "/buffer", "/run"],
+            "week_4_llm_tools": ["/tools", "/tools/execute", "/layers"],
+        },
     }

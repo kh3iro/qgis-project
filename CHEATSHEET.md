@@ -27,6 +27,23 @@ server runs until you stop it.** Once you see `Uvicorn running on ...`, open
 This alias occupies the terminal, so open a second git bash tab for other work.
 
 ```bash
+python test_tools.py
+```
+Runs the Week 4 verification: 42 checks covering every tool schema, every tool
+running for real against the sample data, and every kind of bad request being
+refused. Needs no API key and no internet. **This is the one command to run
+before demoing anything** — if it says `42 passed, 0 failed`, everything works.
+(Needs the usual `conda activate gis-llm` + `source fix_qgis_env.sh` first.)
+
+```bash
+python llm_tool_demo.py "buffer the roads layer by 500 metres"
+```
+The live LLM demo: sends your sentence and the 11 tool schemas to Claude, runs
+whatever tool it picks, and prints the answer. Needs `pip install anthropic` and
+an `ANTHROPIC_API_KEY` in a `.env` file in the project root. Without a key it
+tells you what's missing and exits — it never fakes a result.
+
+```bash
 gsave "short message describing what changed"
 ```
 Stages all changed files and commits them with your message, in one step.

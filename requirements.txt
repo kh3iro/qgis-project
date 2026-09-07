@@ -1,11 +1,20 @@
-# Python packages for the Week 3 QGIS API bridge.
+# Python packages for the QGIS + LLM bridge.
 #
 # NOTE: QGIS itself, PyQGIS, GDAL and Python are installed via conda-forge into
 # the 'gis-llm' environment (see CLAUDE.md) — they are NOT pip packages and are
-# deliberately not listed here. This file covers only the pure-Python web layer.
+# deliberately not listed here. This file covers only the pure-Python layers.
 #
 # Install into the active 'gis-llm' env with:
+#     conda activate gis-llm
 #     pip install -r requirements.txt
 
+# --- Week 3: the REST API bridge -------------------------------------------
 fastapi        # the web framework that defines the API endpoints
 uvicorn        # the ASGI server that actually runs the FastAPI app
+               # (pydantic comes with fastapi, and Week 4 uses it for the
+               #  tool schemas — no separate install needed)
+
+# --- Week 4: talking to the LLM --------------------------------------------
+anthropic      # official Claude SDK, used by llm_tool_demo.py
+               # Only needed to run the live LLM demo. The tool layer itself
+               # (qgis_tools.py) and its test suite work without it.

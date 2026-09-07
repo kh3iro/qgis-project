@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "name": "uae_emirates",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "_comment": "SIMPLIFIED TEACHING DATA — these are rough rectangles, NOT real emirate boundaries. They exist so the demo can show clip / intersection / spatial-join working. Do not use for any real analysis.",
+  "features": [
+    { "type": "Feature",
+      "properties": { "emirate": "Abu Dhabi", "area_rank": 1 },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [53.80, 24.00], [55.00, 24.00], [55.00, 24.90], [53.80, 24.90], [53.80, 24.00]
+      ]] } },
+    { "type": "Feature",
+      "properties": { "emirate": "Dubai", "area_rank": 2 },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [55.00, 24.90], [55.35, 24.90], [55.35, 25.30], [55.00, 25.30], [55.00, 24.90]
+      ]] } },
+    { "type": "Feature",
+      "properties": { "emirate": "Sharjah", "area_rank": 3 },
+      "geometry": { "type": "Polygon", "coordinates": [[
+        [55.35, 25.25], [55.75, 25.25], [55.75, 25.60], [55.35, 25.60], [55.35, 25.25]
+      ]] } }
+  ]
+}
