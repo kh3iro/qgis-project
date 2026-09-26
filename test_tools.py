@@ -56,7 +56,7 @@ def check(description, condition, detail=""):
         print(f"  [OK]   {description}")
     else:
         FAILED += 1
-        print(f"  [FAIL] {description}" + (f" — {detail}" if detail else ""))
+        print(f"  [FAIL] {description}" + (f": {detail}" if detail else ""))
 
 
 def heading(text):
@@ -67,7 +67,7 @@ def heading(text):
 # PART 1 — the schemas
 # ===========================================================================
 def test_schemas():
-    heading("PART 1 — Tool schemas (what the LLM is shown)")
+    heading("PART 1: Tool schemas (what the LLM is shown)")
 
     definitions = qgis_tools.tool_definitions()
     check(f"{len(definitions)} tools defined", len(definitions) == len(qgis_tools.TOOLS))
@@ -167,7 +167,7 @@ HAPPY_PATH = [
 
 
 def test_happy_path():
-    heading("PART 2 — Every tool runs (simulated LLM tool calls)")
+    heading("PART 2: Every tool runs (simulated LLM tool calls)")
 
     for tool_name, arguments, expectation in HAPPY_PATH:
         try:
@@ -188,7 +188,7 @@ def test_buffer_is_actually_metres():
     result's real-world size instead of trusting the label — measure the buffered
     layer in a metre-based CRS and confirm it grew by the distance we asked for.
     """
-    heading("PART 2b — 'metres' really means metres (the CRS trap)")
+    heading("PART 2b: 'metres' really means metres (the CRS trap)")
 
     distance = 5000  # 5 km — big enough to measure unambiguously
     qgis_tools.execute_tool("buffer_layer", {
@@ -276,7 +276,7 @@ BAD_CALLS = [
 
 
 def test_bad_calls():
-    heading("PART 3 — Bad tool calls are refused (with a message the LLM can use)")
+    heading("PART 3: Bad tool calls are refused (with a message the LLM can use)")
 
     for label, tool_name, arguments, expected_phrase in BAD_CALLS:
         try:
@@ -296,7 +296,7 @@ def test_bad_calls():
 
 def test_output_sandbox():
     """Outputs can never be written outside outputs/, whatever name is supplied."""
-    heading("PART 3b — Output paths are confined to outputs/")
+    heading("PART 3b: Output paths are confined to outputs/")
 
     for attempt in ["../../escape", "C:/Windows/evil", "..\\..\\evil", "sub/dir/name"]:
         path = qgis_tools.resolve_output_path(attempt, "fallback")
@@ -340,7 +340,7 @@ def main():
     heading("RESULT")
     print(f"  {PASSED} passed, {FAILED} failed")
     if FAILED:
-        print("\n  Week 4 tool layer is NOT healthy — see the [FAIL] lines above.")
+        print("\n  Week 4 tool layer is NOT healthy. See the [FAIL] lines above.")
         return 1
     print("\n  Week 4 tool layer verified: schemas are strict, every tool runs,")
     print("  and every bad call is refused with an explanation the LLM can act on.")

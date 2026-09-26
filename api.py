@@ -61,11 +61,42 @@ async def lifespan(app: FastAPI):
     print("[api] QGIS shut down cleanly.")
 
 
+TAGS = [
+    {
+        "name": "Status",
+        "description": "Check that QGIS started correctly and see what it loaded.",
+    },
+    {
+        "name": "LLM tools",
+        "description": "The interface a language model uses. `/tools` returns the "
+                       "11 tool descriptions the model is shown. `/tools/execute` "
+                       "runs one of them, after validating the arguments and "
+                       "confirming the file paths stay inside the project.",
+    },
+    {
+        "name": "Direct QGIS access",
+        "description": "The raw interface, for testing by hand. Any of the 440 "
+                       "QGIS processing algorithms can be run here using its own "
+                       "parameter names.",
+    },
+]
+
 app = FastAPI(
-    title="QGIS Bridge API",
-    description="Week 3 — a REST bridge that runs headless QGIS geoprocessing "
-                "from JSON requests.",
-    version="0.1.0",
+    title="QGIS Bridge",
+    description=(
+        "A web interface to QGIS running with no graphical window.\n\n"
+        "The server starts QGIS once when it boots and keeps it running, so the "
+        "440 processing algorithms are loaded a single time rather than on every "
+        "request.\n\n"
+        "There are two ways in. **LLM tools** is the interface built for a "
+        "language model: a small set of named operations with strict argument "
+        "schemas, checked before anything runs. **Direct QGIS access** is the raw "
+        "interface, useful for testing.\n\n"
+        "Every endpoint below can be run from this page. Open one, press "
+        "*Try it out*, edit the request, then press *Execute*."
+    ),
+    version="1.0.0",
+    openapi_tags=TAGS,
     lifespan=lifespan,
 )
 
@@ -100,7 +131,8 @@ class RunRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
-@app.get("/health")
+@app.get("/health", tags=["Status"], summary="Is QGIS running?",
+          description='Confirms that QGIS started correctly and reports its version and how many processing algorithms are loaded.')
 def health():
     """Liveness check: is QGIS booted, and how many algorithms are loaded?
 
@@ -114,7 +146,8 @@ def health():
     }
 
 
-@app.get("/algorithms")
+@app.get("/algorithms", tags=["Direct QGIS access"], summary="List QGIS algorithms",
+          description='Lists the QGIS processing algorithms available on this server. Add `?filter=buffer` to narrow the list to matching names.')
 def algorithms(filter: str | None = None):
     """List available processing algorithms, optionally filtered by substring.
 
@@ -125,7 +158,11 @@ def algorithms(filter: str | None = None):
     return {"count": len(matches), "algorithms": matches}
 
 
-@app.post("/buffer")
+@app.post("/buffer", tags=["Direct QGIS access"], summary="Run a buffer directly",
+          responses={400: {"description": "The input file does not exist."},
+                     409: {"description": "The output file is open in another program."},
+                     500: {"description": "QGIS reported an error while running."}},
+          description="Runs a QGIS buffer on a layer. The distance is in the layer's own units, so for latitude and longitude data it is in degrees. The LLM tool version, `buffer_layer`, takes metres instead.")
 def buffer(req: BufferRequest):
     """Run native:buffer — the concrete, friendly example operation.
 
@@ -175,7 +212,9 @@ def buffer(req: BufferRequest):
     return {"status": "ok", **summary}
 
 
-@app.post("/run")
+@app.post("/run", tags=["Direct QGIS access"], summary="Run any QGIS algorithm",
+          responses={500: {"description": "QGIS reported an error while running."}},
+          description="Runs any QGIS processing algorithm by its ID, using QGIS's own parameter names. For example `native:buffer` with `INPUT`, `DISTANCE` and `OUTPUT`.")
 def run(req: RunRequest):
     """Run ANY processing algorithm — the generic heart of the bridge.
 
@@ -216,7 +255,8 @@ class ToolCallRequest(BaseModel):
     )
 
 
-@app.get("/tools")
+@app.get("/tools", tags=["LLM tools"], summary="The tool descriptions sent to the model",
+          description='Returns the 11 tools exactly as they are sent to the language model. Each one has a plain description and a strict schema listing the arguments it accepts.')
 def tools():
     """The tool catalogue — the JSON schemas we hand to the LLM.
 
@@ -228,7 +268,9 @@ def tools():
     return {"count": len(definitions), "tools": definitions}
 
 
-@app.post("/tools/execute")
+@app.post("/tools/execute", tags=["LLM tools"], summary="Run one tool call",
+          responses={400: {"description": "The tool call was refused. The message says what was wrong."}},
+          description='Runs one tool call in the same form a language model sends it. The arguments are checked first. A valid call returns 200 with the result. An invalid one returns 400 with a message explaining what was wrong, so the model can correct itself and try again.')
 def execute_tool(req: ToolCallRequest):
     """Validate and run one tool call. The Week 4 endpoint Week 5's loop will use.
 
@@ -243,14 +285,15 @@ def execute_tool(req: ToolCallRequest):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.get("/layers")
+@app.get("/layers", tags=["LLM tools"], summary="List available map layers",
+          description='Lists the map layers the tools can use: the input data in `data/` and the results of earlier operations in `outputs/`.')
 def layers():
     """List the vector layers available in data/ and outputs/."""
     found = qgis_tools.list_layers()
     return {"count": len(found), "layers": found}
 
 
-@app.get("/")
+@app.get("/", tags=["Status"], summary="Service overview", include_in_schema=False)
 def root():
     """Tiny landing response pointing you at the interactive docs."""
     return {

@@ -163,6 +163,26 @@ in `docs/`. Run `python test_tools.py` for the live proof that it all works.
   recovery, conversation memory). `llm_tool_demo.py`'s `run_once()` is the
   function that becomes that loop.
 
+- **Month 1 presented** in person in early September (deck:
+  `..\QGIS LLM - Month 1 Presentation v2.pptx`).
+  **Supervisor's direction for the next stage (changes the plan):** move from
+  fixed predefined tools to letting the LLM *write the geoprocessing code
+  itself*, so users with no GIS knowledge can just describe what they want.
+  The headless engine, file-access sandbox and error messages built so far
+  should be reused for running generated code safely.
+- **2026-09-22:** Monthly work evidence report written. The version to submit is
+  the short 6-page one, `..\Reports\Work Evidence Report - Kheireddine Sebihi.docx`
+  (+ .pdf). It is plain prose, no tables or contents page, with the name and
+  "Supervisors: Prof. Qassim Nasir and Dr. Manar" at the top. The user wants
+  reports short and not "AI-structured" (prose over bullets and tables, no em
+  dashes). The supervisor does NOT want a sandbox or safety framing for the
+  code-generation stage, so don't propose one. Also cleaned the wording shown on the `/docs` page and in tool
+  descriptions/errors (no em dashes, no "Week N" references) and declared the
+  400/409/500 responses in `api.py`. Tests still 42/42. These code edits are
+  not yet committed.
+  People: supervisor Prof. Qassim Nasir (College of Computing and Informatics),
+  mentor Mohammed Eljack, SSCCR research center, University of Sharjah.
+
 ## Environment setup (read this before running anything)
 
 - Editor: VS Code with the git bash terminal (MINGW64).

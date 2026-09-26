@@ -194,7 +194,7 @@ def _prepare_output(path):
             # holds the file open. Worth naming explicitly — it is by far the
             # most common confusing failure in this project.
             raise ToolError(
-                f"Cannot overwrite '{os.path.basename(path)}' — the file is open "
+                f"Cannot overwrite '{os.path.basename(path)}' because the file is open "
                 f"in another program (usually QGIS Desktop). Close the layer "
                 f"there and try again, or choose a different output_name."
             )
@@ -278,7 +278,7 @@ class BufferArgs(ToolArgs):
     """Draw a zone of a given distance in metres around every feature in a layer.
 
     This answers questions like "which areas are within 500 m of a road?".
-    The distance is always in METRES — this tool handles the coordinate-system
+    The distance is always in METRES. This tool handles the coordinate-system
     conversion itself, so you never need to convert to degrees.
     """
     layer: str = Field(..., description="The layer to buffer, e.g. 'uae_roads'.")
@@ -319,8 +319,8 @@ class ClipArgs(ToolArgs):
 class IntersectArgs(ToolArgs):
     """Keep only the parts where two layers overlap, combining the attributes of both.
 
-    Similar to clip, but the result carries the attribute fields of BOTH layers —
-    use this when you need to know which feature of the second layer each piece
+    Similar to clip, but the result carries the attribute fields of BOTH layers.
+    Use this when you need to know which feature of the second layer each piece
     came from.
     """
     layer_a: str = Field(..., description="First layer.")
@@ -335,7 +335,7 @@ class DissolveArgs(ToolArgs):
     """Merge features into one, optionally grouping by a shared attribute value.
 
     With no field, everything becomes a single feature. With a field, you get one
-    feature per distinct value of that field — e.g. dissolving buffers by
+    feature per distinct value of that field. For example, dissolving buffers by
     'road_type' gives one shape for highways and one for arterials.
     """
     layer: str = Field(..., description="The layer to dissolve.")
@@ -374,7 +374,7 @@ class ExtractByExpressionArgs(ToolArgs):
 class SpatialJoinArgs(ToolArgs):
     """Attach the attributes of one layer to another based on their locations.
 
-    Answers "which emirate is each city in?" — join the emirates layer onto the
+    Answers "which emirate is each city in?": join the emirates layer onto the
     cities layer with predicate 'within', and each city gains an 'emirate' field.
     """
     target_layer: str = Field(
@@ -415,7 +415,7 @@ class CentroidsArgs(ToolArgs):
 class ConvexHullArgs(ToolArgs):
     """Draw the smallest polygon that encloses all features in a layer.
 
-    Think of stretching an elastic band around every point — it gives you the
+    Think of stretching an elastic band around every point. It gives you the
     overall footprint or study area covered by the data.
     """
     layer: str = Field(..., description="The layer to enclose.")
@@ -858,7 +858,7 @@ def execute_tool(name, arguments):
             f"'{'.'.join(str(part) for part in err['loc']) or 'input'}': {err['msg']}"
             for err in exc.errors()
         )
-        raise ToolError(f"Invalid arguments for '{name}' — {problems}.")
+        raise ToolError(f"Invalid arguments for '{name}': {problems}.")
 
     if not qgis_engine.is_running():
         raise ToolError("QGIS is not running. Call qgis_engine.start_qgis() first.")
