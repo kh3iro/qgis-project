@@ -1,20 +1,17 @@
-# Python packages for the QGIS + LLM bridge.
+# Python packages for the QGIS agent.
 #
-# NOTE: QGIS itself, PyQGIS, GDAL and Python are installed via conda-forge into
-# the 'gis-llm' environment (see CLAUDE.md) — they are NOT pip packages and are
-# deliberately not listed here. This file covers only the pure-Python layers.
+# QGIS itself, PyQGIS, GDAL and Python come from conda-forge in the 'gis-llm'
+# environment (see CLAUDE.md); they are NOT pip packages and are not listed.
 #
-# Install into the active 'gis-llm' env with:
+# Install into the active environment with:
 #     conda activate gis-llm
 #     pip install -r requirements.txt
 
-# --- Week 3: the REST API bridge -------------------------------------------
-fastapi        # the web framework that defines the API endpoints
-uvicorn        # the ASGI server that actually runs the FastAPI app
-               # (pydantic comes with fastapi, and Week 4 uses it for the
-               #  tool schemas — no separate install needed)
+fastapi        # api.py, the REST API
+uvicorn        # runs the FastAPI server
+requests       # talks to Ollama (the local model) and OpenStreetMap
+gradio         # the chat window (app.py)
 
-# --- Week 4: talking to the LLM --------------------------------------------
-anthropic      # official Claude SDK, used by llm_tool_demo.py
-               # Only needed to run the live LLM demo. The tool layer itself
-               # (qgis_tools.py) and its test suite work without it.
+# The model itself is run by Ollama, a separate Windows program:
+#     winget install Ollama.Ollama
+#     ollama pull qwen2.5-coder:3b

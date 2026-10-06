@@ -1,16 +1,16 @@
 """
-test_tools.py — Week 4 verification: proves the LLM tool layer works, end to end.
+tests/test_tools.py: proves the fixed-tool layer (qgis_agent/qgis_tools.py) works.
 
 WHY THIS SCRIPT EXISTS
 ----------------------
-Week 2 had `headless_qgis_test.py`: run it, and every step prints [OK] or the
-whole thing stops. This is the Week 4 equivalent, and it answers the question a
-supervisor will actually ask — "how do you know the tools work?"
+A test script runs every step and prints [OK] or a clear failure, so you can
+answer the question a supervisor will actually ask: "how do you know the tools
+work?"
 
 It needs NO API key and NO internet. That is the point: a tool call from an LLM
 is just a name plus a JSON object, so we can feed the tool layer exactly the
 JSON that Claude would produce and check what comes back. Wiring in the real
-model (llm_tool_demo.py) then changes only *where the JSON comes from*, not what
+model then changes only *where the JSON comes from*, not what
 happens to it.
 
 Three things get checked:
@@ -27,15 +27,26 @@ HOW TO RUN (git bash, from the project root)
 --------------------------------------------
     conda activate gis-llm
     source fix_qgis_env.sh
-    python test_tools.py
+    python tests/test_tools.py      # run from the project root
 """
 
 import json
+import os
 import sys
 
-import qgis_engine
-import qgis_tools
-from qgis_tools import ToolError
+# This file lives in tests/, one folder below the project root. Python only
+# looks for imports next to the script being run, so we add the project root
+# to the search path; otherwise `qgis_agent` would not be found.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from qgis_agent import qgis_engine  # noqa: E402  (import after the path fix)
+from qgis_agent import qgis_tools  # noqa: E402
+from qgis_agent.qgis_tools import ToolError  # noqa: E402
+
+# The fixed tools are tested on three small, hand-made UAE layers kept in
+# tests/data/ (the real data in data/ is for the agent). Pointing the tool
+# layer's input folder there makes "uae_cities" etc. resolve as before.
+qgis_tools.DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 # Windows consoles default to a legacy code page, which turns any non-ASCII
 # character in our output into mojibake ("—" becomes "ΓÇö"). Forcing UTF-8 keeps

@@ -34,8 +34,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-import qgis_engine  # our shared headless-QGIS startup module (Week 3)
-import qgis_tools   # the LLM tool definitions + validated dispatch (Week 4)
+from qgis_agent import qgis_engine  # headless QGIS startup
+from qgis_agent import qgis_tools   # the fixed-tool layer (Month 1)
 
 # Where generated outputs go by default. Kept separate from the repo's data/
 # folder (that's for *inputs*) and git-ignored so we don't commit heavy files.
@@ -72,6 +72,11 @@ TAGS = [
                        "11 tool descriptions the model is shown. `/tools/execute` "
                        "runs one of them, after validating the arguments and "
                        "confirming the file paths stay inside the project.",
+    },
+    {
+        "name": "Agent",
+        "description": "Ask a question in plain English. The language model writes QGIS "
+                       "code, the server runs it and returns the answer and the results.",
     },
     {
         "name": "Direct QGIS access",
@@ -293,14 +298,66 @@ def layers():
     return {"count": len(found), "layers": found}
 
 
+# ---------------------------------------------------------------------------
+# The agent: ask a question in plain English
+# ---------------------------------------------------------------------------
+# The same agent as the chat window (qgis_agent/agent.py), for other programs:
+# a web page, a phone app or a script can send a question and get the answer,
+# the code that was run, and the files produced.
+_agent = None  # one shared conversation; created on first use (QGIS must be running)
+
+
+class AskRequest(BaseModel):
+    question: str = Field(..., description="A question in plain English, e.g. "
+                                           "'Which schools are more than 3 km from a hospital?'")
+    new_conversation: bool = Field(False, description="Forget earlier questions first.")
+
+
+@app.post("/ask", tags=["Agent"], summary="Ask the agent a question in plain English",
+          responses={503: {"description": "The language model (Ollama) is not reachable."}},
+          description="The model writes QGIS code, the server runs it (fixing errors itself), "
+                      "and the reply contains the plain-language answer, the code, what QGIS "
+                      "printed, the files produced and the map picture.")
+def ask(req: AskRequest):
+    global _agent
+    from qgis_agent import llm_client
+    from qgis_agent.agent import Agent
+
+    if _agent is None:
+        _agent = Agent()
+    if req.new_conversation:
+        _agent.reset()
+
+    reply = {"answer": "", "code": "", "output": "", "error": "", "attempts": 0,
+             "files": [], "map": None}
+    try:
+        for event in _agent.respond(req.question):
+            if event["type"] == "code":
+                reply["code"], reply["attempts"] = event["code"], event["attempt"]
+            elif event["type"] == "run":
+                reply["output"], reply["error"] = event["output"], event["error"]
+            elif event["type"] == "answer":
+                reply["answer"] = event["text"]
+            elif event["type"] == "files":
+                reply["files"] = [os.path.relpath(p, HERE) for p in event["paths"]]
+            elif event["type"] == "map":
+                reply["map"] = os.path.relpath(event["path"], HERE)
+            elif event["type"] == "done":
+                reply["seconds"] = round(event["seconds"], 1)
+    except llm_client.LLMError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    return reply
+
+
 @app.get("/", tags=["Status"], summary="Service overview", include_in_schema=False)
 def root():
     """Tiny landing response pointing you at the interactive docs."""
     return {
-        "service": "QGIS Bridge API (Weeks 3-4)",
+        "service": "QGIS Bridge API",
         "docs": "/docs",
         "endpoints": {
-            "week_3_raw_qgis": ["/health", "/algorithms", "/buffer", "/run"],
-            "week_4_llm_tools": ["/tools", "/tools/execute", "/layers"],
+            "agent": ["/ask"],
+            "raw_qgis": ["/health", "/algorithms", "/buffer", "/run"],
+            "fixed_llm_tools": ["/tools", "/tools/execute", "/layers"],
         },
     }

@@ -50,7 +50,7 @@ from typing import Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-import qgis_engine
+from . import qgis_engine  # the headless QGIS module, in this same folder
 
 # ---------------------------------------------------------------------------
 # Where the tools are allowed to read and write
@@ -60,7 +60,8 @@ import qgis_engine
 # cheerfully produce "C:/Windows/System32/config" if the conversation drifts
 # that way. So we never use a model-supplied path directly. Every path is
 # resolved against these two folders and rejected if it lands anywhere else.
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+# This file sits in qgis_agent/, so the project root is one folder up.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")        # inputs live here
 OUTPUTS_DIR = os.path.join(PROJECT_ROOT, "outputs")  # results are written here
 
@@ -213,7 +214,8 @@ def list_layers():
         if not os.path.isdir(folder):
             continue
         for filename in sorted(os.listdir(folder)):
-            if filename.lower().endswith(READABLE_EXTENSIONS):
+            # descriptions.json is the catalogue of layers, not a layer itself.
+            if filename.lower().endswith(READABLE_EXTENSIONS) and filename != "descriptions.json":
                 layers.append({
                     "name": filename,
                     "folder": source,

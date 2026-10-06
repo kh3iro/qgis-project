@@ -104,8 +104,11 @@ To supplement your work, search for these specific concepts in the literature:
 
 ## Current status
 
-**Month 1 (Weeks 1–4) is complete as of 2026-09-07.** Presentation materials are
-in `docs/`. Run `python test_tools.py` for the live proof that it all works.
+**Month 1 (Weeks 1–4) is complete as of 2026-09-07.** Reports, literature reviews
+and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
+`..\Literature Review\` (the project folder now holds code only). Run
+`python tests/test_tools.py` for the fixed-tool tests (42/42).
+**The current prototype (Month 2) is described in README.md; start there.**
 
 - **Week 1**: DONE. Conceptual understanding of QGIS, plus the literature search
   written up in `docs/LITERATURE_REVIEW.md` (Autonomous GIS / LLM-Geo, GIS
@@ -182,6 +185,58 @@ in `docs/`. Run `python test_tools.py` for the live proof that it all works.
   not yet committed.
   People: supervisor Prof. Qassim Nasir (College of Computing and Informatics),
   mentor Mohammed Eljack, SSCCR research center, University of Sharjah.
+- **2026-10-03:** Second literature review for the code-generation direction:
+  `docs/LITERATURE_REVIEW_CODEGEN.md`. Key conclusions: "LLM writes PyQGIS" is
+  NOT novel by itself (closest prior work: Mansourian & Oucheikh 2026, IJDE,
+  headless QGIS + generated PyQGIS). The gap to claim is the **non-expert user**:
+  layperson-worded vs expert-worded requests (unmeasured in the literature),
+  automatic geographic checks so results can be trusted (cf. GeoContra 2026),
+  and clarify-or-assume behaviour. Plan: keep `qgis_engine.py`/`api.py`; add an
+  `execute_pyqgis` runner, live QGIS algorithm docs, agent loop, checker, map
+  render; keep the 11 fixed tools as helpers and as the experimental baseline.
+  Nothing implemented yet; next step is Step 1 (code execution engine).
+- **2026-10-04:** Wider gap search; written up in
+  `docs/PROJECT_SITUATION_BRIEF.md` (+ .pdf). The user felt the gap was too
+  weak and is considering switching projects; they will talk to the mentor
+  first, then the supervisor. Corrected finding: the non-expert gap is small
+  (GeoColab 2025 already has vague "incomplete/open-ended" tasks; Ambig-DS 2026
+  covers clarification for general agents). Strongest open gap found:
+  **Arabic-language GIS agent** (Arabic/English place-name matching, accuracy
+  in Arabic vs English vs Gulf dialect, Qwen vs Arabic LLMs Jais/Falcon/Fanar,
+  run locally). Recommendation given: don't switch yet; ask what output the
+  supervisor expects (system/report vs paper). User will NOT pay for cloud
+  APIs; plans to ask the university for a GPU VM. Laptop: GTX 1650 (4 GB VRAM),
+  8 GB RAM, so only ~3-4B models locally (e.g. qwen2.5-coder:3b via Ollama).
+  Next requested work (not started): a working prototype, local Qwen connected
+  to the headless QGIS engine, to show the supervisor.
+- **2026-10-05/06 (overnight): PROTOTYPE BUILT AND TESTED.** README.md is the
+  guide. User does not want anything Arabic-related implemented (dropped).
+  - Project cleaned: docs/reports moved to `..\Docs\` and `..\Literature Review\`;
+    old scripts removed (in git history); code now in `qgis_agent/` package;
+    Month 1 teaching data moved to `tests/data/`; `data/` = real OpenStreetMap
+    Sharjah data (hospitals+clinics, schools, districts, parks, main roads) from
+    `scripts/download_osm_data.py`, described in `data/descriptions.json`.
+  - Model: Ollama installed (winget), `qwen2.5-coder:3b` (default, 100% on the
+    GTX 1650) and `qwen2.5-coder:7b` (42% GPU, ~3x slower). Ollama on this
+    laptop can silently fall back to CPU after an interrupted run (answers take
+    ~8 min); fix = quit and restart Ollama. app.py prints the GPU share at start.
+    First-ever GPU run took ~5 min (one-time CUDA setup).
+  - Architecture: app.py (Gradio chat + --terminal) -> qgis_agent/agent.py
+    (look/ask/run/fix/explain/remember loop, ReAct/CodeAct) -> code_runner.py
+    (exec in persistent workspace) + helpers.py (32 helpers incl. gateway to all
+    440 QGIS algorithms) ; map_render.py (PNG over OSM) ; qgis_project.py ("Open
+    in QGIS Desktop": writes outputs/agent_results.qgz and launches the installed
+    QGIS 4.0 at C:\Program Files\QGIS 3.44.11\bin\qgis.bat with a clean env).
+    api.py gained POST /ask. Temperature 0 for first attempts (reproducible).
+  - Self-checks added from observed failures (see README table): field-name
+    check, empty-filter warning + retry, error hints, repeated-code detection,
+    grounding check for numbers answered without code (refuse if ungrounded),
+    forgiving Row/Rows objects, save() never loses an answer, map/no-internet
+    fallbacks.
+  - Evaluation: `evaluation/` (tasks.py = 23 questions + 6 HELD-OUT never tuned
+    on; run_eval.py; summarise.py re-scores all runs; results/). Strict scoring =
+    only the final sentence counts. Results: see README "Accuracy".
+  - Not committed to git yet at time of writing (see end of session).
 
 ## Environment setup (read this before running anything)
 
@@ -203,7 +258,7 @@ not skip steps or "simplify":
 ```bash
 conda activate gis-llm
 source fix_qgis_env.sh
-python headless_qgis_test.py     # or whichever script
+python app.py                   # or whichever script
 ```
 
 `fix_qgis_env.sh` lives in the project root. It manually sets
@@ -236,7 +291,7 @@ locally. Commit at meaningful milestones (e.g. end of each week) with clear
 messages. `.gitignore` already excludes secrets, `.env`, and generated data
 files like `buffered_cities.gpkg`.
 
-## Shortcuts available (see CHEATSHEET.md for full reference)
+## Shortcuts available (see ..\Docs\CHEATSHEET.md for full reference)
 
 - `qgis-start` — one command that cd's into the project, activates `gis-llm`,
   runs `fix_qgis_env.sh`, and launches `claude -c`. This is how I start every
@@ -247,8 +302,8 @@ files like `buffered_cities.gpkg`.
 ## Working style / conventions
 
 - Explain the "why" before the "how".
-- Reuse the initialization code from `headless_qgis_test.py` for the Week 3
-  API — it's the same headless-startup pattern.
+- Headless QGIS startup lives in `qgis_agent/qgis_engine.py`; reuse it, never
+  re-implement it.
 - Keep secrets (LLM API keys) out of the repo — use a `.env` file
   (git-ignored), never hardcode keys in scripts.
 - At the end of a work session, update this file's "Current status" section

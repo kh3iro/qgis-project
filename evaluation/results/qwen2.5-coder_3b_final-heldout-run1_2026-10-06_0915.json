@@ -1,0 +1,142 @@
+[
+  {
+    "id": "clinics_near_qassimi",
+    "category": "held-out",
+    "request": "How many clinics are within 2 km of Al Qassimi Hospital?",
+    "pair": null,
+    "code": "hospital = find_by_name(\"sharjah_hospitals\", \"Al Qassimi\")\nclinics = find_by_name(\"sharjah_hospitals\", \"clinic\")\nnear = within_distance(clinics, hospital, 2000)\nprint(count(near), \"clinics are within 2 km of Al Qassimi Hospital:\")\nfor row in rows(near, [\"name\"], limit=20):\n    print(\"-\", row[\"name\"])\nsave(near, \"clinics_near_al_qassimi\")",
+    "output": "2 clinics are within 2 km of Al Qassimi Hospital:\n- Clinicare\n- Aster Clinic",
+    "error": "",
+    "answer": "There are 2 clinics within 2 km of Al Qassimi Hospital.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [
+      "outputs\\clinics_near_al_qassimi.gpkg"
+    ],
+    "saved_counts": [
+      2
+    ],
+    "seconds": 21.2,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 14,
+    "correct": false,
+    "correct_lenient": false
+  },
+  {
+    "id": "school_closest_nahda",
+    "category": "held-out",
+    "request": "Which school is closest to Al Nahda Park?",
+    "pair": null,
+    "code": "school = nearest(\"sharjah_schools\", \"Al Nahda Park\")\nif school:\n    print(\"Closest school:\", school[\"name\"])\n    save(school, \"closest_school\")\nelse:\n    print(\"No school found near Al Nahda Park.\")",
+    "output": "",
+    "error": "Line 1: school = nearest(\"sharjah_schools\", \"Al Nahda Park\")\nFileNotFoundError: No layer named 'Al Nahda Park' was found. Available layers: sharjah_districts.geojson, sharjah_hospitals.geojson, sharjah_main_roads.geojson, sharjah_parks.geojson, sharjah_schools.geojson, clinics_near_al_qassimi.gpkg.\nHINT: Use one of the available layer names listed, or a variable your code created.",
+    "answer": "I'm sorry, I could not complete that. My last attempt failed with this error:\n\nLine 1: school = nearest(\"sharjah_schools\", \"Al Nahda Park\")\nFileNotFoundError: No layer named 'Al Nahda Park' was found. Available layers: sharjah_districts.geojson, sharjah_hospitals.geojson, sharjah_main_roads.geojson, sharjah_parks.geojson, sharjah_schools.geojson, clinics_near_al_qassimi.gpkg.\nHINT: Use one of the available layer names listed, or a variable your code created.\n\nTry rephrasing the request, or ask for something simpler.",
+    "code_runs": 4,
+    "attempts": 4,
+    "files": [],
+    "saved_counts": [],
+    "seconds": 58.8,
+    "crashed": "",
+    "ran_ok": false,
+    "truth": "Dubai Carmel School",
+    "correct": false,
+    "correct_lenient": false
+  },
+  {
+    "id": "parks_far_from_schools",
+    "category": "held-out",
+    "request": "How many parks are more than 1 km from any school?",
+    "pair": null,
+    "code": "parks = load(\"sharjah_parks\")\nfar = farther_than(parks, \"sharjah_schools\", 1000)\nprint(count(far), \"parks are more than 1 km from any school:\")\nfor row in rows(far, [\"name\"], limit=20):\n    print(\"-\", row[\"name\"])\nsave(far, \"parks_far_from_schools\")",
+    "output": "23 parks are more than 1 km from any school:\n- Abu Shagara Park\n- Butterfly park\n- Sharjah National Park\n- Al Noaf Park\n- Hamidiyah Park\n- Al Rifaa Park\n- Al Mansoora Park\n- Al Tarfa Park\n- Al Safa Park\n- Um Fanain Park\n- Um Fanain Ladies Park\n- Al Jouri Tree park\n- Al Jouri Mini Tree Park\n- Adventure Park\n- Sensory Park\n- Aljada Skate Park + Park\n- Elyash Park\n- AUS Western Park\n- Emirates City Park\n- Building C23",
+    "error": "",
+    "answer": "There are 23 parks more than 1 km from any school.",
+    "code_runs": 3,
+    "attempts": 3,
+    "files": [
+      "outputs\\parks_far_from_schools.gpkg"
+    ],
+    "saved_counts": [
+      23
+    ],
+    "seconds": 47.0,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 23,
+    "correct": true,
+    "correct_lenient": true
+  },
+  {
+    "id": "motorway_length",
+    "category": "held-out",
+    "request": "What is the total length of all motorways in kilometres?",
+    "pair": null,
+    "code": "motorways = filter_features(\"sharjah_main_roads\", '\"type\" = \\'motorway\\'\")\ntotal_length_km = total_length_km[\"length_km\"]\nprint(\"Total length of motorways:\", total_length_km, \"km\")\nsave(motorways, \"motorway_lengths\")",
+    "output": "",
+    "error": "Line 1: motorways = filter_features(\"sharjah_main_roads\", '\"type\" = \\'motorway\\'\")\nSyntaxError: unterminated string literal (detected at line 1) (<ai_code>, line 1)",
+    "answer": "I'm sorry, I could not complete that. My last attempt failed with this error:\n\nLine 1: motorways = filter_features(\"sharjah_main_roads\", '\"type\" = \\'motorway\\'\")\nSyntaxError: unterminated string literal (detected at line 1) (<ai_code>, line 1)\n\nTry rephrasing the request, or ask for something simpler.",
+    "code_runs": 4,
+    "attempts": 4,
+    "files": [],
+    "saved_counts": [],
+    "seconds": 45.5,
+    "crashed": "",
+    "ran_ok": false,
+    "truth": 165.72,
+    "correct": false,
+    "correct_lenient": false
+  },
+  {
+    "id": "smallest_parks",
+    "category": "held-out",
+    "request": "List the 3 smallest parks.",
+    "pair": null,
+    "code": "parks = load(\"sharjah_parks\")\nparks = add_area_km2(parks)\nsmallest = top(parks, \"area_km2\", 3)\nprint(\"The 3 smallest parks are:\")\nfor row in rows(smallest, [\"name\", \"area_km2\"], limit=3):\n    print(\"-\", row[\"name\"], row[\"area_km2\"], \"km2\")\nsave(smallest, \"smallest_parks\")",
+    "output": "The 3 smallest parks are:\n- Green Belt Park (Ladies Only) 0.114 km2\n- Sharjah National Park 0.363 km2\n- Al Nahda Pond Park 0.143 km2",
+    "error": "",
+    "answer": "The 3 smallest parks are Green Belt Park (Ladies Only), Sharjah National Park, and Al Nahda Pond Park.",
+    "code_runs": 3,
+    "attempts": 3,
+    "files": [
+      "outputs\\smallest_parks.gpkg"
+    ],
+    "saved_counts": [
+      3
+    ],
+    "seconds": 43.2,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": [
+      "falcon towers green line",
+      "Al Jouri Mini Tree Park",
+      "Building C23"
+    ],
+    "correct": false,
+    "correct_lenient": false
+  },
+  {
+    "id": "districts_without_health",
+    "category": "held-out",
+    "request": "How many districts have no hospital or clinic in their area?",
+    "pair": null,
+    "code": "districts = load(\"sharjah_districts\")\nhospitals = load(\"sharjah_hospitals\")\nclinics = filter_features(\"sharjah_hospitals\", '\"type\" = \\'clinic\\'')\nno_hospitals = within_distance(districts, hospitals, 1000)\nno_clinics = within_distance(districts, clinics, 1000)\nno_hospitals_and_clinics = within_distance(no_hospitals, no_clinics, 1000)\nprint(count(no_hospitals_and_clinics), \"districts have no hospital or clinic in their area.\")\nsave(no_hospitals_and_clinics, \"districts_no_hospitals_or_clinics\")",
+    "output": "63 districts have no hospital or clinic in their area.",
+    "error": "",
+    "answer": "There are 63 districts with no hospitals or clinics in their area.",
+    "code_runs": 2,
+    "attempts": 2,
+    "files": [
+      "outputs\\districts_no_hospitals_or_clinics.gpkg"
+    ],
+    "saved_counts": [
+      63
+    ],
+    "seconds": 37.8,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 58,
+    "correct": false,
+    "correct_lenient": false
+  }
+]

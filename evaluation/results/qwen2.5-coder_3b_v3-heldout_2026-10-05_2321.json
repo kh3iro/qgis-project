@@ -1,0 +1,140 @@
+[
+  {
+    "id": "clinics_near_qassimi",
+    "category": "held-out",
+    "request": "How many clinics are within 2 km of Al Qassimi Hospital?",
+    "pair": null,
+    "code": "hospital = find_by_name(\"sharjah_hospitals\", \"Al Qassimi\")\nclinics = find_by_name(\"sharjah_hospitals\", \"clinic\")\nnear = within_distance(clinics, hospital, 2000)\nprint(count(near), \"clinics are within 2 km of Al Qassimi Hospital:\")\nfor row in rows(near, [\"name\"], limit=20):\n    print(\"-\", row[\"name\"])\nsave(near, \"clinics_near_al_qassimi\")",
+    "output": "2 clinics are within 2 km of Al Qassimi Hospital:\n- Clinicare\n- Aster Clinic",
+    "error": "",
+    "answer": "There are 2 clinics within 2 km of Al Qassimi Hospital.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [
+      "outputs\\clinics_near_al_qassimi.gpkg"
+    ],
+    "saved_counts": [
+      2
+    ],
+    "seconds": 23.2,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 14,
+    "correct": false
+  },
+  {
+    "id": "school_closest_nahda",
+    "category": "held-out",
+    "request": "Which school is closest to Al Nahda Park?",
+    "pair": null,
+    "code": "school = nearest(find_by_name(\"sharjah_parks\", \"Al Nahda\"), \"sharjah_schools\")\nprint(\"Closest school:\", rows(school)[0][\"name\"])\nsave(school, \"closest_school\")",
+    "output": "Closest school: Al Nahda Park",
+    "error": "",
+    "answer": "The closest school to Al Nahda Park is Al Nahda Park itself.",
+    "code_runs": 2,
+    "attempts": 2,
+    "files": [
+      "outputs\\closest_school.gpkg"
+    ],
+    "saved_counts": [
+      2
+    ],
+    "seconds": 22.9,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": "Dubai Carmel School",
+    "correct": false
+  },
+  {
+    "id": "parks_far_from_schools",
+    "category": "held-out",
+    "request": "How many parks are more than 1 km from any school?",
+    "pair": null,
+    "code": "parks = load(\"sharjah_parks\")\nfar = farther_than(parks, schools, 1000)\nprint(count(far), \"parks are more than 1 km from any school:\")\nfor row in rows(far, [\"name\"], limit=20):\n    print(\"-\", row[\"name\"])\nsave(far, \"parks_far_from_schools\")",
+    "output": "23 parks are more than 1 km from any school:\n- Abu Shagara Park\n- Butterfly park\n- Sharjah National Park\n- Al Noaf Park\n- Hamidiyah Park\n- Al Rifaa Park\n- Al Mansoora Park\n- Al Tarfa Park\n- Al Safa Park\n- Um Fanain Park\n- Um Fanain Ladies Park\n- Al Jouri Tree park\n- Al Jouri Mini Tree Park\n- Adventure Park\n- Sensory Park\n- Aljada Skate Park + Park\n- Elyash Park\n- AUS Western Park\n- Emirates City Park\n- Building C23",
+    "error": "",
+    "answer": "There are 23 parks more than 1 km from any school.",
+    "code_runs": 2,
+    "attempts": 2,
+    "files": [
+      "outputs\\parks_far_from_schools.gpkg"
+    ],
+    "saved_counts": [
+      23
+    ],
+    "seconds": 33.8,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 23,
+    "correct": true
+  },
+  {
+    "id": "motorway_length",
+    "category": "held-out",
+    "request": "What is the total length of all motorways in kilometres?",
+    "pair": null,
+    "code": "motorways = filter_features(\"sharjah_main_roads\", '\"type\" = \\'motorway\\'\")\nmotorways = add_length_km(motorways)\nprint(\"Total length of motorways:\", motorways[\"length_km\"], \"km\")\nsave(motorways, \"motorway_lengths\")",
+    "output": "",
+    "error": "Line 1: motorways = filter_features(\"sharjah_main_roads\", '\"type\" = \\'motorway\\'\")\nSyntaxError: unterminated string literal (detected at line 1) (<ai_code>, line 1)",
+    "answer": "I'm sorry, I could not complete that. My last attempt failed with this error:\n\nLine 1: motorways = filter_features(\"sharjah_main_roads\", '\"type\" = \\'motorway\\'\")\nSyntaxError: unterminated string literal (detected at line 1) (<ai_code>, line 1)\n\nTry rephrasing the request, or ask for something simpler.",
+    "code_runs": 4,
+    "attempts": 4,
+    "files": [],
+    "saved_counts": [],
+    "seconds": 46.0,
+    "crashed": "",
+    "ran_ok": false,
+    "truth": 165.72,
+    "correct": false
+  },
+  {
+    "id": "smallest_parks",
+    "category": "held-out",
+    "request": "List the 3 smallest parks.",
+    "pair": null,
+    "code": "parks = load(\"sharjah_parks\")\nparks = add_area_km2(parks)\nsmallest = top(parks, \"area_km2\", 3)\nprint(\"The 3 smallest parks are:\")\nfor row in rows(smallest, [\"name\", \"area_km2\"], limit=3):\n    print(\"-\", row[\"name\"], row[\"area_km2\"], \"km2\")\nsave(smallest, \"smallest_parks\")",
+    "output": "The 3 smallest parks are:\n- Al Nahda Pond Park 0.143 km2\n- Green Belt Park (Ladies Only) 0.114 km2\n- Sharjah National Park 0.363 km2",
+    "error": "",
+    "answer": "The 3 smallest parks are Al Nahda Pond Park, Green Belt Park (Ladies Only), and Sharjah National Park.",
+    "code_runs": 3,
+    "attempts": 3,
+    "files": [
+      "outputs\\smallest_parks.gpkg"
+    ],
+    "saved_counts": [
+      3
+    ],
+    "seconds": 44.6,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": [
+      "falcon towers green line",
+      "Al Jouri Mini Tree Park",
+      "Building C23"
+    ],
+    "correct": false
+  },
+  {
+    "id": "districts_without_health",
+    "category": "held-out",
+    "request": "How many districts have no hospital or clinic in their area?",
+    "pair": null,
+    "code": "districts = load(\"sharjah_districts\")\nhospitals = load(\"sharjah_hospitals\")\nclinics = load(\"sharjah_hospitals\")\nhospitals_clinics = join_by_location(districts, hospitals)\nclinics_only = join_by_location(districts, clinics)\nno_hospitals_clinics = difference(districts, hospitals_clinics)\nprint(count(no_hospitals_clinics), \"districts have no hospital or clinic in their area.\")\nsave(no_hospitals_clinics, \"districts_no_hospitals_clinics\")",
+    "output": "109 districts have no hospital or clinic in their area.",
+    "error": "",
+    "answer": "There are 109 districts with no hospitals or clinics in their area.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [
+      "outputs\\districts_no_hospitals_clinics.gpkg"
+    ],
+    "saved_counts": [
+      109
+    ],
+    "seconds": 21.1,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 58,
+    "correct": false
+  }
+]

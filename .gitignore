@@ -25,3 +25,6 @@ outputs/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Gradio (the chat window) keeps a cache folder here
+.gradio/
