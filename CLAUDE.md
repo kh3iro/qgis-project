@@ -223,7 +223,7 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     First-ever GPU run took ~5 min (one-time CUDA setup).
   - Architecture: app.py (Gradio chat + --terminal) -> qgis_agent/agent.py
     (look/ask/run/fix/explain/remember loop, ReAct/CodeAct) -> code_runner.py
-    (exec in persistent workspace) + helpers.py (32 helpers incl. gateway to all
+    (exec in persistent workspace) + helpers.py (33 helpers incl. gateway to all
     440 QGIS algorithms) ; map_render.py (PNG over OSM) ; qgis_project.py ("Open
     in QGIS Desktop": writes outputs/agent_results.qgz and launches the installed
     QGIS 4.0 at C:\Program Files\QGIS 3.44.11\bin\qgis.bat with a clean env).

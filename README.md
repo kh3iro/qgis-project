@@ -67,7 +67,7 @@ pattern (Yao et al. 2023) with code as the action (**CodeAct**, Wang et al.
 2024), the approach the literature found more accurate than fixed tools.
 
 **What the model can use.** There is no fixed menu. The code can call:
-- **32 helper functions** for the common questions (distances in metres,
+- **33 helper functions** for the common questions (distances in metres,
   nearest, within/farther than, find by name, area, length, counts per
   category, per-area counts, Voronoi areas, clip, intersection, difference,
   save, CSV export...). They hide the classic traps: CRS units (QGIS measures
@@ -99,7 +99,7 @@ app.py                     start here: chat window (browser) or --terminal
 qgis_agent/
   agent.py                 the agent loop: look, ask, run, fix, explain, remember
   prompts.py               the instructions and worked examples the model reads
-  helpers.py               the 32 GIS functions the model's code can call
+  helpers.py               the 33 GIS functions the model's code can call
   code_runner.py           runs the model's code inside QGIS, captures output/errors
   llm_client.py            talks to the model (Ollama); the only file to change for another provider
   map_render.py            draws results as a PNG over OpenStreetMap
