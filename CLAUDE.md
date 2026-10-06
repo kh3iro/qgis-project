@@ -236,7 +236,8 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
   - Evaluation: `evaluation/` (tasks.py = 23 questions + 6 HELD-OUT never tuned
     on; run_eval.py; summarise.py re-scores all runs; results/). Strict scoring =
     only the final sentence counts. Results: see README "Accuracy".
-  - Not committed to git yet at time of writing (see end of session).
+  - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
+    "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 
 ## Environment setup (read this before running anything)
 
