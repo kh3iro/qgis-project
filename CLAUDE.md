@@ -236,6 +236,17 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
   - Evaluation: `evaluation/` (tasks.py = 23 questions + 6 HELD-OUT never tuned
     on; run_eval.py; summarise.py re-scores all runs; results/). Strict scoring =
     only the final sentence counts. Results: see README "Accuracy".
+  - **2026-10-07:** Presented to the supervisor (feedback received). NO GPU
+    server/VM is available for now, so the project stays on the laptop with
+    the 3B model as default (7B optional via .env or the Model menu).
+    Fixed: replies capped at 1024 tokens (`MAX_REPLY_TOKENS`) because the 3B
+    could get stuck repeating itself for 5+ minutes. Commit c77f6da.
+    **Finalisation in progress (resume here if interrupted):** remaining =
+    (1) eval runs saved in evaluation/results/ with tags `final-heldout-run2`
+    (3B), `final-run1` and `final-heldout-run1` (7B); rerun only the ones
+    missing; (2) re-check the demo questions in app.py EXAMPLES with the 3B
+    (incl. "What data do you have?"); (3) fill README "Accuracy" from
+    `python evaluation/summarise.py`; (4) commit.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 
