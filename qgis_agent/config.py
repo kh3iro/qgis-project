@@ -72,6 +72,10 @@ CONTEXT_TOKENS = int(os.environ.get("CONTEXT_TOKENS", "8192"))
 # tests and demos). Retries after an error use more randomness (see agent.py).
 TEMPERATURE = float(os.environ.get("TEMPERATURE", "0"))
 
+# The longest reply the model may write, in tokens (1024 = about 750 words).
+# Code and answers here are much shorter; this stops a stuck model early.
+MAX_REPLY_TOKENS = int(os.environ.get("MAX_REPLY_TOKENS", "1024"))
+
 # ---------------------------------------------------------------------------
 # The agent's behaviour
 # ---------------------------------------------------------------------------

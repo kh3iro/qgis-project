@@ -142,14 +142,21 @@ of it, never the full files.
 
 ## The model
 
-| | Now (laptop) | Later (university GPU machine) |
-|---|---|---|
-| Model | Qwen 2.5 Coder 3B (also 7B for comparison) | Qwen 14B-32B class |
-| Runs on | GTX 1650, 4 GB | 16-24 GB GPU |
-| Speed | first words ~3 s, a full answer ~30-70 s | much faster |
+The language model is **Qwen 2.5 Coder** (Alibaba, open source), run on this
+laptop by **Ollama**, the free program that loads a model onto the graphics
+card and answers requests from our code at `http://localhost:11434`.
 
-To change model or machine, edit `.env` (copy `.env.example`):
-`MODEL=...` and `OLLAMA_URL=http://<server>:11434`. Nothing else changes.
+| | Default: `qwen2.5-coder:3b` | Optional: `qwen2.5-coder:7b` |
+|---|---|---|
+| Fits on the GTX 1650 (4 GB) | fully (100% on the graphics card) | partly (about 40%), the rest on the processor |
+| Typical time per question | about 15-30 s | about 1-2 min |
+| Accuracy | lower, see below | higher, see below |
+
+No GPU server is available for now (October 2026), so the 3B model is the
+default. To try the 7B, put `MODEL=qwen2.5-coder:7b` in a `.env` file (copy
+`.env.example`), or pick it from the Model menu in the chat window. If a GPU
+machine becomes available later, set `OLLAMA_URL=http://<server>:11434` and a
+bigger model name; nothing else in the code changes.
 
 ---
 

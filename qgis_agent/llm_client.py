@@ -84,6 +84,10 @@ def stream_chat(messages, model=None, temperature=None):
             "temperature": config.TEMPERATURE if temperature is None else temperature,
             # Always the same context size: changing it forces a full reload.
             "num_ctx": config.CONTEXT_TOKENS,
+            # The longest reply allowed. Found in testing: a small model can get
+            # stuck repeating itself and would otherwise write for many minutes
+            # (it looked like a frozen chat). Real answers and code are far shorter.
+            "num_predict": config.MAX_REPLY_TOKENS,
         },
     }
     try:
