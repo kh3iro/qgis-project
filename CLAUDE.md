@@ -241,12 +241,18 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     the 3B model as default (7B optional via .env or the Model menu).
     Fixed: replies capped at 1024 tokens (`MAX_REPLY_TOKENS`) because the 3B
     could get stuck repeating itself for 5+ minutes. Commit c77f6da.
-    **Finalisation in progress (resume here if interrupted):** remaining =
-    (1) eval runs saved in evaluation/results/ with tags `final-heldout-run2`
-    (3B), `final-run1` and `final-heldout-run1` (7B); rerun only the ones
-    missing; (2) re-check the demo questions in app.py EXAMPLES with the 3B
-    (incl. "What data do you have?"); (3) fill README "Accuracy" from
-    `python evaluation/summarise.py`; (4) commit.
+  - **2026-10-10: FINALISED.** All evaluation runs complete (strict scoring):
+    3B before self-checks 57%; 3B final 65% / 70% (2 runs), held-out 17%;
+    7B final 83%, held-out 50%. Full table: `evaluation/results/SUMMARY.md`;
+    README "Accuracy" filled in; slide 9 updated. All 7 example questions in
+    app.py re-checked with the 3B on the final code: all correct. Tests 42/42.
+    Lessons for running things: never run the chat app and the evaluation at
+    the same time (they share one model; the 7B then swaps in and out and gets
+    very slow); the 7B nearly fills the 8 GB of RAM. If answers hang, quit and
+    restart Ollama (`ollama.exe serve`, or the tray app).
+    Nothing pending. Possible next work (not started): bigger held-out set,
+    fixed-tools vs code-generation comparison on the same questions, raster
+    data, more regions; decide direction with the supervisor's feedback.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 

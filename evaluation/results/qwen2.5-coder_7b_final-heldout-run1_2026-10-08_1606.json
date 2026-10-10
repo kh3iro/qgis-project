@@ -1,0 +1,146 @@
+[
+  {
+    "id": "clinics_near_qassimi",
+    "category": "held-out",
+    "request": "How many clinics are within 2 km of Al Qassimi Hospital?",
+    "pair": null,
+    "code": "hospital = find_by_name(\"sharjah_hospitals\", \"Al Qassimi\")\nnearby = within_distance(\"sharjah_hospitals\", hospital, 2000)\ncounted = count_by(nearby, \"type\")\nprint(\"Number of clinics within 2 km of Al Qassimi Hospital:\", counted.get(\"clinic\", 0))\nsave(nearby, \"clinics_near_al_qassimi\")",
+    "output": "Number of clinics within 2 km of Al Qassimi Hospital: 14",
+    "error": "",
+    "answer": "There are 14 clinics within 2 km of Al Qassimi Hospital.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [
+      "outputs\\clinics_near_al_qassimi.gpkg"
+    ],
+    "saved_counts": [
+      15
+    ],
+    "seconds": 184.4,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 14,
+    "correct": true,
+    "correct_lenient": true
+  },
+  {
+    "id": "school_closest_nahda",
+    "category": "held-out",
+    "request": "Which school is closest to Al Nahda Park?",
+    "pair": null,
+    "code": "park = find_by_name(\"sharjah_parks\", \"Al Nahda Park\")\nschool = nearest(\"sharjah_schools\", park)\nprint(\"The closest school to Al Nahda Park is:\", school[0].fields().value(0))\nsave(school, \"closest_school_to_park\")",
+    "output": "",
+    "error": "Line 3: print(\"The closest school to Al Nahda Park is:\", school[0].fields().value(0))\nTypeError: 'QgsVectorLayer' object is not subscriptable\nHINT: A layer is not a list or a dict. Read its values with rows(layer), e.g. rows(layer)[0][\"name\"].",
+    "answer": "I'm sorry, I could not complete that. My last attempt failed with this error:\n\nLine 3: print(\"The closest school to Al Nahda Park is:\", school[0].fields().value(0))\nTypeError: 'QgsVectorLayer' object is not subscriptable\nHINT: A layer is not a list or a dict. Read its values with rows(layer), e.g. rows(layer)[0][\"name\"].\n\nTry rephrasing the request, or ask for something simpler.",
+    "code_runs": 4,
+    "attempts": 4,
+    "files": [],
+    "saved_counts": [],
+    "seconds": 463.9,
+    "crashed": "",
+    "ran_ok": false,
+    "truth": "Dubai Carmel School",
+    "correct": false,
+    "correct_lenient": false
+  },
+  {
+    "id": "parks_far_from_schools",
+    "category": "held-out",
+    "request": "How many parks are more than 1 km from any school?",
+    "pair": null,
+    "code": "schools = filter_features(\"sharjah_schools\", '\"name\" LIKE \\'%school%\\'')\nfar = farther_than(\"sharjah_parks\", schools, 1000)\nprint(count(far), \"parks are more than 1 km from any school:\")\nfor row in rows(far, [\"name\"], limit=20):\n    print(\"-\", row[\"name\"])\nsave(far, \"parks_far_from_schools\")",
+    "output": "43 parks are more than 1 km from any school:\n- Abu Shagara Park\n- Al Nahda Park\n- Al Safya Park\n- Round Park\n- Al Mahatta Park\n- Butterfly park\n- Khalidiya Park\n- Sharjah National Park\n- Al Ittihad Park/Al Itihad Park\n- Al Noaf Park\n- Hamidiyah Park\n- Green Belt Park (Ladies Only)\n- Al Rifaa Park\n- Al Jazzat park\n- Al Nad Park\n- Al Mansoora Park\n- Al Tarfa Park\n- Al Rashidiyah Park for Ladies\n- falcon towers green line\n- Al Nahda Pond Park",
+    "error": "",
+    "answer": "43 parks are more than 1 km from any school. The parks include Abu Shagara Park, Al Nahda Park, and Al Safya Park, among others.",
+    "code_runs": 2,
+    "attempts": 2,
+    "files": [
+      "outputs\\parks_far_from_schools.gpkg"
+    ],
+    "saved_counts": [
+      43
+    ],
+    "seconds": 3339.8,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 23,
+    "correct": false,
+    "correct_lenient": false
+  },
+  {
+    "id": "motorway_length",
+    "category": "held-out",
+    "request": "What is the total length of all motorways in kilometres?",
+    "pair": null,
+    "code": "motorways = filter_features(\"sharjah_main_roads\", '\"type\" = \\'motorway\\'')\nlength_km = add_length_km(motorways)\ntotal_length = sum([feat[\"length_km\"] for feat in rows(length_km)])\nprint(\"Total length of motorways:\", total_length, \"km\")\nsave(length_km, \"motorway_length\")",
+    "output": "Total length of motorways: 165.715 km",
+    "error": "",
+    "answer": "The total length of all motorways in Sharjah is 165.715 km.",
+    "code_runs": 3,
+    "attempts": 3,
+    "files": [
+      "outputs\\motorway_length.gpkg"
+    ],
+    "saved_counts": [
+      7
+    ],
+    "seconds": 516.7,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 165.72,
+    "correct": true,
+    "correct_lenient": true
+  },
+  {
+    "id": "smallest_parks",
+    "category": "held-out",
+    "request": "List the 3 smallest parks.",
+    "pair": null,
+    "code": "parks = add_area_km2(\"sharjah_parks\")\nsmallest = top(parks, \"area_km2\", 3, largest=False)\nprint(\"The 3 smallest parks are:\")\nfor row in rows(smallest, [\"name\", \"area_km2\"], limit=3):\n    print(\"-\", row[\"name\"], \"with an area of\", row[\"area_km2\"], \"km²\")\nsave(smallest, \"smallest_parks\")",
+    "output": "The 3 smallest parks are:\n- Building C23 with an area of 0.002 km²\n- Al Jouri Mini Tree Park with an area of 0.001 km²\n- falcon towers green line with an area of 0.001 km²",
+    "error": "",
+    "answer": "The three smallest parks in Sharjah are Building C23, Al Jouri Mini Tree Park, and Falcon Towers Green Line. Their areas are 0.002 km², 0.001 km², and 0.001 km², respectively.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [
+      "outputs\\smallest_parks.gpkg"
+    ],
+    "saved_counts": [
+      3
+    ],
+    "seconds": 252.3,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": [
+      "falcon towers green line",
+      "Al Jouri Mini Tree Park",
+      "Building C23"
+    ],
+    "correct": true,
+    "correct_lenient": true
+  },
+  {
+    "id": "districts_without_health",
+    "category": "held-out",
+    "request": "How many districts have no hospital or clinic in their area?",
+    "pair": null,
+    "code": "districts = load(\"sharjah_districts\")\nhospitals = filter_features(\"sharjah_hospitals\", '\"type\" = \\'hospital\\'')\nclinics = filter_features(\"sharjah_hospitals\", '\"type\" = \\'clinic\\'')\n\ndistricts_with_hospitals = join_by_location(districts, hospitals, \"intersects\")\ndistricts_with_clinics = join_by_location(districts, clinics, \"intersects\")\n\ndistricts_with_hospitals_or_clinics = merge_layers(districts_with_hospitals, districts_with_clinics)\n\ndistricts_without_hospitals_or_clinics = difference(districts, districts_with_hospitals_or_clinics)\n\nprint(count(districts_without_hospitals_or_clinics), \"districts have no hospital or clinic in their area.\")\nsave(districts_without_hospitals_or_clinics, \"districts_without_hospitals_or_clinics\")",
+    "output": "109 districts have no hospital or clinic in their area.",
+    "error": "",
+    "answer": "109 districts in Sharjah have no hospital or clinic in their area.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [
+      "outputs\\districts_without_hospitals_or_clinics.gpkg"
+    ],
+    "saved_counts": [
+      109
+    ],
+    "seconds": 285.0,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 58,
+    "correct": false,
+    "correct_lenient": false
+  }
+]

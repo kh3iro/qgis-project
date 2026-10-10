@@ -162,13 +162,38 @@ bigger model name; nothing else in the code changes.
 
 ## Accuracy
 
-`python evaluation/run_eval.py [--model qwen2.5-coder:7b]` asks the agent 23
-questions whose correct answers are computed independently from the data, and
-scores the answers automatically (the method used by GeoAnalystBench and
-GISAgentBench). Results are written to `evaluation/results/`. It includes four
-questions asked twice, in plain and in expert GIS wording.
+**How it is measured.** Nothing is trained: the model is used as downloaded.
+`evaluation/tasks.py` holds 23 questions whose correct answers are computed
+independently from the data (no model involved), plus 6 **held-out** questions
+that were never looked at while the system was being improved, so they show how
+it does on questions nobody prepared it for. `evaluation/run_eval.py` asks a
+fresh agent each question and checks the answer automatically, the method used
+by GeoAnalystBench and GISAgentBench. Scoring is **strict**: only the final
+sentence the person reads counts, not numbers that appear in the code output.
 
-See `evaluation/results/` for the latest numbers.
+**Results on this laptop (final version, October 2026):**
+
+| Model | 23 main questions | 6 held-out questions | Time per question |
+|---|---|---|---|
+| Qwen 2.5 Coder 3B, before the self-checks | 57% | not run | about 30 s |
+| Qwen 2.5 Coder 3B, final (2 runs) | 65% and 70% | 17% (both runs) | about 15-30 s |
+| Qwen 2.5 Coder 7B, final | 83% | 50% | about 1-3 min |
+
+What this means:
+- The self-checks lifted the 3B, but it does not generalise well to new
+  questions. The 7B is clearly better on both sets, at the cost of speed (it
+  only partly fits on the 4 GB graphics card, and 8 GB of RAM is tight for it).
+- Reliable with the 3B: distances and "within / farther than" questions,
+  counts, filtering by type, maps, CSV tables. Often wrong with the 3B:
+  largest/smallest questions, "which district is X in", nearest-to-each.
+- For comparison, published systems using large cloud models report 86-100%
+  on curated tasks; on real practitioner questions the best agent reaches
+  33% (GISAgentBench, 2026).
+
+Reproduce: `python evaluation/run_eval.py --model qwen2.5-coder:3b` (add
+`--heldout` for the held-out set), then `python evaluation/summarise.py` for
+the table of every saved run. Do not run the chat app at the same time: both
+share the one model, which slows everything down.
 
 ---
 
