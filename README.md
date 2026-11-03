@@ -110,6 +110,9 @@ qgis_agent/
 api.py                     REST API (Month 1): /health, /run, /tools ...
 data/                      Sharjah data from OpenStreetMap + descriptions.json
 scripts/download_osm_data.py   re-downloads that data
+prompts/                   everything the model is told, exported as files: the full system
+                           prompt, the 33 helper tools, and a reference for all 440 QGIS
+                           algorithms (regenerate: python scripts/export_prompts.py)
 evaluation/                accuracy test: tasks.py (questions + checks), run_eval.py, results/
 tests/                     tests for the fixed tools (python tests/test_tools.py: 42/42)
 outputs/                   everything the agent produces (git-ignored)
