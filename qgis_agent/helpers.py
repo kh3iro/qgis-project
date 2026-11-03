@@ -556,14 +556,77 @@ def algorithm_help(algorithm_id):
     return "\n".join(lines)
 
 
+# Parameter types (as QGIS names them) that take a layer. A layer NAME given for
+# one of these is turned into the layer itself before the algorithm runs.
+_LAYER_PARAMETER_TYPES = {"source", "vector", "raster", "layer", "multilayer",
+                          "mesh", "pointcloud", "featuresource"}
+# Parameter types that are outputs (destinations) of an algorithm.
+_OUTPUT_PARAMETER_TYPES = {"sink", "vectorDestination", "rasterDestination",
+                           "fileDestination", "folderDestination",
+                           "pointCloudDestination", "vectorTileDestination"}
+
+
 def run_algorithm(algorithm_id, params):
-    """run_algorithm(algorithm_id, params) -> layer. Run any QGIS algorithm; OUTPUT is filled in for you. Read algorithm_help first."""
-    params = {key: (_layer(value) if isinstance(value, str) and key in ("INPUT", "OVERLAY")
-                    and not os.path.exists(value) else value)
-              for key, value in params.items()}
-    result = qgis_engine.run_step(algorithm_id, {**params, "OUTPUT": "TEMPORARY_OUTPUT"})
-    output = result.get("OUTPUT")
-    return output if isinstance(output, QgsVectorLayer) else result
+    """run_algorithm(algorithm_id, params) -> layer or dict. Run ANY of the 440 QGIS algorithms by id with its parameter names; layer names are accepted and outputs are filled in for you."""
+    from qgis.core import QgsApplication
+
+    algorithm = QgsApplication.processingRegistry().algorithmById(algorithm_id)
+    if algorithm is None:
+        raise ValueError(f"No QGIS algorithm '{algorithm_id}'. Use find_algorithms(keyword) "
+                         f"to search, then algorithm_help(id) for its parameters.")
+
+    # Work from the algorithm's own parameter definitions (read from QGIS), so
+    # this works the same for every tool, whatever its parameters are called.
+    definitions = {d.name(): d for d in algorithm.parameterDefinitions()}
+    unknown = [key for key in params if key not in definitions]
+    if unknown:
+        raise ValueError(f"{algorithm_id} has no parameter {', '.join(unknown)}. "
+                         f"Its parameters are: {', '.join(definitions)}.")
+
+    prepared = {}
+    for key, value in params.items():
+        kind = definitions[key].type()
+        if kind in _LAYER_PARAMETER_TYPES:
+            prepared[key] = _as_layer_input(value)
+        else:
+            prepared[key] = value
+
+    # Every output the caller did not set goes to a temporary result.
+    for name, definition in definitions.items():
+        if definition.type() in _OUTPUT_PARAMETER_TYPES and name not in prepared:
+            prepared[name] = "TEMPORARY_OUTPUT"
+
+    result = qgis_engine.run_step(algorithm_id, prepared)
+
+    # Return the main result as a layer when there is one, so it can be chained
+    # or saved like any helper's result. Some tools (e.g. GDAL ones) return a
+    # file path instead of a layer: open it if it is vector data.
+    main = result.get("OUTPUT")
+    if isinstance(main, str) and os.path.exists(main):
+        opened = QgsVectorLayer(main, algorithm.displayName(), "ogr")
+        if opened.isValid():
+            main = opened
+    if isinstance(main, QgsVectorLayer):
+        return main
+    layers = [v for v in result.values() if isinstance(v, QgsVectorLayer)]
+    # Otherwise (a raster, a table, several outputs) return everything it made.
+    return layers[0] if len(layers) == 1 else result
+
+
+def _as_layer_input(value):
+    """A layer parameter's value: layer names and rows become layers or file paths."""
+    if isinstance(value, (list, tuple)) and not (value and isinstance(value[0], Row)):
+        return [_as_layer_input(v) for v in value]          # multi-layer parameters
+    if isinstance(value, str) and not os.path.exists(value):
+        try:
+            # A name like "sharjah_parks": find its file in data/ or outputs/.
+            # A file path works for vector AND raster layers.
+            return resolve_layer_path(value)
+        except ToolError as exc:
+            raise FileNotFoundError(str(exc)) from None
+    if isinstance(value, (Row, Rows)) or (isinstance(value, list) and value):
+        return _layer(value)
+    return value
 
 
 def reproject(layer, crs):

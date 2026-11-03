@@ -139,7 +139,7 @@ algorithm_help(algorithm_id) -> text. The exact parameters of a QGIS algorithm, 
 
 ### run_algorithm(algorithm_id, params)
 
-run_algorithm(algorithm_id, params) -> layer. Run any QGIS algorithm; OUTPUT is filled in for you. Read algorithm_help first.
+run_algorithm(algorithm_id, params) -> layer or dict. Run ANY of the 440 QGIS algorithms by id with its parameter names; layer names are accepted and outputs are filled in for you.
 
 ## Results
 

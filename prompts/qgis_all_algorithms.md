@@ -1,6 +1,4 @@
-# Every QGIS processing algorithm
-
-Read from QGIS 3.44.11-Solothurn: 440 algorithms. Run one with run_algorithm(id, params); OUTPUT is filled in automatically.
+QGIS 3.44.11-Solothurn: 440 processing algorithms, grouped by provider and group.
 
 
 ## GDAL / Raster analysis
@@ -277,6 +275,7 @@ Outputs: OUTPUT [outputVector]
 
 ### gdal:rearrange_bands: Rearrange bands
 This algorithm creates a new raster using selected band(s) from a given raster layer.
+The algorithm also makes it possible to reorder the bands for the newly-created raster.
 Parameters:
 - INPUT [raster]: Input layer
 - BANDS [band]: Selected band(s)
@@ -567,6 +566,10 @@ Outputs: OUTPUT [outputRaster]
 
 ### gdal:convertformat: Convert format
 The algorithm converts simple features data between file formats.
+Use convert all layers to convert a whole dataset.
+Supported output formats for this option are:
+- GPKG
+- GML
 Parameters:
 - INPUT [source]: Input layer
 - CONVERT_ALL_LAYERS [boolean]: Convert all layers from dataset (default False)
@@ -804,7 +807,12 @@ Outputs: OUTPUT [outputFile]
 ## QGIS / Cartography
 
 ### qgis:topologicalcoloring: Topological coloring
-Assigns a color index to polygon features, so no adjacent polygons share the same color index.
+This algorithm assigns a color index to polygon features in such a way that no adjacent polygons share the same color index, whilst minimizing the number of colors required.
+An optional minimum distance between features assigned the same color can be set to prevent nearby (but non-touching) features from being assigned equal colors.
+The algorithm allows choice of method to use when assigning colors. The default method attempts to assign colors so that the count of features assigned to each individual color index is balanced.
+The 'by assigned area' mode instead assigns colors so that the total area of features assigned to each color is balanced. This mode can be useful to help avoid large features resulting in one of the colors appearing more dominant on a colored map.
+The 'by distance between colors' mode will assign colors in order to maximize the distance between features of the same color. This mode helps to create a more uniform distribution of colors across a map.
+A minimum number of colors can be specified if desired. The color index is saved to a new attribute named color_id.
 Parameters:
 - INPUT [source]: Input layer
 - MIN_COLORS [number]: Minimum number of colors (default 4)
@@ -817,7 +825,7 @@ Outputs: OUTPUT [outputVector]
 ## QGIS / Database
 
 ### qgis:importintospatialite: Export to SpatiaLite
-Exports a vector layer to a SpatiaLite database.
+This algorithm imports a vector layer into a SpatiaLite database, creating a new table.
 Parameters:
 - INPUT [source]: Layer to import
 - DATABASE [vector]: File database
@@ -832,7 +840,7 @@ Parameters:
 - FORCE_SINGLEPART [boolean]: Create single-part geometries instead of multi-part (default False)
 
 ### qgis:postgisexecuteandloadsql: PostgreSQL execute and load SQL
-Executes a SQL command on a PostgreSQL database and loads the result as a table.
+This algorithm performs a SQL database query on a PostGIS database connected to QGIS and loads the query results as a new layer.
 Parameters:
 - DATABASE [providerconnection]: Database (connection name)
 - SQL [string]: SQL query
@@ -844,7 +852,8 @@ Outputs: OUTPUT [outputVector]
 ## QGIS / Interpolation
 
 ### qgis:heatmapkerneldensityestimation: Heatmap (Kernel Density Estimation)
-Creates a heatmap from points using kernel density estimation.
+Creates a density (heatmap) raster of an input point vector layer using kernel density estimation. Heatmaps allow easy identification of hotspots and clustering of points.
+The density is calculated based on the number of points in a location, with larger numbers of clustered points resulting in larger values.
 Parameters:
 - INPUT [source]: Point layer
 - RADIUS [distance]: Radius (default 100.0)
@@ -859,6 +868,7 @@ Outputs: OUTPUT [outputRaster]
 
 ### qgis:idwinterpolation: IDW interpolation
 Generates an Inverse Distance Weighted (IDW) interpolation of a point vector layer.
+Sample points are weighted during interpolation such that the influence of one point relative to another declines with distance from the unknown point you want to create.
 Parameters:
 - INTERPOLATION_DATA [idw_interpolation_data]: Input layer(s)
 - DISTANCE_COEFFICIENT [number]: Distance coefficient P (default 2.0)
@@ -871,6 +881,8 @@ Outputs: OUTPUT [outputRaster]
 
 ### qgis:tininterpolation: TIN interpolation
 Generates a Triangulated Irregular Network (TIN) interpolation of a point vector layer.
+With the TIN method you can create a surface formed by triangles of nearest neighbor points. To do this, circumcircles around selected sample points are created and their intersections are connected to a network of non overlapping and as compact as possible triangles. The resulting surfaces are not smooth.
+The algorithm creates both the raster layer of the interpolated values and the vector line layer with the triangulation boundaries.
 Parameters:
 - INTERPOLATION_DATA [idw_interpolation_data]: Input layer(s)
 - METHOD [enum]: Interpolation method (default 0; options 0=Linear, 1=Clough-Toucher (cubic))
@@ -886,7 +898,7 @@ Outputs: OUTPUT [outputRaster], TRIANGULATION [outputVector]
 ## QGIS / Plots
 
 ### qgis:barplot: Bar plot
-Creates a bar plot from a category and a layer field.
+This algorithm creates a bar plot from a category and a layer field.
 Parameters:
 - INPUT [source]: Input layer
 - NAME_FIELD [field]: Category name field
@@ -898,7 +910,7 @@ Parameters:
 Outputs: OUTPUT [outputHtml]
 
 ### qgis:boxplot: Box plot
-Creates a box plot from a category and a layer field.
+This algorithm creates a box plot from a category and a layer field.
 Parameters:
 - INPUT [source]: Input layer
 - NAME_FIELD [field]: Category name field
@@ -911,7 +923,7 @@ Parameters:
 Outputs: OUTPUT [outputHtml]
 
 ### qgis:meanandstandarddeviationplot: Mean and standard deviation plot
-Creates a box plot with mean and standard deviation values.
+This algorithm creates a box plot with mean and standard deviation values.
 Parameters:
 - INPUT [source]: Input table
 - NAME_FIELD [field]: Category name field
@@ -920,7 +932,8 @@ Parameters:
 Outputs: OUTPUT [outputHtml]
 
 ### qgis:polarplot: Polar plot
-Generates a polar plot based on the value of an input vector layer.
+This algorithm generates a polar plot based on the value of an input vector layer.
+Two fields must be entered as parameters: one that define the category (to group features) and another one with the variable to plot (this has to be a numeric one)
 Parameters:
 - INPUT [source]: Input layer
 - NAME_FIELD [field]: Category name field
@@ -929,7 +942,8 @@ Parameters:
 Outputs: OUTPUT [outputHtml]
 
 ### qgis:rasterlayerhistogram: Raster layer histogram
-Generates a histogram with the values of a raster layer.
+This algorithm generates a histogram with the values of a raster layer.
+The raster layer must have a single band.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -938,7 +952,7 @@ Parameters:
 Outputs: OUTPUT [outputHtml]
 
 ### qgis:scatter3dplot: Vector layer scatterplot 3D
-Creates a 3D scatter plot for a vector layer.
+This algorithm creates a 3D scatter plot for a vector layer.
 Parameters:
 - INPUT [source]: Input layer
 - XFIELD [field]: X attribute
@@ -952,7 +966,8 @@ Parameters:
 Outputs: OUTPUT [outputHtml]
 
 ### qgis:vectorlayerhistogram: Vector layer histogram
-Generates a histogram with the values of the attribute of a vector layer.
+This algorithm generates a histogram with the values of the attribute of a vector layer.
+The attribute to use for computing the histogram must be a numeric attribute.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Attribute
@@ -961,7 +976,7 @@ Parameters:
 Outputs: OUTPUT [outputHtml]
 
 ### qgis:vectorlayerscatterplot: Vector layer scatterplot
-Creates a simple X - Y scatter plot for a vector layer.
+This algorithm creates a simple X - Y scatter plot for a vector layer.
 Parameters:
 - INPUT [source]: Input layer
 - XFIELD [field]: X attribute
@@ -979,7 +994,13 @@ Outputs: OUTPUT [outputHtml]
 ## QGIS / Raster analysis
 
 ### qgis:rastercalculator: Raster calculator
-This algorithm allows performing algebraic operations using raster layers. The resulting layer will have its values computed according to an expression. The expression can contain numerical values, operators and references to any of the layers in the current project. The following functions are also supported: - sin(), cos(), tan(), atan2(), ln(), log10() The extent, cell size, and output CRS can ...
+This algorithm allows performing algebraic operations using raster layers.
+The resulting layer will have its values computed according to an expression. The expression can contain numerical values, operators and references to any of the layers in the current project. The following functions are also supported:
+- sin(), cos(), tan(), atan2(), ln(), log10()
+The extent, cell size, and output CRS can be defined by the user. If the extent is not specified, the minimum extent that covers selected reference layer(s) will be used. If the cell size is not specified, the minimum cell size of selected reference layer(s) will be used. If the output CRS is not specified, the CRS of the first reference layer will be used.
+The cell size is assumed to be the same in both X and Y axes.
+Layers are referred by their name as displayed in the layer list and the number of the band to use (based on 1), using the pattern 'layer_name@band number'. For instance, the first band from a layer named DEM will be referred as DEM@1.
+When using the calculator in the batch interface or from the console, the files to use have to be specified. The corresponding layers are referred using the base name of the file (without the full path). For instance, if using a layer at path/to/my/rasterfile.tif, the first band of that layer will be referred as rasterfile.tif@1.
 Parameters:
 - EXPRESSION [raster_calc_expression]: Expression
 - LAYERS [multilayer]: Reference layer(s) (used for automated extent, cellsize, and CRS) (optional)
@@ -1039,7 +1060,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:distancetonearesthublinetohub: Distance to nearest hub (line to hub)
-Given an origin and a destination layers, this algorithm computes the distance between origin features and their closest destination one. Distance calculations are based on the features center. The resulting layer contains lines linking each origin point with its nearest destination feature.
+Given an origin and a destination layers, this algorithm computes the distance between origin features and their closest destination one. Distance calculations are based on the features center.
+The resulting layer contains lines linking each origin point with its nearest destination feature.
 Parameters:
 - INPUT [source]: Source points layer
 - HUBS [source]: Destination hubs layer
@@ -1049,7 +1071,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:distancetonearesthubpoints: Distance to nearest hub (points)
-Given an origin and a destination layers, this algorithm computes the distance between origin features and their closest destination one. Distance calculations are based on the features center. The resulting layer contains origin features center point with an additional field indicating the identifier of the nearest destination feature and the distance to it.
+Given an origin and a destination layers, this algorithm computes the distance between origin features and their closest destination one. Distance calculations are based on the features center.
+The resulting layer contains origin features center point with an additional field indicating the identifier of the nearest destination feature and the distance to it.
 Parameters:
 - INPUT [source]: Source points layer
 - HUBS [source]: Destination hubs layer
@@ -1088,7 +1111,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:randompointsalongline: Random points along line
-This algorithm creates a point layer with a given "Number of points" placed on the lines of the "Input layer". The location of each point is determined by randomly selecting a feature, then a segment of the line geometry of that feature, and finally a random position on that segment. A minimum distance between the points can be specified (Euclidean distance).
+This algorithm creates a point layer with a given "Number of points" placed on the lines of the "Input layer".
+The location of each point is determined by randomly selecting a feature, then a segment of the line geometry of that feature, and finally a random position on that segment. A minimum distance between the points can be specified (Euclidean distance).
 Parameters:
 - INPUT [source]: Input layer
 - POINTS_NUMBER [number]: Number of points (default 1)
@@ -1106,7 +1130,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:randompointsinsidepolygons: Random points inside polygons
-This algorithm creates a new point layer with random points inside the polygons of a given layer. The number of points in each polygon can be defined as a fixed count or as a density value. The count/density value could also be taken from an attribute or an expression specified using the "Data defined override" functionality, so it can be different for each polygon in the input layer. A minimum ...
+This algorithm creates a new point layer with random points inside the polygons of a given layer.
+The number of points in each polygon can be defined as a fixed count or as a density value. The count/density value could also be taken from an attribute or an expression specified using the "Data defined override" functionality, so it can be different for each polygon in the input layer.
+A minimum distance can be specified, to avoid points being too close to each other.
 Parameters:
 - INPUT [source]: Input layer
 - STRATEGY [enum]: Sampling strategy (default 0; options 0=Points count, 1=Points density)
@@ -1132,7 +1158,9 @@ Outputs: OUTPUT [outputVector]
 ## QGIS / Vector general
 
 ### qgis:executesql: Execute SQL
-Runs a simple or complex query with SQL syntax. Input data sources are identified with input1, input2, ..., inputN and a simple query will look like: SELECT * FROM input1 The result of the query will be added as a new layer.
+Runs a simple or complex query with SQL syntax.
+Input data sources are identified with input1, input2, ..., inputN and a simple query will look like: SELECT * FROM input1
+The result of the query will be added as a new layer.
 Parameters:
 - INPUT_DATASOURCES [multilayer]: Input data sources (called input1, .., inputN in the query) (optional)
 - INPUT_QUERY [execute_sql]: SQL query
@@ -1154,7 +1182,7 @@ Outputs: INPUT [outputVector]
 ## QGIS / Vector geometry
 
 ### qgis:eliminateselectedpolygons: Eliminate selected polygons
-This algorithm combines selected polygons of the input layer with certain adjacent polygons by erasing their common boundary. The adjacent polygon can be either the one with the largest or smallest area or the one sharing the largest common boundary with the polygon to be eliminated. Eliminate is normally used to get rid of sliver polygons, i.e. tiny polygons that are a result of polygon ...
+This algorithm combines selected polygons of the input layer with certain adjacent polygons by erasing their common boundary. The adjacent polygon can be either the one with the largest or smallest area or the one sharing the largest common boundary with the polygon to be eliminated. Eliminate is normally used to get rid of sliver polygons, i.e. tiny polygons that are a result of polygon intersection processes where boundaries of the inputs are similar but not identical.
 Parameters:
 - INPUT [vector]: Input layer
 - MODE [enum]: Merge selection with the neighbouring polygon with the (options 0=Largest Area, 1=Smallest Area, 2=Largest Common Boundary)
@@ -1162,7 +1190,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:knearestconcavehull: Concave hull (k-nearest neighbor)
-Creates a concave hull using the k-nearest neighbor algorithm.
+This algorithm generates a concave hull polygon from a set of points. If the input layer is a line or polygon layer, it will use the nodes.
+The number of neighbours to consider determines the concaveness of the output polygon. A lower number will result in a concave hull that follows the points very closely, while a higher number will have a smoother shape. The minimum number of neighbour points to consider is 3. A value equal to or greater than the number of points will result in a convex hull.
+If a field is selected, the algorithm will group the features in the input layer using unique values in that field and generate individual polygons in the output layer for each group.
 Parameters:
 - INPUT [source]: Input layer
 - KNEIGHBORS [number]: Number of neighboring points to consider (a lower number is more concave, a higher number is smoother) (default 3)
@@ -1171,14 +1201,17 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:linestopolygons: Lines to polygons
-This algorithm generates a polygon layer using as polygon rings the lines from an input line layer. The attribute table of the output layer is the same as the one from of the input line layer.
+This algorithm generates a polygon layer using as polygon rings the lines from an input line layer.
+The attribute table of the output layer is the same as the one from of the input line layer.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Polygons
 Outputs: OUTPUT [outputVector]
 
 ### qgis:minimumboundinggeometry: Minimum bounding geometry
-This algorithm creates geometries which enclose the features from an input layer. Numerous enclosing geometry types are supported, including bounding boxes (envelopes), oriented rectangles, circles and convex hulls. Optionally, the features can be grouped by a field. If set, this causes the output layer to contain one feature per grouped value with a minimal geometry covering just the features ...
+This algorithm creates geometries which enclose the features from an input layer.
+Numerous enclosing geometry types are supported, including bounding boxes (envelopes), oriented rectangles, circles and convex hulls.
+Optionally, the features can be grouped by a field. If set, this causes the output layer to contain one feature per grouped value with a minimal geometry covering just the features with matching values.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Field (optional, set if features should be grouped by class) (optional)
@@ -1224,7 +1257,9 @@ Outputs: OUTPUT [outputVector]
 ## QGIS / Vector selection
 
 ### qgis:randomextractwithinsubsets: Random extract within subsets
-This algorithm takes a vector layer and generates a new one that contains only a subset of the features in the input layer. The subset is defined randomly, using a percentage or count value to define the total number of features in the subset. The percentage/count value is not applied to the whole layer, but instead to each category. Categories are defined according to a given attribute, which is ...
+This algorithm takes a vector layer and generates a new one that contains only a subset of the features in the input layer.
+The subset is defined randomly, using a percentage or count value to define the total number of features in the subset.
+The percentage/count value is not applied to the whole layer, but instead to each category. Categories are defined according to a given attribute, which is also specified as an input parameter for the algorithm.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: ID field
@@ -1234,7 +1269,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:randomselection: Random selection
-Randomly selects features from a vector layer.
+This algorithm takes a vector layer and selects a subset of its features. No new layer is generated by this algorithm.
+The subset is defined randomly, using a percentage or count value to define the total number of features in the subset.
 Parameters:
 - INPUT [vector]: Input layer
 - METHOD [enum]: Method (default 0; options 0=Number of selected features, 1=Percentage of selected features)
@@ -1242,7 +1278,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:randomselectionwithinsubsets: Random selection within subsets
-Randomly selects features from a subset of a vector layer.
+This algorithm takes a vector layer and selects a subset of its features. No new layer is generated by this algorithm.
+The subset is defined randomly, using a percentage or count value to define the total number of features in the subset.
+The percentage/count value is not applied to the whole layer, but instead to each category. Categories are defined according to a given attribute, which is also specified as an input parameter for the algorithm.
 Parameters:
 - INPUT [vector]: Input layer
 - FIELD [field]: ID field
@@ -1251,7 +1289,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:selectbyattribute: Select by attribute
-Selects features from a vector layer based on an attribute from the layer.
+This algorithm creates a selection in a vector layer. The criteria for selected features is defined based on the values of an attribute from the input layer.
 Parameters:
 - INPUT [vector]: Input layer
 - FIELD [field]: Selection attribute
@@ -1261,7 +1299,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:selectbyexpression: Select by expression
-Selects features from a vector layer based on a QGIS expression.
+This algorithm creates a selection in a vector layer. The criteria for selecting features is based on a QGIS expression.
+For help with QGIS expression functions, see the inbuilt help for specific functions which is available in the expression builder.
 Parameters:
 - INPUT [vector]: Input layer
 - EXPRESSION [expression]: Expression
@@ -1285,7 +1324,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### qgis:texttofloat: Text to float
-Converts a text attribute containing numeric strings into a numeric attribute.
+This algorithm modifies the type of a given attribute in a vector layer, converting a text attribute containing numeric strings into a numeric attribute.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Text attribute to convert to float
@@ -1296,7 +1335,8 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (3D) / Vector geometry
 
 ### 3d:tessellate: Tessellate
-Tessellates a polygon geometry layer, dividing the geometries into triangular components.
+This algorithm tessellates a polygon geometry layer, dividing the geometries into triangular components.
+The output layer consists of multipolygon geometries for each input feature, with each multipolygon consisting of multiple triangle component polygons.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Tessellated
@@ -1306,14 +1346,14 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (PDAL) / Point cloud conversion
 
 ### pdal:convertformat: Convert format
-Converts a point cloud to a different file format, e.g. creates compressed LAZ.
+This algorithm converts point cloud to a different file format, e. g. creates compressed LAZ.
 Parameters:
 - INPUT [pointcloud]: Input layer
 - OUTPUT [pointCloudDestination]: Converted
 Outputs: OUTPUT [outputPointCloud]
 
 ### pdal:exportraster: Export to raster
-Exports a point cloud to a 2D raster grid containing values from the specified attribute.
+This algorithm exports point cloud data to a 2D raster grid having cell size of given resolution, writing values from the specified attribute.
 Parameters:
 - INPUT [pointcloud]: Input layer
 - ATTRIBUTE [attribute]: Attribute (default Z)
@@ -1327,7 +1367,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### pdal:exportrastertin: Export to raster (using triangulation)
-Exports a point cloud to a 2D raster grid using a triangulation of points.
+This algorithm exports point cloud data to a 2D raster grid using a triangulation of points and then interpolating cell values from triangles.
 Parameters:
 - INPUT [pointcloud]: Input layer
 - RESOLUTION [number]: Resolution of the density raster (default 1)
@@ -1340,7 +1380,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### pdal:exportvector: Export to vector
-Exports a point cloud to a vector layer with 3D points.
+This algorithm exports point cloud data to a vector layer with 3D points (a GeoPackage), optionally with extra attributes.
 Parameters:
 - INPUT [pointcloud]: Input layer
 - ATTRIBUTE [attribute]: Attribute (optional)
@@ -1353,7 +1393,7 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (PDAL) / Point cloud data management
 
 ### pdal:assignprojection: Assign projection
-Assigns a new CRS to a point cloud, without transforming points.
+This algorithm assigns point cloud CRS if it is not present or wrong.
 Parameters:
 - INPUT [pointcloud]: Input layer
 - CRS [crs]: Desired CRS (default EPSG:4326)
@@ -1445,7 +1485,7 @@ Outputs: OUTPUT [outputPointCloud]
 ## QGIS (PDAL) / Point cloud extraction
 
 ### pdal:boundary: Boundary
-Creates a polygon layer containing a point cloud's boundary.
+This algorithm exports a polygon file containing point cloud layer boundary. It may contain holes and it may be a multi-part polygon.
 Parameters:
 - INPUT [pointcloud]: Input layer
 - RESOLUTION [number]: Resolution of cells used to calculate boundary (optional)
@@ -1481,14 +1521,14 @@ Outputs: OUTPUT [outputPointCloud]
 ## QGIS (native c++) / 3D Tiles
 
 ### native:b3dmtogltf: Convert B3DM to GLTF
-Converts files from the legacy B3DM format to GLTF.
+This algorithm converts files from the legacy B3DM format to GLTF.
 Parameters:
 - INPUT [file]: Input B3DM
 - OUTPUT [fileDestination]: Output file
 Outputs: OUTPUT [outputFile]
 
 ### native:gltftovector: Convert GLTF to vector features
-Converts GLTF content to standard vector layer formats.
+This algorithm converts GLTF content to standard vector layer formats.
 Parameters:
 - INPUT [file]: Input GLTF
 - OUTPUT_POLYGONS [sink]: Output polygons (optional)
@@ -1499,7 +1539,9 @@ Outputs: OUTPUT_POLYGONS [outputVector], OUTPUT_LINES [outputVector]
 ## QGIS (native c++) / Cartography
 
 ### native:angletonearest: Align points to features
-Rotates point features to align them to nearby features.
+This algorithm calculates the rotation required to align point features with their nearest feature from another reference layer. A new field is added to the output layer which is filled with the angle (in degrees, clockwise) to the nearest reference feature.
+Optionally, the output layer's symbology can be set to automatically use the calculated rotation field to rotate marker symbols.
+If desired, a maximum distance to use when aligning points can be set, to avoid aligning isolated points to distant features.
 Parameters:
 - INPUT [source]: Input layer
 - REFERENCE_LAYER [source]: Reference layer
@@ -1510,7 +1552,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:atlaslayouttoimage: Export atlas layout as image
-Exports an atlas layout as a set of images.
+This algorithm outputs an atlas layout to a set of image files (e.g. PNG or JPEG images).
+If a coverage layer is set, the selected layout's atlas settings exposed in this algorithm will be overwritten. In this case, an empty filter or sort by expression will turn those settings off.
 Parameters:
 - LAYOUT [layout]: Atlas layout
 - COVERAGE_LAYER [vector]: Coverage layer (optional)
@@ -1527,7 +1570,8 @@ Parameters:
 - ANTIALIAS [boolean]: Enable antialiasing (default True)
 
 ### native:atlaslayouttomultiplepdf: Export atlas layout as PDF (multiple files)
-Exports an atlas layout to multiple PDF files.
+This algorithm outputs an atlas layout to multiple PDF files.
+If a coverage layer is set, the selected layout's atlas settings exposed in this algorithm will be overwritten. In this case, an empty filter or sort by expression will turn those settings off.
 Parameters:
 - LAYOUT [layout]: Atlas layout
 - COVERAGE_LAYER [vector]: Coverage layer (optional)
@@ -1548,7 +1592,8 @@ Parameters:
 - OUTPUT_FOLDER [file]: Output folder
 
 ### native:atlaslayouttopdf: Export atlas layout as PDF (single file)
-Exports an atlas layout as a single PDF file.
+This algorithm outputs an atlas layout as a single PDF file.
+If a coverage layer is set, the selected layout's atlas settings exposed in this algorithm will be overwritten. In this case, an empty filter or sort by expression will turn those settings off.
 Parameters:
 - LAYOUT [layout]: Atlas layout
 - COVERAGE_LAYER [vector]: Coverage layer (optional)
@@ -1569,7 +1614,12 @@ Parameters:
 Outputs: OUTPUT [outputFile]
 
 ### native:categorizeusingstyle: Create categorized renderer from styles
-Sets a vector layer's renderer to a categorized renderer using symbols from a style database.
+This algorithm sets a vector layer's renderer to a categorized renderer using matching symbols from a style database. If no style file is specified, symbols from the user's current style library are used instead.
+The specified expression (or field name) is used to create categories for the renderer. A category will be created for each unique value within the layer.
+Each category is individually matched to the symbols which exist within the specified QGIS XML style database. Whenever a matching symbol name is found, the category's symbol will be set to this matched symbol.
+The matching is case-insensitive by default, but can be made case-sensitive if required.
+Optionally, non-alphanumeric characters in both the category value and symbol name can be ignored while performing the match. This allows for greater tolerance when matching categories to symbols.
+If desired, tables can also be output containing lists of the categories which could not be matched to symbols, and symbols which were not matched to categories.
 Parameters:
 - INPUT [vector]: Input layer
 - FIELD [expression]: Categorize using expression
@@ -1581,7 +1631,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], NON_MATCHING_CATEGORIES [outputVector], NON_MATCHING_SYMBOLS [outputVector]
 
 ### native:combinestyles: Combine style databases
-Combines multiple style databases into a single database.
+This algorithm combines multiple QGIS style databases into a single style database. If any symbols exist with duplicate names between the different source databases these will be renamed to have unique names in the output combined database.
 Parameters:
 - INPUT [multilayer]: Input databases
 - OUTPUT [fileDestination]: Output style database
@@ -1589,7 +1639,9 @@ Parameters:
 Outputs: OUTPUT [outputFile], SYMBOLS [outputNumber], COLORRAMPS [outputNumber], TEXTFORMATS [outputNumber], LABELSETTINGS [outputNumber]
 
 ### native:extractlabels: Extract labels
-Converts map labels to a point layer with relevant details saved as attributes.
+This algorithm extracts label information from a rendered map at a given extent and scale.
+If a map theme is provided, the rendered map will match the visibility and symbology of that theme. If left blank, all visible layers from the project will be used.
+Extracted label information include: position (served as point geometries), the associated layer name and feature ID, label text, rotation (in degree, clockwise), multiline alignment, and font details.
 Parameters:
 - EXTENT [extent]: Map extent
 - SCALE [scale]: Map scale
@@ -1600,7 +1652,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:printlayoutmapextenttolayer: Print layout map extent to layer
-Creates a polygon layer containing the extent of a print layout map item.
+This algorithm creates a polygon layer containing the extent of a print layout map item (or items), with attributes specifying the map size (in layout units), scale and rotation.
+If the map item parameter is specified, then only the matching map extent will be exported. If it is not specified, all map extents from the layout will be exported.
+Optionally, a specific output CRS can be specified. If it is not specified, the original map item CRS will be used.
 Parameters:
 - LAYOUT [layout]: Print layout
 - MAP [layoutitem]: Map item (optional)
@@ -1609,7 +1663,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], WIDTH [outputNumber], HEIGHT [outputNumber], SCALE [outputNumber], ROTATION [outputNumber]
 
 ### native:printlayouttoimage: Export print layout as image
-Exports a print layout as an image.
+This algorithm outputs a print layout as an image file (e.g. PNG or JPEG images).
 Parameters:
 - LAYOUT [layout]: Print layout
 - LAYERS [multilayer]: Map layers to assign to unlocked map item(s) (optional)
@@ -1621,7 +1675,7 @@ Parameters:
 Outputs: OUTPUT [outputFile]
 
 ### native:printlayouttopdf: Export print layout as PDF
-Exports a print layout as a PDF.
+This algorithm outputs a print layout as a PDF file.
 Parameters:
 - LAYOUT [layout]: Print layout
 - LAYERS [multilayer]: Map layers to assign to unlocked map item(s) (optional)
@@ -1639,14 +1693,15 @@ Parameters:
 Outputs: OUTPUT [outputFile]
 
 ### native:setlayerstyle: Set layer style
-Applies the style from a QML file to a layer.
+This algorithm applies the style to a layer. The style must be defined as QML file.
 Parameters:
 - INPUT [layer]: Layer
 - STYLE [file]: Style file
 Outputs: OUTPUT [outputLayer]
 
 ### native:stylefromproject: Create style database from project
-Creates a style database by extracting all symbols, color ramps, text formats and label settings from a QGIS project.
+This algorithm extracts all style objects (including symbols, color ramps, text formats and label settings) from a QGIS project.
+The extracted symbols are saved to a QGIS style database (XML format), which can be managed and imported via the Style Manager dialog.
 Parameters:
 - INPUT [file]: Input project (leave blank to use current) (optional)
 - OUTPUT [fileDestination]: Output style database
@@ -1654,7 +1709,7 @@ Parameters:
 Outputs: OUTPUT [outputFile], SYMBOLS [outputNumber], COLORRAMPS [outputNumber], TEXTFORMATS [outputNumber], LABELSETTINGS [outputNumber]
 
 ### native:transferannotationsfrommain: Transfer annotations from main layer
-Transfers all annotations from the main annotation layer in a project to a new annotation layer.
+This algorithm transfers all annotations from the main annotation layer in a project to a new annotation layer.
 Parameters:
 - LAYER_NAME [string]: New layer name (default Annotations)
 Outputs: OUTPUT [outputLayer]
@@ -1663,7 +1718,8 @@ Outputs: OUTPUT [outputLayer]
 ## QGIS (native c++) / Check geometry
 
 ### native:checkgeometryangle: Small angles
-Detects angles smaller than a given angle.
+This algorithm checks the angles of line or polygon geometries.
+Angles below the minimum angle are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1673,7 +1729,8 @@ Parameters:
 Outputs: ERRORS [outputVector]
 
 ### native:checkgeometryarea: Small polygons
-Detects polygons smaller than a given area.
+This algorithm checks the areas of polygon geometries.
+Areas below the area threshold are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1684,7 +1741,9 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrycontained: Features inside polygon
-Detects features contained inside polygons from a list of polygon layers.
+This algorithm checks the input geometries contained in the polygons from the polygon layers list.
+A polygon layer can be checked against itself.
+Input features contained in the polygon layers features are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1695,7 +1754,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], ERRORS [outputVector]
 
 ### native:checkgeometrydangle: Dangle-end lines
-Detects lines with a dangle end.
+This algorithm checks lines with a dangle end.
+Lines with a dangle end are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1705,7 +1765,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrydegeneratepolygon: Degenerate polygons
-Detects polygons with less than 3 points.
+This algorithm checks the polygons with less than 3 points, which are degenerate polygons.
+Degenerate polygons are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1715,7 +1776,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometryduplicate: Duplicated geometries
-Detects duplicate geometries.
+This algorithm checks the duplicate geometries.
+Duplicate geometries are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1725,7 +1787,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometryduplicatenodes: Duplicated vertices
-Detects duplicated vertices in line and polygon geometries.
+This algorithm checks the vertices of line and polygon geometries.
+Duplicated vertices are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1735,7 +1798,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometryfollowboundaries: Polygons exceeding boundaries
-Detects polygons that do not follow boundaries defined by a reference polygon layer.
+This algorithm checks if the polygons follow the boundaries of the reference layer.
+Polygons not following reference boundaries are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1746,7 +1810,11 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrygap: Small gaps
-Detects gaps between polygons smaller than a given area.
+This algorithm checks the gaps between polygons.
+Gaps with an area smaller than the gap threshold are errors.
+If an allowed gaps layer is given, the gaps contained in polygons from this layer will be ignored.
+An optional buffer can be applied to the allowed gaps.
+The neighbors output layer is needed for the fix geometry (gaps) algorithm. It is a 1-N relational table for correspondance between a gap and the unique id of its neighbor features.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1760,7 +1828,8 @@ Parameters:
 Outputs: NEIGHBORS [outputVector], ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometryhole: Holes
-Detects holes inside polygons.
+This algorithm checks the holes of polygon geometries.
+Holes are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1770,7 +1839,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrylineintersection: Lines intersecting each other
-Detects intersections between different lines.
+This algorithm checks intersections between line geometries.
+Intersections between two different lines are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1780,7 +1850,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrylinelayerintersection: Lines intersecting other layer
-Detects lines intersecting features from another layer.
+This algorithm checks if the input line layer features intersect with the check layer features.
+An input feature that intersects with a check layer feature is an error.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1791,7 +1862,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrymissingvertex: Missing vertices along borders
-Detects missing vertices along polygon borders for topology compliance.
+This algorithm checks for missing vertices along polygon borders.
+To be topologically correct, a vertex at the junction of two polygons must be present on both polygons. Missing vertices are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1801,7 +1873,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrymultipart: Strictly multipart
-Detects multipart features containing only one part.
+This algorithm checks if multipart geometries have more than one part.
+Multipart geometries with only one part are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1811,7 +1884,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometryoverlap: Overlaps
-Detects overlaps between polygons smaller than a given area.
+This algorithm checks the overlapping areas.
+Overlapping areas smaller than the minimum overlapping area are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1822,7 +1896,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrypointcoveredbyline: Points outside lines
-Detects points that are not along lines from another layer.
+This algorithm checks if the points in the input layer are covered by a line in the selected line layers.
+A point not covered by a line is an error.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1832,7 +1907,8 @@ Parameters:
 Outputs: ERRORS [outputVector]
 
 ### native:checkgeometrypointinpolygon: Points outside polygons
-Detects points that are not in polygons from the polygon layer list.
+This algorithm checks if points from the input layer are in polygons from the selected polygon layers.
+Points that are not fully inside polygons are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1842,7 +1918,8 @@ Parameters:
 Outputs: ERRORS [outputVector]
 
 ### native:checkgeometrysegmentlength: Small segments
-Detects segments, in lines or polygons, shorter than a given length.
+This algorithm checks the minimum segment length of line or polygon geometries.
+Segments shorter than the minimum length are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1853,7 +1930,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometryselfcontact: Self-contacts
-Detects self contact points in the geometry (line or polygon).
+This algorithm checks if the geometry has self contact points (in line or polygon).
+Self contacts are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1863,7 +1941,8 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometryselfintersection: Self-intersections
-Detects self-intersecting geometries.
+This algorithm checks self-intersecting geometries.
+Self-intersecting geometries are errors.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1873,7 +1952,12 @@ Parameters:
 Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 
 ### native:checkgeometrysliverpolygon: Sliver polygons
-Detects sliver polygons that are too thin.
+This algorithm checks sliver polygons.
+The thinness is the ratio between the area of the minimum square containing the polygon and the area of the polygon itself (a square has a thinness value of 1).
+The thinness value is between 1 and +infinity.
+If a polygon has an area higher than the maximum area, it is skipped (a maximum area value of 0 means no area check).
+Polygons having a thinness higher than the maximum thinness are errors.
+To fix sliver polygons, use the "Fix small polygons" algorithm.
 Parameters:
 - INPUT [source]: Input layer
 - UNIQUE_ID [field]: Unique feature identifier
@@ -1888,7 +1972,8 @@ Outputs: ERRORS [outputVector], OUTPUT [outputVector]
 ## QGIS (native c++) / Database
 
 ### native:importintopostgis: Export to PostgreSQL
-Exports a vector layer to a PostgreSQL database.
+This algorithm exports a vector layer to a PostgreSQL database, creating a new table.
+Prior to this a connection between QGIS and the PostgreSQL database has to be created (for example through the QGIS Browser panel).
 Parameters:
 - INPUT [source]: Layer to export
 - DATABASE [providerconnection]: Database (connection name)
@@ -1904,7 +1989,7 @@ Parameters:
 - FORCE_SINGLEPART [boolean]: Create single-part geometries instead of multipart (default False)
 
 ### native:package: Package layers
-Packages a number of existing layers together into a single GeoPackage database.
+This algorithm collects a number of existing layers and packages them together into a single GeoPackage database.
 Parameters:
 - LAYERS [multilayer]: Input layers
 - OUTPUT [fileDestination]: Destination GeoPackage
@@ -1916,19 +2001,19 @@ Parameters:
 Outputs: OUTPUT [outputFile], OUTPUT_LAYERS [outputMultilayer]
 
 ### native:postgisexecutesql: PostgreSQL execute SQL
-Executes a SQL command on a PostgreSQL database.
+This algorithm executes a SQL command on a PostgreSQL database.
 Parameters:
 - DATABASE [providerconnection]: Database (connection name)
 - SQL [string]: SQL query
 
 ### native:spatialiteexecutesql: SpatiaLite execute SQL
-Executes a SQL command on a SpatiaLite database determined by an input layer or file.
+This algorithm executes a SQL command on a SpatiaLite database. The database is determined by an input layer or file.
 Parameters:
 - DATABASE [vector]: Database layer (or file)
 - SQL [string]: SQL query
 
 ### native:spatialiteexecutesqlregistered: SpatiaLite execute SQL (registered DB)
-Executes a SQL command on a SpatiaLite database.
+This algorithm executes a SQL command on a SpatiaLite database.
 Parameters:
 - DATABASE [providerconnection]: Database (connection name)
 - SQL [string]: SQL query
@@ -1937,7 +2022,7 @@ Parameters:
 ## QGIS (native c++) / File tools
 
 ### native:filedownloader: Download file via HTTP(S)
-Downloads a URL to the file system with an HTTP(S) GET or POST request.
+This algorithm downloads a URL to the file system with an HTTP(S) GET or POST request
 Parameters:
 - URL [string]: URL
 - METHOD [enum]: Method (default 0; options 0=GET, 1=POST)
@@ -1946,7 +2031,10 @@ Parameters:
 Outputs: OUTPUT [outputFile]
 
 ### native:httprequest: HTTP(S) POST/GET request
-Performs a HTTP(S) POST/GET request and returns the result code, error message and the data.
+This algorithm performs a HTTP(S) POST/GET request and returns the HTTP status code and the reply data.
+If an error occurs then the error code and the message will be returned.
+Optionally, the result can be written to a file on disk.
+By default the algorithm will warn on errors. Optionally, the algorithm can be set to treat HTTP errors as failures.
 Parameters:
 - URL [string]: URL
 - METHOD [enum]: Method (default 0; options 0=GET, 1=POST)
@@ -1957,7 +2045,7 @@ Parameters:
 Outputs: OUTPUT [outputFile], ERROR_CODE [outputNumber], ERROR_MESSAGE [outputString], STATUS_CODE [outputNumber], RESULT_DATA [outputString]
 
 ### native:openurl: Open file or URL
-Opens files in their default associated application, or URLs in the user's default web browser.
+This algorithm opens files in their default associated application, or URLs in the user's default web browser.
 Parameters:
 - URL [string]: URL or file path
 Outputs: SUCCESS [outputBoolean]
@@ -1966,7 +2054,8 @@ Outputs: SUCCESS [outputBoolean]
 ## QGIS (native c++) / Fix geometry
 
 ### native:fixgeometryangle: Delete small angles
-Deletes vertices detected with the "Small angles" algorithm from the "Check geometry" section.
+This algorithm deletes vertices based on an error layer from the "Small angles" algorithm in the "Check geometry" section.
+When deletion of a vertex results in a duplicate vertex (when a spike vertex is deleted), the duplicate vertex is deleted to keep a single vertex and preserve topology.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -1980,7 +2069,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometryarea: Fix small polygons
-Merges small polygons detected with the "Small polygons" algorithm from the "Check geometry" section.
+This algorithm merges neighboring polygons according to the chosen method, based on an error layer from the "Small polygons" algorithm in the "Check geometry" section.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -1996,7 +2085,13 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometrydeletefeatures: Delete features
-Deletes features detected with an algorithm from the "Check geometry" section.
+This algorithm deletes error features listed in the errors layer from an algorithm in the "Check geometry" section.
+The required inputs are the original layer used in the check algorithm, its unique id field, and its corresponding errors layer.
+For instance, it can be used after the following check algorithms to delete error features:Feature inside polygon
+Degenerate polygons
+Small segments
+Duplicated geometries
+etc.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -2006,7 +2101,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometryduplicatenodes: Delete duplicated vertices
-Deletes duplicated vertices detected with the "Duplicated vertices" algorithm from the "Check geometry" section.
+This algorithm delete duplicate vertices based on an error layer from the "Duplicated vertices" algorithm in the "Check geometry" section.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -2020,7 +2115,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometrygap: Fill gaps
-Fills gaps detected with the "Small gaps" algorithm from the "Check geometry" section.
+This algorithm fills the gaps based on a gap and neighbors layer from the "Small gaps" algorithm in the "Check geometry" section.
+3 different fixing methods are available, which will give different results.
 Parameters:
 - INPUT [source]: Input layer
 - NEIGHBORS [source]: Neighbors layer
@@ -2034,7 +2130,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometryhole: Fill holes
-Fills holes detected with the "Holes" algorithm from the "Check geometry" section.
+This algorithm deletes holes based on an error layer from the "Holes" algorithm in the "Check geometry" section.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -2048,7 +2144,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometrymissingvertex: Add missing vertices along borders
-Adds missing vertices along borders detected with the "Missing vertices along borders" algorithm from the "Check geometry" section.
+This algorithm adds the missing vertices along polygons borders, based on an error layer from the "Missing vertices along borders" algorithm in the "Check geometry" section.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -2062,7 +2158,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometrymultipart: Convert to strictly multipart
-Converts features detected with the "Strictly multipart" algorithm from the "Check geometry" section to singlepart.
+This algorithm converts multipart geometries that consists of only one geometry into singlepart geometries, based on an error layer from the "Strict multipart" algorithm in the "Check geometry" section.
+This algorithm does not change the layer geometry type, which will remain multipart.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -2073,7 +2170,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometryoverlap: Delete overlaps
-Deletes overlaps detected with the "Overlaps" algorithm from the "Check geometry" section.
+This algorithm deletes overlap sections based on an error layer from the "Overlap" algorithm in the "Check geometry" section.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -2086,7 +2183,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], REPORT [outputVector]
 
 ### native:fixgeometryselfintersection: Split self-intersecting geometries
-Splits features detected with the "Self-intersections" algorithm from the "Check geometry" section.
+This algorithm splits self intersecting lines or polygons according to the chosen method, based on an error layer from the "Self-intersections" algorithm in the "Check geometry" section.
 Parameters:
 - INPUT [source]: Input layer
 - ERRORS [source]: Error layer
@@ -2106,7 +2203,7 @@ Outputs: OUTPUT [outputVector], REPORT [outputVector]
 ## QGIS (native c++) / GPS
 
 ### native:convertgpsdata: Convert GPS data
-Converts a GPS data file from a range of formats to the GPX standard format.
+This algorithm uses the GPSBabel tool to convert a GPS data file from a range of formats to the GPX standard format.
 Parameters:
 - INPUT [file]: Input file
 - FORMAT [string]: Format
@@ -2115,7 +2212,7 @@ Parameters:
 Outputs: OUTPUT [outputFile], OUTPUT_LAYER [outputVector]
 
 ### native:convertgpxfeaturetype: Convert GPX feature type
-Converts GPX features from one type to another.
+This algorithm uses the GPSBabel tool to convert GPX features from one type to another (e.g. converting all waypoint features to a route feature).
 Parameters:
 - INPUT [file]: Input file
 - CONVERSION [enum]: Conversion (default 0; options 0=Waypoints from a Route, 1=Waypoints from a Track, 2=Route from Waypoints, 3=Track from Waypoints)
@@ -2123,7 +2220,7 @@ Parameters:
 Outputs: OUTPUT [outputFile], OUTPUT_LAYER [outputVector]
 
 ### native:downloadgpsdata: Download GPS data from device
-Downloads data from a GPS device into the GPX standard format.
+This algorithm uses the GPSBabel tool to download data from a GPS device into the GPX standard format.
 Parameters:
 - DEVICE [string]: Device
 - PORT [string]: Port
@@ -2132,7 +2229,7 @@ Parameters:
 Outputs: OUTPUT [outputFile], OUTPUT_LAYER [outputVector]
 
 ### native:uploadgpsdata: Upload GPS data to device
-Uploads data to a GPS device from the GPX standard format.
+This algorithm uses the GPSBabel tool to upload data to a GPS device from the GPX standard format.
 Parameters:
 - INPUT [file]: Input file
 - DEVICE [string]: Device
@@ -2143,7 +2240,7 @@ Parameters:
 ## QGIS (native c++) / Interpolation
 
 ### native:linedensity: Line density
-Calculates a density measure of linear features which is obtained in a circular neighborhood within each raster cell.
+This algorithm calculates a density measure of linear features which is obtained in a circular neighborhood within each raster cell. First, the length of the segment of each line that is intersected by the circular neighborhood is multiplied with the lines weight factor. In a second step, all length values are summed and divided by the area of the circular neighborhood. This process is repeated for all raster cells.
 Parameters:
 - INPUT [source]: Input line layer
 - WEIGHT [field]: Weight field  (optional)
@@ -2158,14 +2255,16 @@ Outputs: OUTPUT [outputRaster]
 ## QGIS (native c++) / Layer tools
 
 ### native:exportlayersinformation: Export layer(s) information
-Creates a polygon layer with features corresponding to the extent of selected layer(s).
+This algorithm creates a polygon layer with features corresponding to the extent of selected layer(s).
+Additional layer details - CRS, provider name, file path, layer name, subset filter, abstract and attribution - are attached as attributes to each feature.
 Parameters:
 - LAYERS [multilayer]: Input layer(s)
 - OUTPUT [sink]: Output
 Outputs: OUTPUT [outputVector]
 
 ### native:exporttospreadsheet: Export to spreadsheet
-Collects a number of existing layers and exports them to a spreadsheet document.
+This algorithm collects a number of existing layers and exports them to a spreadsheet document.
+Optionally the layers can be appended to an existing spreadsheet as additional sheets.
 Parameters:
 - LAYERS [multilayer]: Input layers
 - USE_ALIAS [boolean]: Use field aliases as column headings (default False)
@@ -2175,7 +2274,7 @@ Parameters:
 Outputs: OUTPUT [outputFile], OUTPUT_LAYERS [outputMultilayer]
 
 ### native:polygonfromlayerextent: Extract layer extent
-Generates a vector layer with the minimum bounding box that covers the input layer.
+This algorithm takes a map layer and generates a new vector layer with the minimum bounding box (rectangle polygon with N-S orientation) that covers the input layer. Optionally, the extent can be enlarged to a rounded value.
 Parameters:
 - INPUT [layer]: Input layer
 - ROUND_TO [distance]: Round values to (default 0)
@@ -2186,7 +2285,7 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (native c++) / Mesh
 
 ### native:exportmeshedges: Export mesh edges
-Exports mesh edges to a line vector layer.
+This algorithm exports a mesh layer's edges to a line vector layer, with the dataset values on edges as attribute values.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (optional; default [])
@@ -2197,7 +2296,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:exportmeshfaces: Export mesh faces
-Exports mesh faces to a polygon vector layer.
+This algorithm exports a mesh layer's faces to a polygon vector layer, with the dataset values on faces as attribute values.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (optional; default [])
@@ -2208,7 +2307,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:exportmeshongrid: Export mesh on grid
-Exports mesh dataset values to a gridded point vector layer.
+This algorithm exports a mesh layer's dataset values to a gridded point vector layer, with the dataset values on each point as attribute values.
+For data on volume (3D stacked dataset values), the exported dataset values are averaged on faces using the method defined in the mesh layer properties (default is Multi level averaging method).
+1D meshes are not supported.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (default [])
@@ -2221,7 +2322,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:exportmeshvertices: Export mesh vertices
-Exports mesh vertices to a point vector layer.
+This algorithm exports a mesh layer's vertices to a point vector layer, with the dataset values on vertices as attribute values.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (optional; default [])
@@ -2232,7 +2333,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:meshcontours: Export contours
-Creates contours as vector layer from mesh scalar dataset.
+This algorithm creates contours as a vector layer from a mesh scalar dataset.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (default [])
@@ -2247,7 +2348,8 @@ Parameters:
 Outputs: OUTPUT_LINES [outputVector], OUTPUT_POLYGONS [outputVector]
 
 ### native:meshexportcrosssection: Export cross section dataset values on lines from mesh
-Extracts a mesh dataset's values from lines contained in a vector layer.
+This algorithm extracts mesh's dataset values from line contained in a vector layer.
+Each line is discretized with a resolution distance parameter for extraction of values on its vertices.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (default [])
@@ -2260,7 +2362,8 @@ Parameters:
 Outputs: OUTPUT [outputFile]
 
 ### native:meshexporttimeseries: Export time series values from points of a mesh dataset
-Extracts a mesh dataset's time series values from points contained in a vector layer.
+This algorithm extracts mesh's dataset time series values from points contained in a vector layer.
+If the time step is kept to its default value (0 hours), the time step used is the one of the two first datasets of the first selected dataset group.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (default [])
@@ -2274,7 +2377,9 @@ Parameters:
 Outputs: OUTPUT [outputFile]
 
 ### native:meshrasterize: Rasterize mesh dataset
-Creates a raster layer from a mesh dataset.
+This algorithm creates a raster layer from a mesh dataset.
+For data on volume (3D stacked dataset values), the exported dataset values are averaged on faces using the method defined in the mesh layer properties (default is Multi level averaging method).
+1D meshes are not supported.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - DATASET_GROUPS [meshdatasetgroups]: Dataset groups (optional; default [])
@@ -2288,7 +2393,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:surfacetopolygon: Surface to polygon
-Exports a polygon layer containing a mesh layer's boundary.
+This algorithm exports a polygon layer containing a mesh layer's boundary. It may contain holes and it may be a multi-part polygon.
 Parameters:
 - INPUT [mesh]: Input mesh layer
 - CRS_OUTPUT [crs]: Output coordinate system (optional)
@@ -2296,7 +2401,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:tinmeshcreation: TIN Mesh Creation
-Creates a TIN mesh layer from vector layers.
+This algorithm creates a TIN mesh layer from vector layers.
 Parameters:
 - SOURCE_DATA [tininputlayers]: Input layers
 - MESH_FORMAT [enum]: Output format (default 0; options 0=2DM, 1=SELAFIN, 2=PLY, 3=Ugrid, 4=Mike21)
@@ -2308,14 +2413,15 @@ Outputs: OUTPUT_MESH [outputFile]
 ## QGIS (native c++) / Metadata tools
 
 ### native:addhistorymetadata: Add history metadata
-Adds a new history entry to the layer's metadata.
+This algorithm adds a new history entry to the layer's metadata.
 Parameters:
 - INPUT [layer]: Layer
 - HISTORY [string]: History entry
 Outputs: OUTPUT [outputLayer]
 
 ### native:copylayermetadata: Copy layer metadata
-Copies the metadata from one layer to another.
+This algorithm copies metadata from a source layer to a target layer.
+Any existing metadata in the target layer will be replaced.
 Parameters:
 - SOURCE [layer]: Source layer
 - TARGET [layer]: Target layer
@@ -2323,14 +2429,15 @@ Parameters:
 Outputs: OUTPUT [outputLayer]
 
 ### native:exportlayermetadata: Export layer metadata
-Exports layer's metadata to a QMD file.
+This algorithm exports layer's metadata to a QMD file.
 Parameters:
 - INPUT [layer]: Layer
 - OUTPUT [fileDestination]: Output
 Outputs: OUTPUT [outputFile]
 
 ### native:setlayermetadata: Set layer metadata
-Applies the metadata from a QMD file to a layer.
+This algorithm applies the metadata to a layer. The metadata must be defined as QMD file.
+Any existing metadata in the layer will be replaced.
 Parameters:
 - INPUT [layer]: Layer
 - METADATA [file]: Metadata file
@@ -2338,7 +2445,7 @@ Parameters:
 Outputs: OUTPUT [outputLayer]
 
 ### native:setmetadatafields: Set metadata fields
-Sets various metadata fields for a layer.
+This algorithm sets various metadata fields for a layer.
 Parameters:
 - INPUT [layer]: Layer
 - IDENTIFIER [string]: Identifier (optional)
@@ -2354,7 +2461,8 @@ Parameters:
 Outputs: OUTPUT [outputLayer]
 
 ### native:updatelayermetadata: Update layer metadata
-Copies all non-empty metadata fields from one layer to another.
+This algorithm copies all non-empty metadata fields from a source layer to a target layer.
+Leaves empty input fields unchanged in the target.
 Parameters:
 - SOURCE [layer]: Source layer
 - TARGET [layer]: Target layer
@@ -2364,28 +2472,29 @@ Outputs: OUTPUT [outputLayer]
 ## QGIS (native c++) / Modeler tools
 
 ### native:calculateexpression: Calculate expression
-Calculates the result of a QGIS expression and makes it available for use in other parts of the model.
+This algorithm calculates the result of a QGIS expression and makes it available for use in other parts of the model.
 Parameters:
 - INPUT [string]: Input
 Outputs: OUTPUT [outputVariant]
 
 ### native:condition: Conditional branch
-Adds a conditional branch into a model, allowing parts of the model to be selectively executed.
+This algorithm adds a conditional branch into a model, allowing parts of the model to be executed based on the result of an expression evaluation.
 Parameters:
 
 ### native:createdirectory: Create directory
-Creates a new directory on a file system.
+This algorithm creates a new directory on a file system. Directories will be created recursively, creating all required parent directories in order to construct the full specified directory path.
+No errors will be raised if the directory already exists.
 Parameters:
 - PATH [layer]: Directory path
 Outputs: OUTPUT [outputFolder]
 
 ### native:filter: Feature filter
-Filters features from the input layer and redirects them to one or more outputs.
+This algorithm filters features from the input layer and redirects them to one or more outputs.
 Parameters:
 - INPUT [source]: Input layer
 
 ### native:filterlayersbytype: Filter layers by type
-Filters layers by type.
+This algorithm filters layer by their type. Incoming layers will be directed to different outputs based on whether they are a vector or raster layer.
 Parameters:
 - INPUT [layer]: Input layer
 - VECTOR [vectorDestination]: Vector features (optional)
@@ -2393,52 +2502,56 @@ Parameters:
 Outputs: VECTOR [outputVector], RASTER [outputRaster]
 
 ### native:loadlayer: Load layer into project
-Loads a layer to the current project.
+This algorithm loads a layer to the current project.
 Parameters:
 - INPUT [layer]: Layer
 - NAME [string]: Loaded layer name
 Outputs: OUTPUT [outputLayer]
 
 ### native:raiseexception: Raise exception
-Raises an exception and cancels a model's execution.
+This algorithm raises an exception and cancels a model's execution.
+The exception message can be customized, and optionally an expression based condition can be specified. If an expression condition is used, then the exception will only be raised if the expression result is true. A false result indicates that no exception will be raised, and the model execution can continue uninterrupted.
 Parameters:
 - MESSAGE [string]: Error message
 - CONDITION [expression]: Condition (optional)
 
 ### native:raisemessage: Raise message
-Raises an information message.
+This algorithm raises an information message in the log.
+The message can be customized, and optionally an expression based condition can be specified. If an expression condition is used, then the message will only be logged if the expression result is true. A false result indicates that no message will be logged.
 Parameters:
 - MESSAGE [string]: Information message
 - CONDITION [expression]: Condition (optional)
 
 ### native:raisewarning: Raise warning
-Raises an warning message.
+This algorithm raises a warning message in the log.
+The warning message can be customized, and optionally an expression based condition can be specified. If an expression condition is used, then the warning will only be logged if the expression result is true. A false result indicates that no warning will be logged.
 Parameters:
 - MESSAGE [string]: Warning message
 - CONDITION [expression]: Condition (optional)
 
 ### native:renamelayer: Rename layer
-Renames a layer.
+This algorithm renames a layer.
 Parameters:
 - INPUT [layer]: Layer
 - NAME [string]: New name
 Outputs: OUTPUT [outputLayer]
 
 ### native:savelog: Save log to file
-Saves the model's log contents to a file.
+This algorithm saves the model's execution log to a file.
+Optionally, the log can be saved in a HTML formatted version.
 Parameters:
 - OUTPUT [fileDestination]: Log file
 - USE_HTML [boolean]: Use HTML formatting (default False)
 Outputs: OUTPUT [outputHtml]
 
 ### native:setprojectvariable: Set project variable
-Sets an expression variable for the current project.
+This algorithm sets an expression variable for the current project.
 Parameters:
 - NAME [string]: Variable name
 - VALUE [string]: Variable value
 
 ### native:stringconcatenation: String concatenation
-Concatenates two strings together.
+This algorithm concatenates two strings together.
 Parameters:
 - INPUT_1 [string]: Input 1
 - INPUT_2 [string]: Input 2
@@ -2448,7 +2561,7 @@ Outputs: CONCATENATION [outputString]
 ## QGIS (native c++) / Network analysis
 
 ### native:serviceareafromlayer: Service area (from layer)
-Creates a vector layer with all the edges or parts of edges of a network line layer that can be reached within a distance or a time, starting from features of a point layer.
+This algorithm creates a new vector layer with all the edges or parts of edges of a network line layer that can be reached within a distance or a time, starting from features of a point layer. The distance and the time (both referred to as "travel cost") must be specified respectively in the network layer units or in hours.
 Parameters:
 - INPUT [source]: Vector layer representing network
 - STRATEGY [enum]: Path type to calculate (default 0; options 0=Shortest, 1=Fastest)
@@ -2471,7 +2584,7 @@ Parameters:
 Outputs: OUTPUT_LINES [outputVector], OUTPUT [outputVector], OUTPUT_NON_ROUTABLE [outputVector]
 
 ### native:serviceareafrompoint: Service area (from point)
-Creates a vector layer with all the edges or parts of edges of a network line layer that can be reached within a distance or a time, starting from a point feature.
+This algorithm creates a new vector layer with all the edges or parts of edges of a network line layer that can be reached within a distance or a time, starting from a point feature. The distance and the time (both referred to as "travel cost") must be specified respectively in the network layer units or in hours.
 Parameters:
 - INPUT [source]: Vector layer representing network
 - STRATEGY [enum]: Path type to calculate (default 0; options 0=Shortest, 1=Fastest)
@@ -2493,7 +2606,7 @@ Parameters:
 Outputs: OUTPUT_LINES [outputVector], OUTPUT [outputVector]
 
 ### native:shortestpathlayertopoint: Shortest path (layer to point)
-Computes optimal (shortest or fastest) routes from multiple start points defined by a vector layer and a given end point.
+This algorithm computes optimal (shortest or fastest) routes from multiple start points defined by a vector layer and a given end point.
 Parameters:
 - INPUT [source]: Vector layer representing network
 - STRATEGY [enum]: Path type to calculate (default 0; options 0=Shortest, 1=Fastest)
@@ -2513,7 +2626,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], OUTPUT_NON_ROUTABLE [outputVector]
 
 ### native:shortestpathpointtolayer: Shortest path (point to layer)
-Computes optimal (shortest or fastest) route between a given start point and multiple end points defined by a point vector layer.
+This algorithm computes optimal (shortest or fastest) route between a given start point and multiple end points defined by a point vector layer.
 Parameters:
 - INPUT [source]: Vector layer representing network
 - STRATEGY [enum]: Path type to calculate (default 0; options 0=Shortest, 1=Fastest)
@@ -2533,7 +2646,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], OUTPUT_NON_ROUTABLE [outputVector]
 
 ### native:shortestpathpointtopoint: Shortest path (point to point)
-Computes optimal (shortest or fastest) route between given start and end points.
+This algorithm computes optimal (shortest or fastest) route between given start and end points.
 Parameters:
 - INPUT [source]: Vector layer representing network
 - STRATEGY [enum]: Path type to calculate (default 0; options 0=Shortest, 1=Fastest)
@@ -2555,7 +2668,7 @@ Outputs: OUTPUT [outputVector], TRAVEL_COST [outputNumber]
 ## QGIS (native c++) / Plots
 
 ### native:generateelevationprofileimage: Generate elevation profile image
-Creates an elevation profile image from a list of map layer and an optional terrain.
+This algorithm creates an elevation profile image from a list of map layer and an optional terrain.
 Parameters:
 - CURVE [geometry]: Profile curve
 - MAP_LAYERS [multilayer]: Map layers
@@ -2578,7 +2691,12 @@ Outputs: OUTPUT [outputFile]
 ## QGIS (native c++) / Raster analysis
 
 ### native:cellstackpercentile: Cell stack percentile
-Generates a raster containing the cell-wise percentile value of a stack of input rasters.
+This algorithm generates a raster containing the cell-wise percentile value of a stack of input rasters. The percentile to return is determined by the percentile input value (ranges between 0 and 1). At each cell location, the specified percentile is obtained using the respective value from the stack of all overlaid and sorted cell values of the input rasters.
+There are three methods for percentile calculation: Nearest rank
+ Inclusive linear interpolation (PERCENTILE.INC)
+ Exclusive linear interpolation (PERCENTILE.EXC)
+ While the output value can stay the same for the nearest rank method (obtains the value that is nearest to the specified percentile), the linear interpolation method return unique values for different percentiles. Both interpolation methods follow their counterpart methods implemented by LibreOffice or Microsoft Excel.
+The output raster's extent and resolution is defined by a reference raster. If the input raster layers that do not match the cell size of the reference raster layer will be resampled using nearest neighbor resampling. NoData values in any of the input layers will result in a NoData cell output if the Ignore NoData parameter is not set. The output raster data type will be set to the most complex data type present in the input datasets.
 Parameters:
 - INPUT [multilayer]: Input layers
 - METHOD [enum]: Method (default 0; options 0=Nearest rank, 1=Inclusive linear interpolation (PERCENTILE.INC), 2=Exclusive linear interpolation (PERCENTILE.EXC))
@@ -2592,7 +2710,12 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:cellstackpercentrankfromrasterlayer: Cell stack percentrank from raster layer
-Generates a raster containing the cell-wise percent rank value of a stack of input rasters based on an input value raster.
+This algorithm generates a raster containing the cell-wise percent rank value of a stack of input rasters based on an input value raster.
+At each cell location, the current value of the value raster is used ranked among the respective values in the stack of all overlaid and sorted cell values of the input rasters. For values outside of the the stack value distribution, the algorithm returns NoData because the value cannot be ranked among the cell values.
+There are two methods for percentile calculation: Inclusive linearly interpolated percent rank (PERCENTRANK.INC)
+ Exclusive linearly interpolated percent rank (PERCENTRANK.EXC)
+ The linear interpolation method return the unique percent rank for different values. Both interpolation methods follow their counterpart methods implemented by LibreOffice or Microsoft Excel.
+The output raster's extent and resolution is defined by a reference raster. If the input raster layers that do not match the cell size of the reference raster layer will be resampled using nearest neighbor resampling. NoData values in any of the input layers will result in a NoData cell output if the Ignore NoData parameter is not set. The output raster data type will always be Float32.
 Parameters:
 - INPUT [multilayer]: Input layers
 - INPUT_VALUE_RASTER [raster]: Value raster layer
@@ -2607,7 +2730,12 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:cellstackpercentrankfromvalue: Cell stack percent rank from value
-Generates a raster containing the cell-wise percent rank value of a stack of input rasters based on a single input value.
+This algorithm generates a raster containing the cell-wise percent rank value of a stack of input rasters based on a single input value.
+At each cell location, the specified value is ranked among the respective values in the stack of all overlaid and sorted cell values from the input rasters. For values outside of the stack value distribution, the algorithm returns NoData because the value cannot be ranked among the cell values.
+There are two methods for percentile calculation: Inclusive linearly interpolated percent rank (PERCENTRANK.INC)
+ Exclusive linearly interpolated percent rank (PERCENTRANK.EXC)
+ The linear interpolation method return the unique percent rank for different values. Both interpolation methods follow their counterpart methods implemented by LibreOffice or Microsoft Excel.
+The output raster's extent and resolution is defined by a reference raster. If the input raster layers that do not match the cell size of the reference raster layer will be resampled using nearest neighbor resampling. NoData values in any of the input layers will result in a NoData cell output if the Ignore NoData parameter is not set. The output raster data type will always be Float32.
 Parameters:
 - INPUT [multilayer]: Input layers
 - METHOD [enum]: Method (default 0; options 0=Inclusive linear interpolation (PERCENTRANK.INC), 1=Exclusive linear interpolation (PERCENTRANK.EXC))
@@ -2621,7 +2749,25 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:cellstatistics: Cell statistics
-Generates a raster whose cell values are computed from overlaid cell values of the input rasters.
+The Cell statistics algorithm computes a value for each cell of the output raster. At each cell location, the output value is defined as a function of all overlaid cell values of the input rasters.
+The output raster's extent and resolution is defined by a reference raster. The following functions can be applied on the input raster cells per output raster cell location:
+ Sum
+ Count
+ Mean
+ Median
+ Standard deviation
+ Variance
+ Minimum
+ Maximum
+ Minority (least frequent value)
+ Majority (most frequent value)
+ Range (max-min)
+ Variety (count of unique values)
+ Input raster layers that do not match the cell size of the reference raster layer will be resampled using nearest neighbor resampling. The output raster data type will be set to the most complex data type present in the input datasets except when using the functions Mean, Standard deviation and Variance (data type is always Float32/Float64 depending on input float type) or Count and Variety (data type is always Int32).
+Calculation details - general: NoData values in any of the input layers will result in a NoData cell output if the Ignore NoData parameter is not set.
+Calculation details - Count: Count will always result in the number of cells without NoData values at the current cell location.
+Calculation details - Median: If the number of input layers is even, the median will be calculated as the arithmetic mean of the two middle values of the ordered cell input values. In this case the output data type is Float32.
+Calculation details - Minority/Majority: If no unique minority or majority could be found, the result is NoData, except all input cell values are equal.
 Parameters:
 - INPUT [multilayer]: Input layers
 - STATISTIC [enum]: Statistic (default 0; options 0=Sum, 1=Count, 2=Mean, 3=Median, 4=Standard deviation, 5=Variance, 6=Minimum, 7=Maximum, 8=Minority, 9=Majority, 10=Range, 11=Variety)
@@ -2634,7 +2780,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:equaltofrequency: Equal to frequency
-Evaluates on a cell-by-cell basis the frequency (number of times) the values of an input stack of rasters are equal to the value of a value raster.
+This algorithm evaluates on a cell-by-cell basis the frequency (number of times) the values of an input stack of rasters are equal to the value of a value raster. 
+ If multiband rasters are used in the data raster stack, the algorithm will always perform the analysis on the first band of the rasters - use GDAL to use other bands in the analysis. The input value layer serves as reference layer for the sample layers. Any NoData cells in the value raster or the data layer stack will result in a NoData cell in the output raster if the ignore NoData parameter is not checked. The output NoData value can be set manually. The output rasters extent and resolution is defined by the input raster layer and is always of int32 type.
 Parameters:
 - INPUT_VALUE_RASTER [raster]: Input value raster
 - INPUT_VALUE_RASTER_BAND [band]: Value raster band (default 1)
@@ -2647,7 +2794,9 @@ Parameters:
 Outputs: OUTPUT [outputRaster], OCCURRENCE_COUNT [outputNumber], FOUND_LOCATIONS_COUNT [outputNumber], MEAN_FREQUENCY_PER_LOCATION [outputNumber], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:fuzzifyrastergaussianmembership: Fuzzify raster (gaussian membership)
-Transforms an input raster to a fuzzified raster where values range from 0 to 1 following a gaussian fuzzy membership function.
+This algorithm transforms an input raster to a fuzzified raster and thereby assigns values between 0 and 1 following a gaussian fuzzy membership function. The value of 0 implies no membership with the defined fuzzy set, a value of 1 depicts full membership. In between, the degree of membership of raster values follows a gaussian membership function.
+The gaussian function is constructed using two user-defined input values which set the midpoint of the gaussian function (midpoint, results to 1) and a predefined function spread which controls the function spread.
+This function is typically used when a certain range of raster values around a predefined function midpoint should become members of the fuzzy set.
 Parameters:
 - INPUT [raster]: Input Raster
 - BAND [band]: Band Number (default 1)
@@ -2659,7 +2808,9 @@ Parameters:
 Outputs: EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], OUTPUT [outputRaster]
 
 ### native:fuzzifyrasterlargemembership: Fuzzify raster (large membership)
-Transforms an input raster to a fuzzified raster where values range from 0 to 1 following the 'large' fuzzy membership function.
+This algorithm transforms an input raster to a fuzzified raster and thereby assigns values between 0 and 1 following the 'large' fuzzy membership function. The value of 0 implies no membership with the defined fuzzy set, a value of 1 depicts full membership. In between, the degree of membership of raster values follows the 'large' membership function.
+The 'large' function is constructed using two user-defined input raster values which set the point of half membership (midpoint, results to 0.5) and a predefined function spread which controls the function uptake.
+This function is typically used when larger input raster values should become members of the fuzzy set more easily than smaller values.
 Parameters:
 - INPUT [raster]: Input Raster
 - BAND [band]: Band Number (default 1)
@@ -2671,7 +2822,9 @@ Parameters:
 Outputs: EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], OUTPUT [outputRaster]
 
 ### native:fuzzifyrasterlinearmembership: Fuzzify raster (linear membership)
-Transforms an input raster to a fuzzified raster where values range from 0 to 1 following a linear fuzzy membership function.
+This algorithm transforms an input raster to a fuzzified raster and thereby assigns values between 0 and 1 following a linear fuzzy membership function. The value of 0 implies no membership with the defined fuzzy set, a value of 1 depicts full membership. In between, the degree of membership of raster values follows a linear membership function.
+The linear function is constructed using two user-defined input raster values which set the point of full membership (high bound, results to 1) and no membership (low bound, results to 0) respectively. The fuzzy set in between those values is defined as a linear function.
+Both increasing and decreasing fuzzy sets can be modeled by swapping the high and low bound parameters.
 Parameters:
 - INPUT [raster]: Input Raster
 - BAND [band]: Band Number (default 1)
@@ -2683,7 +2836,9 @@ Parameters:
 Outputs: EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], OUTPUT [outputRaster]
 
 ### native:fuzzifyrasternearmembership: Fuzzify raster (near membership)
-Transforms an input raster to a fuzzified raster where values range from 0 to 1 following the 'near' fuzzy membership function.
+The Fuzzify raster (near membership) algorithm transforms an input raster to a fuzzified raster and thereby assigns values between 0 and 1 following the 'near' fuzzy membership function. The value of 0 implies no membership with the defined fuzzy set, a value of 1 depicts full membership. In between, the degree of membership of raster values follows the 'near' membership function.
+The 'near' function is constructed using two user-defined input values which set the midpoint of the 'near' function (midpoint, results to 1) and a predefined function spread which controls the function spread.
+This function is typically used when a certain range of raster values near a predefined function midpoint should become members of the fuzzy set. The function generally shows a higher rate of decay than the gaussian membership function.
 Parameters:
 - INPUT [raster]: Input Raster
 - BAND [band]: Band Number (default 1)
@@ -2695,7 +2850,9 @@ Parameters:
 Outputs: EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], OUTPUT [outputRaster]
 
 ### native:fuzzifyrasterpowermembership: Fuzzify raster (power membership)
-Transforms an input raster to a fuzzified raster where values range from 0 to 1 following a power function.
+This algorithm transforms an input raster to a fuzzified raster and thereby assigns values between 0 and 1 following a power function. The value of 0 implies no membership with the defined fuzzy set, a value of 1 depicts full membership. In between, the degree of membership of raster values follows a power function.
+The power function is constructed using three user-defined input raster values which set the point of full membership (high bound, results to 1), no membership (low bound, results to 0) and function exponent (only positive) respectively. The fuzzy set in between those the upper and lower bounds values is then defined as a power function.
+Both increasing and decreasing fuzzy sets can be modeled by swapping the high and low bound parameters.
 Parameters:
 - INPUT [raster]: Input Raster
 - BAND [band]: Band Number (default 1)
@@ -2708,7 +2865,9 @@ Parameters:
 Outputs: EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], OUTPUT [outputRaster]
 
 ### native:fuzzifyrastersmallmembership: Fuzzify raster (small membership)
-Transforms an input raster to a fuzzified raster where values range from 0 to 1 following the 'small' fuzzy membership function.
+The Fuzzify raster (small membership) algorithm transforms an input raster to a fuzzified raster and thereby assigns values between 0 and 1 following the 'small' fuzzy membership function. The value of 0 implies no membership with the defined fuzzy set, a value of 1 depicts full membership. In between, the degree of membership of raster values follows the 'small' membership function.
+The 'small' function is constructed using two user-defined input raster values which set the point of half membership (midpoint, results to 0.5) and a predefined function spread which controls the function uptake.
+This function is typically used when smaller input raster values should become members of the fuzzy set more easily than higher values.
 Parameters:
 - INPUT [raster]: Input Raster
 - BAND [band]: Band Number (default 1)
@@ -2720,7 +2879,8 @@ Parameters:
 Outputs: EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], OUTPUT [outputRaster]
 
 ### native:greaterthanfrequency: Greater than frequency
-Evaluates on a cell-by-cell basis the frequency (number of times) the values of an input stack of rasters are greater than the value of a value raster.
+This algorithm evaluates on a cell-by-cell basis the frequency (number of times) the values of an input stack of rasters are greater than the value of a value raster. 
+ If multiband rasters are used in the data raster stack, the algorithm will always perform the analysis on the first band of the rasters - use GDAL to use other bands in the analysis. The input value layer serves as reference layer for the sample layers. Any NoData cells in the value raster or the data layer stack will result in a NoData cell in the output raster if the ignore NoData parameter is not checked. The output NoData value can be set manually. The output rasters extent and resolution is defined by the input raster layer and is always of int32 type.
 Parameters:
 - INPUT_VALUE_RASTER [raster]: Input value raster
 - INPUT_VALUE_RASTER_BAND [band]: Value raster band (default 1)
@@ -2733,7 +2893,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster], OCCURRENCE_COUNT [outputNumber], FOUND_LOCATIONS_COUNT [outputNumber], MEAN_FREQUENCY_PER_LOCATION [outputNumber], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:highestpositioninrasterstack: Highest position in raster stack
-Evaluates on a cell-by-cell basis the position of the raster with the highest value in a stack of rasters.
+This algorithm evaluates on a cell-by-cell basis the position of the raster with the highest value in a stack of rasters. Position counts start with 1 and range to the total number of input rasters. The order of the input rasters is relevant for the algorithm. If multiple rasters feature the highest value, the first raster will be used for the position value.
+ If multiband rasters are used in the data raster stack, the algorithm will always perform the analysis on the first band of the rasters - use GDAL to use other bands in the analysis. Any NoData cells in the raster layer stack will result in a NoData cell in the output raster unless the "ignore NoData" parameter is checked. The output NoData value can be set manually. The output rasters extent and resolution is defined by a reference raster layer and is always of int32 type.
 Parameters:
 - INPUT_RASTERS [multilayer]: Input raster layers
 - REFERENCE_LAYER [raster]: Reference layer
@@ -2745,7 +2906,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:lessthanfrequency: Less than frequency
-Evaluates on a cell-by-cell basis the frequency (number of times) the values of an input stack of rasters are less than the value of a value raster.
+This algorithm evaluates on a cell-by-cell basis the frequency (number of times) the values of an input stack of rasters are less than the value of a value raster. 
+ If multiband rasters are used in the data raster stack, the algorithm will always perform the analysis on the first band of the rasters - use GDAL to use other bands in the analysis. The input value layer serves as reference layer for the sample layers. Any NoData cells in the value raster or the data layer stack will result in a NoData cell in the output raster if the ignore NoData parameter is not checked. The output NoData value can be set manually. The output rasters extent and resolution is defined by the input raster layer and is always of int32 type.
 Parameters:
 - INPUT_VALUE_RASTER [raster]: Input value raster
 - INPUT_VALUE_RASTER_BAND [band]: Value raster band (default 1)
@@ -2758,7 +2920,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster], OCCURRENCE_COUNT [outputNumber], FOUND_LOCATIONS_COUNT [outputNumber], MEAN_FREQUENCY_PER_LOCATION [outputNumber], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:lowestpositioninrasterstack: Lowest position in raster stack
-Evaluates on a cell-by-cell basis the position of the raster with the lowest value in a stack of rasters.
+This algorithm evaluates on a cell-by-cell basis the position of the raster with the lowest value in a stack of rasters. Position counts start with 1 and range to the total number of input rasters. The order of the input rasters is relevant for the algorithm. If multiple rasters feature the lowest value, the first raster will be used for the position value.
+ If multiband rasters are used in the data raster stack, the algorithm will always perform the analysis on the first band of the rasters - use GDAL to use other bands in the analysis. Any NoData cells in the raster layer stack will result in a NoData cell in the output raster unless the "ignore NoData" parameter is checked. The output NoData value can be set manually. The output rasters extent and resolution is defined by a reference raster layer and is always of int32 type.
 Parameters:
 - INPUT_RASTERS [multilayer]: Input raster layers
 - REFERENCE_LAYER [raster]: Reference layer
@@ -2770,7 +2933,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber]
 
 ### native:modelerrastercalc: Raster calculator
-Performs algebraic operations using raster layers.
+This algorithm performs algebraic operations using raster layers.
 Parameters:
 - LAYERS [multilayer]: Input layers
 - EXPRESSION [expression]: Expression
@@ -2782,7 +2945,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:modelervirtualrastercalc: Raster calculator (virtual)
-Performs algebraic operations using raster layers and generates in-memory result.
+This algorithm performs algebraic operations using raster layers and generates in-memory result.
 Parameters:
 - LAYERS [multilayer]: Input layers
 - EXPRESSION [expression]: Expression
@@ -2793,7 +2956,9 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:rasterbooleanand: Raster boolean AND
-Calculates the boolean AND for a set of input raster layers.
+This algorithm calculates the boolean AND for a set of input rasters. If all of the input rasters have a non-zero value for a pixel, that pixel will be set to 1 in the output raster. If any of the input rasters have 0 values for the pixel it will be set to 0 in the output raster.
+The reference layer parameter specifies an existing raster layer to use as a reference when creating the output raster. The output raster will have the same extent, CRS, and pixel dimensions as this layer.
+By default, a NoData pixel in ANY of the input layers will result in a NoData pixel in the output raster. If the 'Treat NoData values as false' option is checked, then NoData inputs will be treated the same as a 0 input value.
 Parameters:
 - INPUT [multilayer]: Input layers
 - REF_LAYER [raster]: Reference layer
@@ -2806,7 +2971,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], NODATA_PIXEL_COUNT [outputNumber], TRUE_PIXEL_COUNT [outputNumber], FALSE_PIXEL_COUNT [outputNumber]
 
 ### native:rastercalc: Raster calculator
-Performs algebraic operations using raster layers.
+This algorithm performs algebraic operations using raster layers.
 Parameters:
 - LAYERS [multilayer]: Input layers
 - EXPRESSION [expression]: Expression
@@ -2818,14 +2983,15 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:rasterlayerproperties: Raster layer properties
-Returns basic properties of a given raster layer, including the extent, size in pixels and dimensions of pixels (in map units).
+This algorithm returns basic properties of the given raster layer, including the extent, size in pixels and dimensions of pixels (in map units).
+If an optional band number is specified then the NoData value for the selected band will also be returned.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (optional)
 Outputs: X_MIN [outputNumber], X_MAX [outputNumber], Y_MIN [outputNumber], Y_MAX [outputNumber], EXTENT [outputString], PIXEL_WIDTH [outputNumber], PIXEL_HEIGHT [outputNumber], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], HAS_NODATA_VALUE [outputBoolean], NODATA_VALUE [outputNumber], BAND_COUNT [outputNumber]
 
 ### native:rasterlayerstatistics: Raster layer statistics
-Computes basic statistics from the values in a given band of the raster layer.
+This algorithm computes basic statistics from the values in a given band of the raster layer.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -2833,7 +2999,7 @@ Parameters:
 Outputs: OUTPUT_HTML_FILE [outputHtml], COUNT [outputNumber], MIN [outputNumber], MAX [outputNumber], RANGE [outputNumber], SUM [outputNumber], MEAN [outputNumber], STD_DEV [outputNumber], SUM_OF_SQUARES [outputNumber]
 
 ### native:rasterlayeruniquevaluesreport: Raster layer unique values report
-Returns the count and area of each unique value in a given raster layer.
+This algorithm returns the count and area of each unique value in a given raster layer. The area calculation is done in the area unit of the layer's CRS.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -2842,7 +3008,10 @@ Parameters:
 Outputs: OUTPUT_HTML_FILE [outputHtml], OUTPUT_TABLE [outputVector], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], NODATA_PIXEL_COUNT [outputNumber]
 
 ### native:rasterlayerzonalstats: Raster layer zonal statistics
-Calculates statistics for a raster layer's values, categorized by zones defined in another raster layer.
+This algorithm calculates statistics for a raster layer's values, categorized by zones defined in another raster layer.
+If the reference layer parameter is set to "Input layer", then zones are determined by sampling the zone raster layer value at the centroid of each pixel from the source raster layer.
+If the reference layer parameter is set to "Zones layer", then the input raster layer will be sampled at the centroid of each pixel from the zones raster layer.
+If either the source raster layer or the zone raster layer value is NoData for a pixel, that pixel's value will be skipped and not included in the calculated statistics.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -2853,7 +3022,9 @@ Parameters:
 Outputs: OUTPUT_TABLE [outputVector], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], NODATA_PIXEL_COUNT [outputNumber]
 
 ### native:rasterlogicalor: Raster boolean OR
-Calculates the boolean OR for a set of input raster layers.
+This algorithm calculates the boolean OR for a set of input rasters. If any of the input rasters have a non-zero value for a pixel, that pixel will be set to 1 in the output raster. If all the input rasters have 0 values for the pixel it will be set to 0 in the output raster.
+The reference layer parameter specifies an existing raster layer to use as a reference when creating the output raster. The output raster will have the same extent, CRS, and pixel dimensions as this layer.
+By default, a NoData pixel in ANY of the input layers will result in a NoData pixel in the output raster. If the 'Treat NoData values as false' option is checked, then NoData inputs will be treated the same as a 0 input value.
 Parameters:
 - INPUT [multilayer]: Input layers
 - REF_LAYER [raster]: Reference layer
@@ -2866,7 +3037,9 @@ Parameters:
 Outputs: OUTPUT [outputRaster], EXTENT [outputString], CRS_AUTHID [outputString], WIDTH_IN_PIXELS [outputNumber], HEIGHT_IN_PIXELS [outputNumber], TOTAL_PIXEL_COUNT [outputNumber], NODATA_PIXEL_COUNT [outputNumber], TRUE_PIXEL_COUNT [outputNumber], FALSE_PIXEL_COUNT [outputNumber]
 
 ### native:rasterminmax: Raster minimum/maximum
-Calculates the minimum and maximum pixel in a raster layer.
+This algorithm extracts extrema (minimum and maximum) values from a given band of the raster layer.
+The output is a vector layer containing point features for the selected extrema, at the center of the associated pixel.
+If multiple pixels in the raster share the minimum or maximum value, then only one of these pixels will be included in the output.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -2875,7 +3048,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], MINIMUM [outputNumber], MAXIMUM [outputNumber]
 
 ### native:rasterrank: Raster rank
-Performs a cell-by-cell analysis in which output values match the rank of a sorted list of overlapping cell values from input layers.
+This algorithm performs a cell-by-cell analysis in which output values match the rank of a sorted list of overlapping cell values from input layers. The output raster will be multi-band if multiple ranks are provided.
+If multiband rasters are used in the data raster stack, the algorithm will always perform the analysis on the first band of the rasters.
 Parameters:
 - INPUT_RASTERS [multilayer]: Input raster layers
 - RANKS [string]: Rank(s) (separate multiple ranks using commas) (default 1)
@@ -2887,7 +3061,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:rastersampling: Sample raster values
-Samples raster values under a set of points.
+This algorithm creates a new vector layer with the same attributes of the input layer and the raster values corresponding on the point location.
+If the raster layer has more than one band, all the band values are sampled.
 Parameters:
 - INPUT [source]: Input layer
 - RASTERCOPY [raster]: Raster layer
@@ -2896,7 +3071,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:rastersurfacevolume: Raster surface volume
-Calculates the volume under a raster grid's surface.
+This algorithm calculates the volume under a raster grid's surface.
+Several methods of volume calculation are available, which control whether only values above or below the specified base level are considered, or whether volumes below the base level should be added or subtracted from the total volume.
+The algorithm outputs the calculated volume, the total area, and the total number of pixels analysed. If the 'Count Only Above Base Level' or 'Count Only Below Base Level' methods are used, then the calculated area and pixel count only includes pixels which are above or below the specified base level respectively.
+Units of the calculated volume are dependent on the coordinate reference system of the input raster file. For a CRS in meters, with a DEM height in meters, the calculated value will be in meters³. If instead the input raster is in a geographic coordinate system (e.g. latitude/longitude values), then the result will be in degrees² × meters, and an appropriate scaling factor will need to be applied in order to convert to meters³.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -2907,7 +3085,7 @@ Parameters:
 Outputs: OUTPUT_HTML_FILE [outputHtml], OUTPUT_TABLE [outputVector], VOLUME [outputNumber], PIXEL_COUNT [outputNumber], AREA [outputNumber]
 
 ### native:reclassifybylayer: Reclassify by layer
-Reclassifies a raster band by assigning new class values based on the ranges specified in a vector table.
+This algorithm reclassifies a raster band by assigning new class values based on the ranges specified in a vector table.
 Parameters:
 - INPUT_RASTER [raster]: Raster layer
 - RASTER_BAND [band]: Band number (default 1)
@@ -2925,7 +3103,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:reclassifybytable: Reclassify by table
-Reclassifies a raster band by assigning new class values based on the ranges specified in a fixed table.
+This algorithm reclassifies a raster band by assigning new class values based on the ranges specified in a fixed table.
 Parameters:
 - INPUT_RASTER [raster]: Raster layer
 - RASTER_BAND [band]: Band number (default 1)
@@ -2940,7 +3118,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:rescaleraster: Rescale raster
-Rescales a raster layer to a new value range, while preserving the shape (distribution) of the raster's histogram (pixel values).
+This algorithm rescales a raster layer to a new value range, while preserving the shape (distribution) of the raster's histogram (pixel values). Input values are mapped using a linear interpolation from the source raster's minimum and maximum pixel values to the destination minimum and maximum pixel range.
+By default the algorithm preserves the original NoData value, but there is an option to override it.
 Parameters:
 - INPUT [raster]: Input raster
 - BAND [band]: Band number (default 1)
@@ -2953,7 +3132,9 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:roundrastervalues: Round raster
-Rounds the cell values of a raster dataset to a specified number of decimals.
+This algorithm rounds the cell values of a raster dataset to the specified number of decimals.
+ Alternatively, a negative number of decimal places may be used to round values to powers of a base n (specified in the advanced parameter Base n). For example, with a Base value n of 10 and Decimal places of -1 the algorithm rounds cell values to multiples of 10, -2 rounds to multiples of 100, and so on. Arbitrary base values may be chosen, the algorithm applies the same multiplicative principle. Rounding cell values to multiples of a base n may be used to generalize raster layers.
+The algorithm preserves the data type of the input raster. Therefore byte/integer rasters can only be rounded to multiples of a base n, otherwise a warning is raised and the raster gets copied as byte/integer raster.
 Parameters:
 - INPUT [raster]: Input raster
 - BAND [band]: Band number (default 1)
@@ -2966,7 +3147,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:virtualrastercalc: Raster calculator (virtual)
-Performs algebraic operations using raster layers and generates in-memory result.
+This algorithm performs algebraic operations using raster layers and generates in-memory result.
 Parameters:
 - LAYERS [multilayer]: Input layers
 - EXPRESSION [expression]: Expression
@@ -2977,7 +3158,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:zonalhistogram: Zonal histogram
-Appends fields representing counts of each unique value from a raster layer contained within zones defined as polygons.
+This algorithm appends fields representing counts of each unique value from a raster layer contained within zones defined as polygons.
 Parameters:
 - INPUT_RASTER [raster]: Raster layer
 - RASTER_BAND [band]: Band number (default 1)
@@ -2987,7 +3168,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:zonalminmaxpoint: Zonal minimum/maximum point
-Extracts point locations for minimum and maximum raster values within polygon zones.
+This algorithm extracts point features corresponding to the minimum and maximum pixel values contained within polygon zones.
+The output will contain one point feature for the minimum and one for the maximum raster value for every individual zonal feature from a polygon layer.
+The created point layer will be in the same spatial reference system as the selected raster layer.
 Parameters:
 - INPUT [source]: Input layer
 - INPUT_RASTER [raster]: Raster layer
@@ -2996,7 +3179,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:zonalstatistics: Zonal statistics (in place)
-Calculates statistics for a raster layer's values for each feature of an overlapping polygon vector layer.
+This algorithm calculates statistics of a raster layer for each feature of an overlapping polygon vector layer. The results will be written in place.
 Parameters:
 - INPUT_RASTER [raster]: Raster layer
 - RASTER_BAND [band]: Raster band (default 1)
@@ -3006,7 +3189,7 @@ Parameters:
 Outputs: INPUT_VECTOR [outputVector]
 
 ### native:zonalstatisticsfb: Zonal statistics
-Calculates statistics of a raster layer for each feature of an overlapping polygon vector layer.
+This algorithm calculates statistics of a raster layer for each feature of an overlapping polygon vector layer.
 Parameters:
 - INPUT [source]: Input layer
 - INPUT_RASTER [raster]: Raster layer
@@ -3020,7 +3203,8 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (native c++) / Raster creation
 
 ### native:createconstantrasterlayer: Create constant raster layer
-Generates a raster layer for a given extent and cell size filled with a single constant value.
+This algorithm generates a raster layer for a given extent and cell size filled with a single constant value.
+Additionally an output data type can be specified. The algorithm will abort if a value has been entered that cannot be represented by the selected output raster data type.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3033,7 +3217,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandombinomialrasterlayer: Create random raster layer (binomial distribution)
-Generates a raster layer for a given extent and cell size filled with binomially distributed random values.
+This algorithm generates a raster layer for a given extent and cell size filled with binomially distributed random values.
+By default, the values will be chosen given an N of 10 and a probability of 0.5. This can be overridden by using the advanced parameter for N and probability. The raster data type is set to Integer types (Integer16 by default). The binomial distribution random values are defined as positive integer numbers. A floating point raster will represent a cast of integer values to floating point.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3047,7 +3232,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandomexponentialrasterlayer: Create random raster layer (exponential distribution)
-Generates a raster layer for a given extent and cell size filled with exponentially distributed random values.
+This algorithm generates a raster layer for a given extent and cell size filled with exponentially distributed random values.
+By default, the values will be chosen given a lambda of 1.0. This can be overridden by using the advanced parameter for lambda. The raster data type is set to Float32 by default as the exponential distribution random values are floating point numbers.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3060,7 +3246,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandomgammarasterlayer: Create random raster layer (gamma distribution)
-Generates a raster layer for a given extent and cell size filled with gamma distributed random values.
+This algorithm generates a raster layer for a given extent and cell size filled with gamma distributed random values.
+By default, the values will be chosen given an alpha and beta value of 1.0. This can be overridden by using the advanced parameter for alpha and beta. The raster data type is set to Float32 by default as the gamma distribution random values are floating point numbers.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3074,7 +3261,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandomgeometricrasterlayer: Create random raster layer (geometric distribution)
-Generates a raster layer for a given extent and cell size filled with geometrically distributed random values.
+This algorithm generates a raster layer for a given extent and cell size filled with geometrically distributed random values.
+By default, the values will be chosen given a probability of 0.5. This can be overridden by using the advanced parameter for mean value. The raster data type is set to Integer types (Integer16 by default). The geometric distribution random values are defined as positive integer numbers. A floating point raster will represent a cast of integer values to floating point.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3087,7 +3275,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandomnegativebinomialrasterlayer: Create random raster layer (negative binomial distribution)
-Generates a raster layer for a given extent and cell size filled with negative binomially distributed random values.
+This algorithm generates a raster layer for a given extent and cell size filled with negative binomially distributed random values.
+By default, the values will be chosen given a distribution parameter k of 10.0 and a probability of 0.5. This can be overridden by using the advanced parameters for k and probability. The raster data type is set to Integer types (Integer 16 by default). The negative binomial distribution random values are defined as positive integer numbers. A floating point raster will represent a cast of integer values to floating point.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3101,7 +3290,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandomnormalrasterlayer: Create random raster layer (normal distribution)
-Generates a raster layer for a given extent and cell size filled with normally distributed random values.
+This algorithm generates a raster layer for a given extent and cell size filled with normally distributed random values.
+By default, the values will be chosen given a mean of 0.0 and a standard deviation of 1.0. This can be overridden by using the advanced parameters for mean and standard deviation value. The raster data type is set to Float32 by default as the normal distribution random values are floating point numbers.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3115,7 +3305,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandompoissonrasterlayer: Create random raster layer (poisson distribution)
-Generates a raster layer for a given extent and cell size filled with poisson distributed random values.
+This algorithm generates a raster layer for a given extent and cell size filled with poisson distributed random values.
+By default, the values will be chosen given a mean of 1.0. This can be overridden by using the advanced parameter for mean value. The raster data type is set to Integer types (Integer16 by default). The poisson distribution random values are positive integer numbers. A floating point raster will represent a cast of integer values to floating point.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3128,7 +3319,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:createrandomuniformrasterlayer: Create random raster layer (uniform distribution)
-Generates a raster layer for a given extent and cell size filled with random values.
+This algorithm generates a raster layer for a given extent and cell size filled with random values.
+By default, the values will range between the minimum and maximum value of the specified output raster type. This can be overridden by using the advanced parameters for lower and upper bound value. If the bounds have the same value or both are zero (default) the algorithm will create random values in the full value range of the chosen raster data type. Choosing bounds outside the acceptable range of the output raster type will abort the algorithm.
 Parameters:
 - EXTENT [extent]: Desired extent
 - TARGET_CRS [crs]: Target CRS (default ProjectCrs)
@@ -3145,7 +3337,8 @@ Outputs: OUTPUT [outputRaster]
 ## QGIS (native c++) / Raster terrain analysis
 
 ### native:aspect: Aspect
-Generates a raster layer representing the slope direction from a Digital Terrain Model.
+This algorithm calculates the aspect of the Digital Terrain Model in input.
+The final aspect raster layer contains values from 0 to 360 that express the slope direction: starting from North (0°) and continuing clockwise.
 Parameters:
 - INPUT [raster]: Elevation layer
 - Z_FACTOR [number]: Z factor (default 1)
@@ -3153,7 +3346,13 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:dtmslopebasedfilter: DTM filter (slope-based)
-Filters a Digital Elevation Model in order to classify its cells into ground and object (non-ground) cells.
+This algorithm can be used to filter a Digital Elevation Model in order to classify its cells into ground and object (non-ground) cells.
+The tool uses concepts as described by Vosselman (2000) and is based on the assumption that a large height difference between two nearby cells is unlikely to be caused by a steep slope in the terrain. The probability that the higher cell might be non-ground increases when the distance between the two cells decreases. Therefore the filter defines a maximum height difference (dz_max) between two cells as a function of the distance (d) between the cells (dz_max( d ) = d).
+A cell is classified as terrain if there is no cell within the kernel radius to which the height difference is larger than the allowed maximum height difference at the distance between these two cells.
+The approximate terrain slope (s) parameter is used to modify the filter function to match the overall slope in the study area (dz_max( d ) = d * s).
+A 5 % confidence interval (ci = 1.65 * sqrt( 2 * stddev )) may be used to modify the filter function even further by either relaxing (dz_max( d ) = d * s + ci) or amplifying (dz_max( d ) = d * s - ci) the filter criterium.
+References: Vosselman, G. (2000): Slope based filtering of laser altimetry data. IAPRS, Vol. XXXIII, Part B3, Amsterdam, The Netherlands, 935-942
+This algorithm is a port of the SAGA 'DTM Filter (slope-based)' tool.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -3168,7 +3367,10 @@ Parameters:
 Outputs: OUTPUT_GROUND [outputRaster], OUTPUT_NONGROUND [outputRaster]
 
 ### native:fillsinkswangliu: Fill sinks (Wang & Liu)
-Identifies and fills surface depressions in digital elevation models using a method proposed by Wang & Liu.
+This algorithm uses a method proposed by Wang & Liu to identify and fill surface depressions in digital elevation models.
+The method was enhanced to allow the creation of hydrologically sound elevation models, i.e. not only to fill the depression(s) but also to preserve a downward slope along the flow path. If desired, this is accomplished by preserving a minimum slope gradient (and thus elevation difference) between cells.
+References: Wang, L. & H. Liu (2006): An efficient method for identifying and filling surface depressions in digital elevation models for hydrologic analysis and modelling. International Journal of Geographical Information Science, Vol. 20, No. 2: 193-213.
+This algorithm is a port of the SAGA 'Fill Sinks (Wang & Liu)' tool.
 Parameters:
 - INPUT [raster]: Input layer
 - BAND [band]: Band number (default 1)
@@ -3180,7 +3382,8 @@ Parameters:
 Outputs: OUTPUT_FILLED_DEM [outputRaster], OUTPUT_FLOW_DIRECTIONS [outputRaster], OUTPUT_WATERSHED_BASINS [outputRaster]
 
 ### native:hillshade: Hillshade
-Calculates the hillshade of a Digital Terrain Model.
+This algorithm calculates the hillshade of the Digital Terrain Model in input.
+The shading of the layer is calculated according to the sun position (azimuth and elevation).
 Parameters:
 - INPUT [raster]: Elevation layer
 - Z_FACTOR [number]: Z factor (default 1)
@@ -3190,7 +3393,8 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:ruggednessindex: Ruggedness index
-Calculates the quantitative measurement of terrain heterogeneity described by Riley et al. (1999).
+This algorithm calculates the quantitative measurement of terrain heterogeneity described by Riley et al. (1999).
+It is calculated for every location, by summarizing the change in elevation within the 3x3 pixel grid. Each pixel contains the difference in elevation from a center cell and the 8 cells surrounding it.
 Parameters:
 - INPUT [raster]: Elevation layer
 - Z_FACTOR [number]: Z factor (default 1)
@@ -3198,7 +3402,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:slope: Slope
-Calculates the angle of inclination of the terrain from an input raster layer.
+This algorithm calculates the angle of inclination of the terrain from an input raster layer. The slope is expressed in degrees.
 Parameters:
 - INPUT [raster]: Elevation layer
 - Z_FACTOR [number]: Z factor (default 1)
@@ -3209,7 +3413,7 @@ Outputs: OUTPUT [outputRaster]
 ## QGIS (native c++) / Raster tools
 
 ### native:alignrasters: Align rasters
-Aligns rasters by resampling them to the same cell size and reprojecting to the same CRS.
+This algorithm aligns rasters by resampling them to the same cell size and reprojecting to the same CRS.
 Parameters:
 - LAYERS [alignrasterlayers]: Input layers
 - REFERENCE_LAYER [raster]: Reference layer
@@ -3222,7 +3426,7 @@ Parameters:
 Outputs: OUTPUT_LAYERS [outputMultilayer]
 
 ### native:alignsingleraster: Align raster
-Aligns raster by resampling it to the same cell size and reprojecting to the same CRS as a reference raster.
+This algorithm aligns raster by resampling it to the same cell size and reprojecting to the same CRS as a reference raster.
 Parameters:
 - INPUT [raster]: Input layer
 - RESAMPLING_METHOD [enum]: Resampling method (default 0; options 0=Nearest Neighbour, 1=Bilinear (2x2 Kernel), 2=Cubic (4x4 Kernel), 3=Cubic B-Spline (4x4 Kernel), 4=Lanczos (6x6 Kernel), 5=Average, 6=Mode, 7=Maximum, 8=Minimum, 9=Median, 10=First Quartile (Q1), 11=Third Quartile (Q3))
@@ -3238,7 +3442,7 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:fillnodata: Fill NoData cells
-Generates a raster dataset with the NoData values in the input raster filled with a given value.
+This algorithm resets the NoData values in the input raster to a chosen value, resulting in a raster dataset with no NoData pixels. This value can be set by the user using the Fill value parameter. The algorithm respects the input raster data type (eg. a floating point fill value will be truncated when applied to an integer raster).
 Parameters:
 - INPUT [raster]: Raster input
 - BAND [band]: Band Number (default 1)
@@ -3249,7 +3453,9 @@ Parameters:
 Outputs: OUTPUT [outputRaster]
 
 ### native:rasterize: Convert map to raster
-Renders the map canvas to a raster file.
+This algorithm rasterizes map canvas content.
+A map theme can be selected to render a predetermined set of layers with a defined style for each layer. Alternatively, a set of layers can be selected if no map theme is set. If neither map theme nor layer is set, all the visible layers in the set extent will be rendered.
+The minimum extent entered will internally be extended to a multiple of the tile size.
 Parameters:
 - EXTENT [extent]: Minimum extent to render
 - EXTENT_BUFFER [number]: Buffer around tiles in map units (optional; default 0)
@@ -3302,7 +3508,7 @@ Outputs: OUTPUT_FILE [outputFile]
 ## QGIS (native c++) / Vector analysis
 
 ### native:basicstatisticsforfields: Basic statistics for fields
-Generates basic statistics from the values in a field of a vector layer.
+This algorithm generates basic statistics from the analysis of values in a field in the attribute table of a vector layer. Numeric, date, time and string fields are supported. The statistics returned will depend on the field type.
 Parameters:
 - INPUT_LAYER [source]: Input layer
 - FIELD_NAME [field]: Field to calculate statistics on
@@ -3311,7 +3517,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], OUTPUT_HTML_FILE [outputHtml], COUNT [outputNumber], UNIQUE [outputNumber], EMPTY [outputNumber], FILLED [outputNumber], MIN [outputNumber], MAX [outputNumber], MIN_LENGTH [outputNumber], MAX_LENGTH [outputNumber], MEAN_LENGTH [outputNumber], CV [outputNumber], SUM [outputNumber], MEAN [outputNumber], STD_DEV [outputNumber], RANGE [outputNumber], MEDIAN [outputNumber], MINORITY [outputNumber], MAJORITY [outputNumber], FIRSTQUARTILE [outputNumber], THIRDQUARTILE [outputNumber], IQR [outputNumber]
 
 ### native:calculatevectoroverlaps: Overlap analysis
-Calculates the area and percentage cover by which features from an input layer are overlapped by features from a selection of overlay layers.
+This algorithm calculates the area and percentage cover by which features from an input layer are overlapped by features from a selection of overlay layers.
+New attributes are added to the output layer reporting the total area of overlap and percentage of the input feature overlapped by each of the selected overlay layers.
 Parameters:
 - INPUT [source]: Input layer
 - LAYERS [multilayer]: Overlay layers
@@ -3320,14 +3527,20 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:climbalongline: Climb along line
-Calculates the total climb and descent along line geometries with Z values.
+This algorithm calculates the total climb and descent along line geometries.
+Input layer must have Z values present. If Z values are not available, the "Drape" (set Z value from raster) algorithm may be used to add Z values from a DEM layer.
+The output layer is a copy of the input layer with additional fields that contain the total climb, total descent, the minimum elevation and the maximum elevation for each line geometry.If the input layer contains fields with the same names as these added fields, they will be renamed (field names will be altered to "name_2", "name_3", etc, finding the first non-duplicate name).
 Parameters:
 - INPUT [source]: Line layer
 - OUTPUT [sink]: Climb layer
 Outputs: OUTPUT [outputVector], TOTALCLIMB [outputNumber], TOTALDESCENT [outputNumber], MINELEVATION [outputNumber], MAXELEVATION [outputNumber]
 
 ### native:countpointsinpolygon: Count points in polygon
-Counts point features located within polygon features.
+This algorithm takes a points layer and a polygon layer and counts the number of points from the first one in each polygons of the second one.
+A new polygons layer is generated, with the exact same content as the input polygons layer, but containing an additional field with the points count corresponding to each polygon.
+An optional weight field can be used to assign weights to each point. If set, the count generated will be the sum of the weight field for each point contained by the polygon.
+Alternatively, a unique class field can be specified. If set, points are classified based on the selected attribute, and if several points with the same attribute value are within the polygon, only one of them is counted. The final count of the point in a polygon is, therefore, the count of different classes that are found in it.
+Both the weight field and unique class field cannot be specified. If they are, the weight field will take precedence and the unique class field will be ignored.
 Parameters:
 - POLYGONS [source]: Polygons
 - POINTS [source]: Points
@@ -3338,7 +3551,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:dbscanclustering: DBSCAN clustering
-Clusters point features using a density based scan algorithm.
+This algorithm clusters point features based on a 2D implementation of Density-based spatial clustering of applications with noise (DBSCAN) algorithm.
+The algorithm requires two parameters, a minimum cluster size (“minPts”), and the maximum distance allowed between clustered points (“eps”).
 Parameters:
 - INPUT [source]: Input layer
 - MIN_SIZE [number]: Minimum cluster size (default 5)
@@ -3350,7 +3564,10 @@ Parameters:
 Outputs: OUTPUT [outputVector], NUM_CLUSTERS [outputNumber]
 
 ### native:hublines: Join by lines (hub lines)
-Creates lines joining two point layers, based on a common attribute value.
+This algorithm creates hub and spoke diagrams by connecting lines from points on the Spoke layer to matching points in the Hub layer.
+Determination of which hub goes with each point is based on a match between the Hub ID field on the hub points and the Spoke ID field on the spoke points.
+If input layers are not point layers, a point on the surface of the geometries will be taken as the connecting location.
+Optionally, geodesic lines can be created, which represent the shortest path on the surface of an ellipsoid. When geodesic mode is used, it is possible to split the created lines at the antimeridian (±180 degrees longitude), which can improve rendering of the lines. Additionally, the distance between vertices can be specified. A smaller distance results in a denser, more accurate line.
 Parameters:
 - HUBS [source]: Hub layer
 - HUB_FIELD [field]: Hub ID field
@@ -3365,7 +3582,11 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:kmeansclustering: K-means clustering
-Calculates the 2D distance based k-means cluster number for each input feature.
+This algorithm calculates the 2D distance based k-means cluster number for each input feature.
+If input geometries are lines or polygons, the clustering is based on the centroid of the feature.
+References:
+Arthur, David & Vassilvitskii, Sergei. (2007). K-Means++: The Advantages of Careful Seeding. Proc. of the Annu. ACM-SIAM Symp. on Discrete Algorithms. 8.
+Bhattacharya, Anup & Eube, Jan & Röglin, Heiko & Schmidt, Melanie. (2019). Noisy, Greedy and Not So Greedy k-means++
 Parameters:
 - INPUT [source]: Input layer
 - CLUSTERS [number]: Number of clusters (default 5)
@@ -3376,7 +3597,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:meancoordinates: Mean coordinate(s)
-Computes a point layer with the center of mass of geometries in an input layer.
+This algorithm computes a point layer with the center of mass of geometries in an input layer.
+An attribute can be specified as containing weights to be applied to each feature when computing the center of mass.
+If an attribute is selected in the parameter, features will be grouped according to values in this field. Instead of a single point with the center of mass of the whole layer, the output layer will contain a center of mass for the features in each category.
 Parameters:
 - INPUT [source]: Input layer
 - WEIGHT [field]: Weight field (optional)
@@ -3385,14 +3608,19 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:nearestneighbouranalysis: Nearest neighbour analysis
-Performs nearest neighbor analysis for a point layer.
+This algorithm performs nearest neighbor analysis for a point layer.
+The output describes how the data are distributed (clustered, randomly or distributed).
+Output is generated as an HTML file with the computed statistical values.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT_HTML_FILE [fileDestination]: Nearest neighbour (optional)
 Outputs: OUTPUT_HTML_FILE [outputHtml], OBSERVED_MD [outputNumber], EXPECTED_MD [outputNumber], NN_INDEX [outputNumber], POINT_COUNT [outputNumber], Z_SCORE [outputNumber]
 
 ### native:shortestline: Shortest line between features
-Calculates the shortest lines between features in source and destination layers.
+This algorithm creates a line layer as the shortest line between the source and the destination layer. By default only the first nearest feature of the destination layer is taken into account. The n-nearest neighboring features number can be specified.
+If a maximum distance is specified, then only features which are closer than this distance will be considered.
+The output features will contain all the source layer attributes, all the attributes from the n-nearest feature and the additional field of the distance.
+This algorithm uses purely Cartesian calculations for distance, and does not consider geodetic or ellipsoid properties when determining feature proximity. The measurement and output coordinate system is based on the coordinate system of the source layer.
 Parameters:
 - SOURCE [source]: Source layer
 - DESTINATION [source]: Destination layer
@@ -3403,7 +3631,11 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:stdbscanclustering: ST-DBSCAN clustering
-Clusters spatiotemporal point features using a time and density based scan algorithm.
+Clusters point features based on a 2D implementation of spatiotemporal density-based clustering of applications with noise (ST-DBSCAN) algorithm.
+For more details, please see the following papers:
+* Ester, M., H. P. Kriegel, J. Sander, and X. Xu, "A Density-Based Algorithm for Discovering Clusters in Large Spatial Databases with Noise". In: Proceedings of the 2nd International Conference on Knowledge Discovery and Data Mining, Portland, OR, AAAI Press, pp. 226-231. 1996
+* Birant, Derya, and Alp Kut. "ST-DBSCAN: An algorithm for clustering spatial–temporal data." Data & Knowledge Engineering 60.1 (2007): 208-221.
+* Peca, I., Fuchs, G., Vrotsou, K., Andrienko, N. V., & Andrienko, G. L. (2012). Scalable Cluster Analysis of Spatial Events. In EuroVA@ EuroVis.
 Parameters:
 - INPUT [source]: Input layer
 - DATETIME_FIELD [field]: Date/time field
@@ -3417,7 +3649,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], NUM_CLUSTERS [outputNumber]
 
 ### native:sumlinelengths: Sum line lengths
-Takes a polygon layer and a line layer and measures the total length of lines and the total number of them that cross each polygon.
+This algorithm takes a polygon layer and a line layer and measures the total length of lines and the total number of them that cross each polygon.
+The resulting layer has the same features as the input polygon layer, but with two additional attributes containing the length and count of the lines across each polygon. The names of these two fields can be configured in the algorithm parameters.
 Parameters:
 - POLYGONS [source]: Polygons
 - LINES [source]: Lines
@@ -3430,7 +3663,9 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (native c++) / Vector coverage
 
 ### native:coveragesimplify: Simplify coverage
-Simplifies a coverage of polygon features while retaining valid coverage.
+This algorithm operates on a coverage (represented as a set of polygon features with exactly matching edge geometry) to apply a Visvalingam–Whyatt simplification to the edges, reducing complexity in proportion with the provided tolerance, while retaining a valid coverage (i.e. no edges will cross or touch after the simplification).
+Geometries will never be removed, but they may be simplified down to just a triangle. Also, some geometries (such as polygons which have too few non-repeated points) will be returned unchanged.
+If the input dataset is not a valid coverage due to overlaps, it will still be simplified, but invalid topology such as crossing edges will still be invalid.
 Parameters:
 - INPUT [source]: Input layer
 - TOLERANCE [distance]: Tolerance (default 1.0)
@@ -3439,14 +3674,16 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:coverageunion: Dissolve coverage
-Dissolves a coverage of polygon features.
+This algorithm operates on a coverage (represented as a set of polygon features with exactly matching edge geometry) to dissolve (union) the geometries.
+It provides a heavily optimized approach for unioning these features compared with the standard Dissolve tools.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Dissolved
 Outputs: OUTPUT [outputVector]
 
 ### native:coveragevalidate: Validate coverage
-Analyzes a coverage of polygon features to find places where the assumption of exactly matching edges is not met.
+This algorithm analyzes a coverage (represented as a set of polygon features with exactly matching edge geometry) to find places where the assumption of exactly matching edges is not met.
+Invalidity includes polygons that overlap or that have gaps smaller than the specified gap width.
 Parameters:
 - INPUT [source]: Input layer
 - GAP_WIDTH [distance]: Gap width (default 0.0)
@@ -3457,7 +3694,7 @@ Outputs: INVALID_EDGES [outputVector], IS_VALID [outputBoolean]
 ## QGIS (native c++) / Vector creation
 
 ### native:arrayoffsetlines: Array of offset (parallel) lines
-Creates multiple offset copies of lines from a layer.
+This algorithm creates copies of line features in a layer, by creating multiple offset versions of each feature. Each copy is offset by a preset distance.
 Parameters:
 - INPUT [source]: Input layer
 - COUNT [number]: Number of features to create (default 10)
@@ -3469,7 +3706,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:arraytranslatedfeatures: Array of translated features
-Creates multiple translated copies of features in a layer.
+This algorithm creates copies of features in a layer, by creating multiple translated versions of each feature. Each copy is incrementally displaced by a preset amount in the x/y/z/m axis.
 Parameters:
 - INPUT [source]: Input layer
 - COUNT [number]: Number of features to create (default 10)
@@ -3481,7 +3718,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:creategrid: Create grid
-Creates a vector layer with a grid covering a given extent.
+This algorithm creates a vector layer with a grid covering a given extent. Elements in the grid can be points, lines or polygons. The size and/or placement of each element in the grid is defined using a horizontal and vertical spacing. The CRS of the output layer must be defined. The grid extent and the spacing values must be expressed in the coordinates and units of this CRS. The top-left point (minX, maxY) is used as the reference point. That means that, at that point, an element is guaranteed to be placed. Unless the width and height of the selected extent is a multiple of the selected spacing, that is not true for the other points that define that extent.
 Parameters:
 - TYPE [enum]: Grid type (default 0; options 0=Point, 1=Line, 2=Rectangle (Polygon), 3=Diamond (Polygon), 4=Hexagon (Polygon))
 - EXTENT [extent]: Grid extent
@@ -3494,7 +3731,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:createpointslayerfromtable: Create points layer from table
-Generates a point layer based on the coordinates from an input table.
+This algorithm generates a point layer based on the coordinates from an input table.
+The table must contain a field with the X coordinate of each point and another one with the Y coordinate, as well as optional fields with Z and M values. A CRS for the output layer has to be specified, and the coordinates in the table are assumed to be expressed in the units used by that CRS. The attributes table of the resulting layer will be the input table.
 Parameters:
 - INPUT [source]: Input layer
 - XFIELD [field]: X field
@@ -3506,14 +3744,15 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extenttolayer: Create layer from extent
-Creates a vector layer that contains a single feature with geometry matching an extent parameter.
+This algorithm creates a new vector layer that contains a single feature with geometry matching an extent parameter.
+It can be used in models to convert an extent into a layer which can be used for other algorithms which require a layer based input.
 Parameters:
 - INPUT [extent]: Extent
 - OUTPUT [sink]: Extent
 Outputs: OUTPUT [outputVector]
 
 ### native:generatepointspixelcentroidsinsidepolygons: Generate points (pixel centroids) inside polygons
-Generates pixel centroids for the raster area falling inside polygons.
+This algorithm generates pixel centroids for the raster area falling inside polygons. Used to generate points for further raster sampling.
 Parameters:
 - INPUT_RASTER [raster]: Raster layer
 - INPUT_VECTOR [source]: Vector layer
@@ -3521,7 +3760,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:importphotos: Import geotagged photos
-Creates a point layer corresponding to the geotagged locations from JPEG or HEIF/HEIC images from a source folder.
+This algorithm creates a point layer corresponding to the geotagged locations from JPEG or HEIF/HEIC images from a source folder. Optionally the folder can be recursively scanned.
+The point layer will contain a single PointZ feature per input file from which the geotags could be read. Any altitude information from the geotags will be used to set the point's Z value.
+Optionally, a table of unreadable or non-geotagged photos can also be created.
 Parameters:
 - FOLDER [file]: Input folder
 - RECURSIVE [boolean]: Scan recursively (default False)
@@ -3530,7 +3771,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], INVALID [outputVector]
 
 ### native:pixelstopoints: Raster pixels to points
-Creates a vector layer of points corresponding to each pixel in a raster layer.
+This algorithm converts a raster layer to a vector layer, by creating point features for each individual pixel's center in the raster layer.
+Any NoData pixels are skipped in the output.
 Parameters:
 - INPUT_RASTER [raster]: Raster layer
 - RASTER_BAND [band]: Band number (default 1)
@@ -3539,7 +3781,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:pixelstopolygons: Raster pixels to polygons
-Creates a vector layer of polygons corresponding to each pixel in a raster layer.
+This algorithm converts a raster layer to a vector layer, by creating polygon features for each individual pixel's extent in the raster layer.
+Any NoData pixels are skipped in the output.
 Parameters:
 - INPUT_RASTER [raster]: Raster layer
 - RASTER_BAND [band]: Band number (default 1)
@@ -3548,7 +3791,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:pointstopath: Points to path
-Takes a point layer and connects its features to create a new line layer.
+This algorithm takes a point layer and connects its features to create a new line layer.
+An attribute or expression may be specified to define the order the points should be connected. If no order expression is specified, the feature ID is used.
+A natural sort can be used when sorting by a string attribute or expression (ie. place 'a9' before 'a10').
+An attribute or expression can be selected to group points having the same value into the same resulting line.
 Parameters:
 - INPUT [source]: Input layer
 - CLOSE_PATH [boolean]: Create closed paths (default False)
@@ -3563,14 +3809,15 @@ Parameters:
 Outputs: OUTPUT [outputVector], OUTPUT_TEXT_DIR [outputFolder], NUM_PATHS [outputNumber]
 
 ### native:pointtolayer: Create layer from point
-Creates a vector layer that contains a single feature with geometry matching a point parameter.
+This algorithm creates a new vector layer that contains a single feature with geometry matching a point parameter.
+It can be used in models to convert a point into a layer which can be used for other algorithms which require a layer based input.
 Parameters:
 - INPUT [point]: Point
 - OUTPUT [sink]: Point
 Outputs: OUTPUT [outputVector]
 
 ### native:randompointsinextent: Random points in extent
-Creates a point layer with a given number of random points, all of them within a given extent.
+This algorithm creates a new point layer with a given number of random points, all of them within a given extent. A distance factor can be specified, to avoid points being too close to each other. If the minimum distance between points makes it impossible to create new points, either distance can be decreased or the maximum number of attempts may be increased.
 Parameters:
 - EXTENT [extent]: Input extent
 - POINTS_NUMBER [number]: Number of points (default 1)
@@ -3581,7 +3828,22 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:randompointsinpolygons: Random points in polygons
-Creates a layer with a number of points placed randomly in each polygon of a given layer.
+This algorithm creates a point layer, with points placed randomly in the polygons of the Input polygon layer.
+ For each feature in the Input polygon layer, the algorithm attempts to add the specified Number of points for each feature to the output layer.
+ A Minimum distance between points and a Global minimum distance between points can be specified.
+ A point will not be added if there is an already generated point within this (Euclidean) distance from the generated location. With Minimum distance between points, only points in the same polygon feature are considered, while for Global minimum distance between points all previously generated points are considered. If the Global minimum distance between points is set equal to or larger than the (local) Minimum distance between points, the latter has no effect.
+ If the Minimum distance between points is too large, it may not be possible to generate the specified Number of points for each feature, but all the generated points are returned.
+ The Maximum number of attempts per point can be specified.
+ The seed for the random generator can be provided (Random seed - integer, greater than 0).
+ The user can choose not to Include polygon feature attributes in the attributes of the generated point features.
+ The total number of points will be
+ 'number of input features' * Number of points for each feature
+ if there are no misses. The Number of points for each feature, Minimum distance between points and Maximum number of attempts per point can be data defined. Output from the algorithm:
+ The number of features with an empty or no geometry (FEATURES_WITH_EMPTY_OR_NO_GEOMETRY).
+ A point layer containing the random points (OUTPUT).
+ The number of generated features (OUTPUT_POINTS).
+ The number of missed points (POINTS_MISSED).
+ The number of features with non-empty geometry and missing points (POLYGONS_WITH_MISSED_POINTS).
 Parameters:
 - INPUT [source]: Input polygon layer
 - POINTS_NUMBER [number]: Number of points for each feature (default 1)
@@ -3594,7 +3856,22 @@ Parameters:
 Outputs: OUTPUT [outputVector], OUTPUT_POINTS [outputNumber], POINTS_MISSED [outputNumber], POLYGONS_WITH_MISSED_POINTS [outputNumber], FEATURES_WITH_EMPTY_OR_NO_GEOMETRY [outputNumber]
 
 ### native:randompointsonlines: Random points on lines
-Creates a point layer with points placed randomly on the lines of an input layer.
+This algorithm creates a point layer with points placed randomly on the lines of the Input line layer. The default behavior is that the generated point features inherit the attributes of the line feature on which they were generated.
+Parameters / options:
+ For each feature in the Input line layer, the algorithm attempts to add the specified Number of points for each feature to the output layer.
+ A Minimum distance between points and a Global minimum distance between points can be specified. A point will not be added if there is an already generated point within this (Euclidean) distance from the generated location. With Minimum distance between points, only points on the same line feature are considered, while for Global minimum distance between points all previously generated points are considered. If the Global minimum distance between points is set larger than the (local) Minimum distance between points, the latter has no effect.
+ If the Minimum distance between points is too large, it may not be possible to generate the specified Number of points for each feature.
+ The Maximum number of attempts per point is only relevant if Minimum distance between points or Global minimum distance between points is greater than 0. The total number of points will be
+ number of input features * Number of points for each feature
+ if there are no misses and all features have proper geometries.
+ The seed for the random generator can be provided (Random seed - integer, greater than 0).
+ The user can choose not to Include line feature attributes in the generated point features.
+ Output from the algorithm:
+ A point layer containing the random points (OUTPUT).
+ The number of generated features (POINTS_GENERATED).
+ The number of missed points (POINTS_MISSED).
+ The number of features with non-empty geometry and missing points (LINES_WITH_MISSED_POINTS).
+ The number of features with an empty or no geometry (LINES_WITH_EMPTY_OR_NO_GEOMETRY).
 Parameters:
 - INPUT [source]: Input line layer
 - POINTS_NUMBER [number]: Number of points for each feature (default 1)
@@ -3610,7 +3887,8 @@ Outputs: OUTPUT [outputVector], OUTPUT_POINTS [outputNumber], POINTS_MISSED [out
 ## QGIS (native c++) / Vector general
 
 ### native:assignprojection: Assign projection
-Assigns a new projection to a copy of a vector layer, with the exact same features and geometries.
+This algorithm assigns a new projection to a vector layer. It creates a new layer with the exact same features and geometries as the input one, but assigned to a new CRS. E.g. the geometries are not reprojected, they are just assigned to a different CRS. This algorithm can be used to repair layers which have been assigned an incorrect projection.
+Attributes are not modified by this algorithm.
 Parameters:
 - INPUT [source]: Input layer
 - CRS [crs]: Assigned CRS (default EPSG:4326)
@@ -3618,7 +3896,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:batchnominatimgeocoder: Batch Nominatim geocoder
-Geocodes features in a vector layer using the Nominatim service.
+This algorithm performs batch geocoding using the Nominatim service against an input layer string field.
+The output layer will have a point geometry reflecting the geocoded location as well as a number of attributes associated to the geocoded location.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Address field
@@ -3626,7 +3905,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:bookmarkstolayer: Convert spatial bookmarks to layer
-Converts stored spatial bookmarks to a polygon layer.
+This algorithm creates a new layer containing polygon features for stored spatial bookmarks.
+The export can be filtered to only bookmarks belonging to the current project, to all user bookmarks, or a combination of both.
 Parameters:
 - SOURCE [enum]: Bookmark source (default [0, 1]; options 0=Project bookmarks, 1=User bookmarks)
 - CRS [crs]: Output CRS (default <QgsCoordinateReferenceSystem: EPSG:4326>)
@@ -3634,7 +3914,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:createattributeindex: Create attribute index
-Creates an index to speed up queries made against a field in a table.
+This algorithm creates an index to speed up queries made against a field in a table. Support for index creation is dependent on the layer's data provider and the field type.
 Parameters:
 - INPUT [vector]: Input layer
 - FIELD [field]: Attribute to index
@@ -3647,21 +3927,27 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:definecurrentprojection: Define projection
-Sets an existing layer's projection to the provided CRS without reprojecting features.
+This algorithm sets an existing layer's projection to the provided CRS without reprojecting features. Contrary to the "Assign projection" algorithm, it will not output a new layer.
+If the input layer is a shapefile, the .prj file will be overwritten — or created if missing — to match the provided CRS.
 Parameters:
 - INPUT [vector]: Input shapefile
 - CRS [crs]: CRS (default <QgsCoordinateReferenceSystem: EPSG:4326>)
 Outputs: OUTPUT [outputVector]
 
 ### native:deleteduplicategeometries: Delete duplicate geometries
-Finds duplicated geometries in a layer and removes them.
+This algorithm finds duplicated geometries and removes them.
+Attributes are not checked, so in case two features have identical geometries but different attributes, only one of them will be added to the result layer.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Cleaned
 Outputs: OUTPUT [outputVector], RETAINED_COUNT [outputNumber], DUPLICATE_COUNT [outputNumber]
 
 ### native:detectvectorchanges: Detect dataset changes
-Calculates features which are unchanged, added or deleted between two dataset versions.
+This algorithm compares two vector layers, and determines which features are unchanged, added or deleted between the two. It is designed for comparing two different versions of the same dataset.
+When comparing features, the original and revised feature geometries will be compared against each other. Depending on the Geometry Comparison Behavior setting, the comparison will either be made using an exact comparison (where geometries must be an exact match for each other, including the order and count of vertices) or a topological comparison only (where geometries are considered equal if all of their component edges overlap. E.g. lines with the same vertex locations but opposite direction will be considered equal by this method). If the topological comparison is selected then any z or m values present in the geometries will not be compared.
+By default, the algorithm compares all attributes from the original and revised features. If the Attributes to Consider for Match parameter is changed, then only the selected attributes will be compared (e.g. allowing users to ignore a timestamp or ID field which is expected to change between the revisions).
+If any features in the original or revised layers do not have an associated geometry, then care must be taken to ensure that these features have a unique set of attributes selected for comparison. If this condition is not met, warnings will be raised and the resultant outputs may be misleading.
+The algorithm outputs three layers, one containing all features which are considered to be unchanged between the revisions, one containing features deleted from the original layer which are not present in the revised layer, and one containing features added to the revised layer which are not present in the original layer.
 Parameters:
 - ORIGINAL [source]: Original layer
 - REVISED [source]: Revised layer
@@ -3673,14 +3959,15 @@ Parameters:
 Outputs: UNCHANGED [outputVector], ADDED [outputVector], DELETED [outputVector], UNCHANGED_COUNT [outputNumber], ADDED_COUNT [outputNumber], DELETED_COUNT [outputNumber]
 
 ### native:dropgeometries: Drop geometries
-Removes any geometries from an input layer and returns a layer containing only the feature attributes.
+This algorithm removes any geometries from an input layer and returns a layer containing only the feature attributes.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Dropped geometries
 Outputs: OUTPUT [outputVector]
 
 ### native:dxfexport: Export layers to DXF
-Exports layers to a DXF file.
+Exports layers to a DXF file. For each layer, you can choose a field whose values are used to split features in generated destination layers in the DXF output.
+If no field is chosen, you can still override the output layer name by directly entering a new output layer name in the Configure Layer panel or by preferring layer title (set in layer properties) to layer name.
 Parameters:
 - LAYERS [dxflayers]: Input layers
 - SYMBOLOGY_MODE [enum]: Symbology mode (default 0; options 0=No Symbology, 1=Feature Symbology, 2=Symbol Layer Symbology)
@@ -3699,6 +3986,8 @@ Outputs: OUTPUT [outputFile]
 
 ### native:findprojection: Find projection
 Creates a list of possible candidate coordinate reference systems for a layer with an unknown projection.
+The expected area which the layer should reside in must be specified via the target area parameter.
+The algorithm operates by testing the layer's extent in every known reference system and listing any in which the bounds would fall within the target area if the layer was in this projection.
 Parameters:
 - INPUT [source]: Input layer
 - TARGET_AREA [extent]: Target area for layer
@@ -3707,14 +3996,15 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:flattenrelationships: Flatten relationship
-Flattens a relationship for a vector layer.
+This algorithm flattens a relationship for a vector layer, exporting a single layer containing one master feature per related feature. This master feature contains all the attributes for the related features.
 Parameters:
 - INPUT [vector]: Input layer
 - OUTPUT [sink]: Flattened layer
 Outputs: OUTPUT [outputVector]
 
 ### native:joinattributesbylocation: Join attributes by location
-Joins attributes from one vector layer to another by location.
+This algorithm takes an input vector layer and creates a new vector layer that is an extended version of the input one, with additional attributes in its attribute table.
+The additional attributes and their values are taken from a second vector layer. A spatial criteria is applied to select the values from the second layer that are added to each feature from the first layer in the resulting one.
 Parameters:
 - INPUT [source]: Join to features in
 - PREDICATE [enum]: Features they (geometric predicate) (default 0; options 0=intersect, 1=contain, 2=equal, 3=touch, 4=overlap, 5=are within, 6=cross)
@@ -3728,7 +4018,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], NON_MATCHING [outputVector], JOINED_COUNT [outputNumber]
 
 ### native:joinattributestable: Join attributes by field value
-Creates a vector layer that is an extended version of the input one, with additional attributes taken from a second vector layer.
+This algorithm takes an input vector layer and creates a new vector layer that is an extended version of the input one, with additional attributes in its attribute table.
+The additional attributes and their values are taken from a second vector layer. An attribute is selected in each of them to define the join criteria.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Table field
@@ -3743,7 +4034,9 @@ Parameters:
 Outputs: OUTPUT [outputVector], NON_MATCHING [outputVector], JOINED_COUNT [outputNumber], UNJOINABLE_COUNT [outputNumber]
 
 ### native:joinbylocationsummary: Join attributes by location (summary)
-Calculates summaries of attributes from one vector layer to another by location.
+This algorithm takes an input vector layer and creates a new vector layer that is an extended version of the input one, with additional attributes in its attribute table.
+The additional attributes and their values are taken from a second vector layer. A spatial criteria is applied to select the values from the second layer that are added to each feature from the first layer in the resulting one.
+The algorithm calculates a statistical summary for the values from matching features in the second layer( e.g. maximum value, mean value, etc ).
 Parameters:
 - INPUT [source]: Join to features in
 - PREDICATE [enum]: Where the features (default 0; options 0=intersect, 1=contain, 2=equal, 3=touch, 4=overlap, 5=are within, 6=cross)
@@ -3755,7 +4048,11 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:joinbynearest: Join attributes by nearest
-Joins a layer to another layer, using the closest features (nearest neighbors).
+This algorithm takes an input vector layer and creates a new vector layer that is an extended version of the input one, with additional attributes in its attribute table.
+The additional attributes and their values are taken from a second vector layer, where features are joined by finding the closest features from each layer. By default only the single nearest feature is joined,but optionally the join can use the n-nearest neighboring features instead. If multiple features are found with identical distances these will all be returned (even if the total number of features exceeds the specified maximum feature count).
+If a maximum distance is specified, then only features which are closer than this distance will be matched.
+The output features will contain the selected attributes from the nearest feature, along with new attributes for the distance to the near feature, the index of the feature, and the coordinates of the closest point on the input feature (feature_x, feature_y) to the matched nearest feature, and the coordinates of the closet point on the matched feature (nearest_x, nearest_y).
+This algorithm uses purely Cartesian calculations for distance, and does not consider geodetic or ellipsoid properties when determining feature proximity.
 Parameters:
 - INPUT [source]: Input layer
 - INPUT_2 [source]: Input layer 2
@@ -3769,7 +4066,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], NON_MATCHING [outputVector], JOINED_COUNT [outputNumber], UNJOINABLE_COUNT [outputNumber]
 
 ### native:layertobookmarks: Convert layer to spatial bookmarks
-Converts feature extents to stored spatial bookmarks.
+This algorithm creates spatial bookmarks corresponding to the extent of features contained in a layer.
 Parameters:
 - INPUT [source]: Input layer
 - DESTINATION [enum]: Bookmark destination (default 0; options 0=Project bookmarks, 1=User bookmarks)
@@ -3778,7 +4075,10 @@ Parameters:
 Outputs: COUNT [outputNumber]
 
 ### native:mergevectorlayers: Merge vector layers
-Combines multiple vector layers of the same geometry type into a single one.
+This algorithm combines multiple vector layers of the same geometry type into a single one.
+The attribute table of the resulting layer will contain the fields from all input layers. If fields with the same name but different types are found then the exported field will be automatically converted into a string type field. Optionally, new fields storing the original layer name and source can be added.
+If any input layers contain Z or M values, then the output layer will also contain these values. Similarly, if any of the input layers are multi-part, the output layer will also be a multi-part layer.
+Optionally, the destination coordinate reference system (CRS) for the merged layer can be set. If it is not set, the CRS will be taken from the first input layer. All layers will all be reprojected to match this CRS.
 Parameters:
 - LAYERS [multilayer]: Input layers
 - CRS [crs]: Destination CRS (optional)
@@ -3787,7 +4087,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:orderbyexpression: Order by expression
-Sorts a vector layer according to an expression.
+This algorithm sorts a vector layer according to an expression. Be careful, it might not work as expected with some providers, the order might not be kept every time.
+For help with QGIS expression functions, see the inbuilt help for specific functions which is available in the expression builder.
 Parameters:
 - INPUT [source]: Input layer
 - EXPRESSION [expression]: Expression
@@ -3797,7 +4098,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:removeduplicatesbyattribute: Delete duplicates by attribute
-Removes duplicate rows by a field value (or multiple field values).
+This algorithm removes duplicate rows by a field value (or multiple field values). The first matching row will be retained, and duplicates will be discarded.
+Optionally, these duplicate records can be saved to a separate output for analysis.
 Parameters:
 - INPUT [source]: Input layer
 - FIELDS [field]: Field to match duplicates by
@@ -3806,13 +4108,14 @@ Parameters:
 Outputs: OUTPUT [outputVector], DUPLICATES [outputVector], RETAINED_COUNT [outputNumber], DUPLICATE_COUNT [outputNumber]
 
 ### native:repairshapefile: Repair Shapefile
-Repairs broken Shapefiles by recreating SHX files.
+Repairs a broken Shapefile by recreating missing or broken SHX files.
 Parameters:
 - INPUT [file]: Input Shapefile
 Outputs: OUTPUT [outputVector]
 
 ### native:reprojectlayer: Reproject layer
-Creates a vector layer with geometries transformed to a new CRS.
+This algorithm reprojects a vector layer. It creates a new layer with the same features as the input one, but with geometries reprojected to a new CRS.
+Attributes are not modified by this algorithm.
 Parameters:
 - INPUT [source]: Input layer
 - TARGET_CRS [crs]: Target CRS (default EPSG:4326)
@@ -3822,7 +4125,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:savefeatures: Save vector features to file
-Saves vector features to a specified file dataset.
+This algorithm saves vector features to a specified file dataset.
+For dataset formats supporting layers, an optional layer name parameter can be used to specify a custom string.
+Optional GDAL-defined dataset and layer options can be specified. For more information on this, read the online GDAL documentation.
 Parameters:
 - INPUT [source]: Vector features
 - OUTPUT [fileDestination]: Saved features
@@ -3833,27 +4138,33 @@ Parameters:
 Outputs: OUTPUT [outputFile], FILE_PATH [outputString], LAYER_NAME [outputString]
 
 ### native:saveselectedfeatures: Extract selected features
-Creates a layer with all the selected features in a given vector layer.
+This algorithm creates a new layer with all the selected features in a given vector layer.
+If the selected layer has no selected features, the newly created layer will be empty.
 Parameters:
 - INPUT [vector]: Input layer
 - OUTPUT [sink]: Selected features
 Outputs: OUTPUT [outputVector]
 
 ### native:setlayerencoding: Set layer encoding
-Sets the encoding used for reading a layer's attributes.
+This algorithm sets the encoding used for reading a layer's attributes. No permanent changes are made to the layer, rather it affects only how the layer is read during the current session.
+Changing the encoding is only supported for some vector layer data sources.
 Parameters:
 - INPUT [vector]: Input layer
 - ENCODING [string]: Encoding
 Outputs: OUTPUT [outputVector]
 
 ### native:shpencodinginfo: Extract Shapefile encoding
-Extracts the attribute encoding information embedded in a Shapefile.
+This algorithm extracts the attribute encoding information embedded in a Shapefile.
+Both the encoding specified by an optional .cpg file and any encoding details present in the .dbf LDID header block are considered.
 Parameters:
 - INPUT [file]: Input layer
 Outputs: ENCODING [outputString], CPG_ENCODING [outputString], LDID_ENCODING [outputString]
 
 ### native:splitfeaturesbycharacter: Split features by character
-Splits features into multiple output features by splitting a field by a character.
+This algorithm splits features into multiple output features by splitting a field's value with a specified character.
+For instance, if a layer contains features with multiple comma separated values contained in a single field, this algorithm can be used to split these values up across multiple output features.
+Geometries and other attributes remain unchanged in the output.
+Optionally, the separator string can be a regular expression for added flexibility.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Split using values in field
@@ -3863,7 +4174,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:splitvectorlayer: Split vector layer
-Splits a vector layer into multiple layers, each containing all the features with the same value for a specified attribute.
+This algorithm splits input vector layer into multiple layers by specified unique ID field.
+Each of the layers created in the output folder contains all features from the input layer with the same value for the specified attribute. The number of files generated is equal to the number of different values found for the specified attribute.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Unique ID field
@@ -3873,7 +4185,8 @@ Parameters:
 Outputs: OUTPUT [outputFolder], OUTPUT_LAYERS [outputMultilayer]
 
 ### native:truncatetable: Truncate table
-Truncates a layer, by deleting all features from within the layer.
+This algorithm truncates a layer, by deleting all features from within the layer.
+Warning — this algorithm modifies the layer in place, and deleted features cannot be restored!
 Parameters:
 - INPUT [vector]: Input layer
 Outputs: OUTPUT [outputVector]
@@ -3882,7 +4195,8 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (native c++) / Vector geometry
 
 ### native:affinetransform: Affine transform
-Applies an affine transformation to geometries.
+This algorithm applies an affine transformation to the geometries from a layer. Affine transformations can include translation, scaling and rotation. The operations are performed in a scale, rotation, translation order.
+Z and M values present in the geometry can also be translated and scaled independently.
 Parameters:
 - INPUT [source]: Input layer
 - DELTA_X [distance]: Translation (x-axis) (default 0.0)
@@ -3898,7 +4212,11 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:aggregate: Aggregate
-Aggregates features based on a group by expression, combining geometries (if present) into one multipart geometry for each group.
+This algorithm takes a vector or table layer and aggregates features based on a group by expression. Features for which group by expression return the same value are grouped together.
+It is possible to group all source features together using constant value in group by parameter, example: NULL.
+It is also possible to group features using multiple fields using Array function, example: Array("Field1", "Field2").
+Geometries (if present) are combined into one multipart geometry for each group.
+Output attributes are computed depending on each given aggregate definition.
 Parameters:
 - INPUT [source]: Input layer
 - GROUP_BY [expression]: Group by expression (NULL to group all features) (default NULL)
@@ -3907,28 +4225,36 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:antimeridiansplit: Geodesic line split at antimeridian
-Splits lines into multiple geodesic segments when the line crosses the antimeridian (±180 degrees longitude).
+This algorithm splits a line into multiple geodesic segments, whenever the line crosses the antimeridian (±180 degrees longitude).
+Splitting at the antimeridian helps the visual display of the lines in some projections. The returned geometry will always be a multi-part geometry.
+Whenever line segments in the input geometry cross the antimeridian, they will be split into two segments, with the latitude of the breakpoint being determined using a geodesic line connecting the points either side of this segment. The current project ellipsoid setting will be used when calculating this breakpoint.
+If the input geometry contains M or Z values, these will be linearly interpolated for the new vertices created at the antimeridian.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Split
 Outputs: OUTPUT [outputVector]
 
 ### native:boundary: Boundary
-Returns the topological boundary of the input geometries.
+This algorithm returns the closure of the combinatorial boundary of the input geometries (ie the topological boundary of the geometry). For instance, a polygon geometry will have a boundary consisting of the linestrings for each ring in the polygon. Only valid for polygon or line layers.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Boundary
 Outputs: OUTPUT [outputVector]
 
 ### native:boundingboxes: Bounding boxes
-Calculates the bounding box (envelope) for each feature in an input layer.
+This algorithm calculates the bounding box (envelope) for each feature in an input layer.
+See the 'Minimum bounding geometry' algorithm for a bounding box calculation which covers the whole layer or grouped subsets of features.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Bounds
 Outputs: OUTPUT [outputVector]
 
 ### native:buffer: Buffer
-Computes a buffer area for all the features in an input layer, using a fixed or dynamic distance.
+This algorithm computes a buffer area for all the features in an input layer, using a fixed or dynamic distance.
+The segments parameter controls the number of line segments to use to approximate a quarter circle when creating rounded offsets.
+The end cap style parameter controls how line endings are handled in the buffer.
+The join style parameter specifies whether round, miter or beveled joins should be used when offsetting corners in a line.
+The miter limit parameter is only applicable for miter join styles, and controls the maximum distance from the offset curve to use when creating a mitered join.
 Parameters:
 - INPUT [source]: Input layer
 - DISTANCE [distance]: Distance (default 10)
@@ -3942,7 +4268,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:bufferbym: Variable width buffer (by M value)
-Creates variable width buffers along lines, using the M value of the line geometries as the diameter of the buffer at each vertex.
+This algorithm creates variable width buffers along lines, using the M value of the line geometries as the diameter of the buffer at each vertex.
 Parameters:
 - INPUT [source]: Input layer
 - SEGMENTS [number]: Segments (default 16)
@@ -3950,7 +4276,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:centroids: Centroids
-Creates a new point layer with points representing the centroid of the geometries in an input layer.
+This algorithm creates a new point layer with points representing the centroid of the geometries in an input layer.
+The attributes associated to each point in the output layer are the same ones associated to the original features.
 Parameters:
 - INPUT [source]: Input layer
 - ALL_PARTS [boolean]: Create centroid for each part (default False)
@@ -3958,7 +4285,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:checkvalidity: Check validity
-Performs a validity check on the geometries of a vector layer and classifies them in three groups (valid, invalid and error).
+This algorithm performs a validity check on the geometries of a vector layer.
+The geometries are classified in three groups (valid, invalid and error), and a vector layer is generated with the features in each of these categories.
+By default the algorithm uses the strict OGC definition of polygon validity, where a polygon is marked as invalid if a self-intersecting ring causes an interior hole. If the 'Ignore ring self intersections' option is checked, then this rule will be ignored and a more lenient validity check will be performed.
+The GEOS method is faster and performs better on larger geometries, but is limited to only returning the first error encountered in a geometry. The QGIS method will be slower but reports all errors encountered in the geometry, not just the first.
 Parameters:
 - INPUT_LAYER [source]: Input layer
 - METHOD [enum]: Method (default 2; options 0=The one selected in digitizing settings, 1=QGIS, 2=GEOS)
@@ -3969,7 +4299,9 @@ Parameters:
 Outputs: VALID_OUTPUT [outputVector], INVALID_OUTPUT [outputVector], ERROR_OUTPUT [outputVector], VALID_COUNT [outputNumber], INVALID_COUNT [outputNumber], ERROR_COUNT [outputNumber]
 
 ### native:collect: Collect geometries
-Collects geometries of a vector layer into new multipart geometries, optionally grouped by common attributes.
+This algorithm takes a vector layer and collects its geometries into new multipart geometries. One or more attributes can be specified to collect only geometries belonging to the same class (having the same value for the specified attributes), alternatively all geometries can be collected.
+All output geometries will be converted to multi geometries, even those with just a single part. This algorithm does not dissolve overlapping geometries - they will be collected together without modifying the shape of each geometry part.
+See the 'Promote to multipart' or 'Aggregate' algorithms for alternative options.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Unique ID fields (optional)
@@ -3977,7 +4309,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:concavehull: Concave hull (by layer)
-Computes the concave hull of all features from an input point layer.
+This algorithm computes the concave hull covering all features from an input point layer.
+See the 'Concave hull (by feature)' algorithm for a concave hull calculation which covers individual features from a layer.
 Parameters:
 - INPUT [source]: Input layer
 - ALPHA [number]: Threshold (0-1, where 1 is equivalent with Convex Hull) (default 0.3)
@@ -3987,7 +4320,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:concavehullbyfeature: Concave hull (by feature)
-Calculates the concave hull for each feature in an input layer.
+This algorithm calculates the concave hull for each feature in an input layer.
+A concave hull is a polygon which contains all the points of the input geometries, but is a better approximation than the convex hull to the area occupied by the input.
+It is frequently used to convert a multi-point into a polygonal area which contains all the points from the input geometry.
+See the 'Concave hull (by layer)' algorithm for a concave hull calculation which covers the whole layer or grouped subsets of features.
 Parameters:
 - INPUT [source]: Input layer
 - ALPHA [number]: Threshold (0-1, where 1 is equivalent with Convex Hull) (default 0.3)
@@ -3996,7 +4332,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:convertgeometrytype: Convert geometry type
-Converts the geometries from a vector layer to a different geometry type.
+This algorithm generates a new layer based on an existing one, with a different type of geometry.
+Not all conversions are possible. For instance, a line layer can be converted to a point layer, but a point layer cannot be converted to a line layer.
+See the "Polygonize" or "Lines to polygons" algorithms for alternative options.
 Parameters:
 - INPUT [source]: Input layer
 - TYPE [enum]: New geometry type (options 0=Centroids, 1=Nodes, 2=Linestrings, 3=Multilinestrings, 4=Polygons)
@@ -4004,7 +4342,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:converttocurves: Convert to curved geometries
-Converts a geometry into its curved geometry equivalent.
+This algorithm converts a geometry into its curved geometry equivalent.
+Already curved geometries will be retained without change.
 Parameters:
 - INPUT [source]: Input layer
 - DISTANCE [number]: Maximum distance tolerance (default 1e-06)
@@ -4013,14 +4352,15 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:convexhull: Convex hull
-Calculates the convex hull for each feature in an input layer.
+This algorithm calculates the convex hull for each feature in an input layer.
+See the 'Minimum bounding geometry' algorithm for a convex hull calculation which covers the whole layer or grouped subsets of features.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Convex hulls
 Outputs: OUTPUT [outputVector]
 
 ### native:delaunaytriangulation: Delaunay triangulation
-Creates a polygon layer with the Delaunay triangulation corresponding to a points layer.
+This algorithm creates a polygon layer with the Delaunay triangulation corresponding to a points layer.
 Parameters:
 - INPUT [source]: Input layer
 - TOLERANCE [number]: Tolerance (optional; default 0)
@@ -4029,7 +4369,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:deleteholes: Delete holes
-Creates a vector layer in which polygons with holes are replaced by polygons with only their external ring.
+This algorithm takes a polygon layer and removes holes in polygons. It creates a new vector layer in which polygons with holes have been replaced by polygons with only their external ring. Attributes are not modified.
+An optional minimum area parameter allows removing only holes which are smaller than a specified area threshold. Leaving this parameter as 0.0 results in all holes being removed.
 Parameters:
 - INPUT [source]: Input layer
 - MIN_AREA [area]: Remove holes with area less than (default 0.0)
@@ -4037,7 +4378,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:densifygeometries: Densify by count
-Creates a densified version of geometries by adding a fixed number of vertices to segments.
+This algorithm takes a polygon or line layer and generates a new one in which the geometries have a larger number of vertices than the original one.
+If the geometries have z or m values present then these will be linearly interpolated at the added nodes.
+The number of new vertices to add to each feature geometry is specified as an input parameter.
 Parameters:
 - INPUT [source]: Input layer
 - VERTICES [number]: Number of vertices to add (default 1)
@@ -4045,7 +4388,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:densifygeometriesgivenaninterval: Densify by interval
-Creates a densified version of geometries by setting a maximum distance for segments.
+This algorithm takes a polygon or line layer and generates a new one in which the geometries have a larger number of vertices than the original one.
+Geometries are densified by adding additional vertices on edges that have a maximum distance of the interval parameter in map units.
 Parameters:
 - INPUT [source]: Input layer
 - INTERVAL [distance]: Interval between vertices to add (default 1)
@@ -4053,7 +4397,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:dissolve: Dissolve
-Combines features of a vector layer into new features, optionally grouped by common attributes.
+This algorithm takes a vector layer and combines their features into new features. One or more attributes can be specified to dissolve features belonging to the same class (having the same value for the specified attributes), alternatively all features can be dissolved in a single one.
+All output geometries will be converted to multi geometries. In case the input is a polygon layer, common boundaries of adjacent polygons being dissolved will get erased.
+If enabled, the optional "Keep disjoint features separate" setting will cause features and parts that do not overlap or touch to be exported as separate features (instead of parts of a single multipart feature).
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Dissolve field(s) (optional)
@@ -4062,7 +4408,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:dropmzvalues: Drop M/Z values
-Removes any measure (M) or Z values from input geometries.
+This algorithm can remove any measure (M) or Z values from input geometries.
 Parameters:
 - INPUT [source]: Input layer
 - DROP_M_VALUES [boolean]: Drop M Values (default False)
@@ -4071,14 +4417,16 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:explodelines: Explode lines
-Creates a line layer in which each feature represents a segment from an input line layer.
+This algorithm takes a lines layer and creates a new one in which each line is replaced by a set of lines representing the segments in the original line. Each line in the resulting layer contains only a start and an end point, with no intermediate nodes between them.
+If the input layer consists of CircularStrings or CompoundCurves, the output layer will be of the same type and contain only single curve segments.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Exploded
 Outputs: OUTPUT [outputVector]
 
 ### native:exportaddgeometrycolumns: Add geometry attributes
-Computes geometric properties of the features in a vector layer.
+This algorithm computes geometric properties of the features in a vector layer. The algorithm generates a new vector layer with the same content as the input one, but with additional attributes in its attributes table, containing geometric measurements.
+Depending on the geometry type of the vector layer, the attributes added to the table will be different.
 Parameters:
 - INPUT [source]: Input layer
 - METHOD [enum]: Calculate using (default 0; options 0=Cartesian Calculations in Layer's CRS, 1=Cartesian Calculations in Project's CRS, 2=Ellipsoidal Calculations)
@@ -4086,7 +4434,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extendlines: Extend lines
-Extends LineString geometries by extrapolating the start and end segments.
+This algorithm extends line geometries by a specified amount at the start and end of the line. Lines are extended using the bearing of the first and last segment in the line.
 Parameters:
 - INPUT [source]: Input layer
 - START_DISTANCE [distance]: Start distance (default 0.0)
@@ -4095,7 +4443,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extractmvalues: Extract M values
-Extracts m values (or m value statistics) from geometries into feature attributes.
+Extracts m values from geometries into feature attributes.
+By default only the m value from the first vertex of each feature is extracted, however the algorithm can optionally calculate statistics on all of the geometry's m values, including sums, means, and minimums and maximums
 Parameters:
 - INPUT [source]: Input layer
 - SUMMARIES [enum]: Summaries to calculate (default [0]; options 0=First, 1=Last, 2=Count, 3=Sum, 4=Mean, 5=Median, 6=St dev (pop), 7=Minimum, 8=Maximum, 9=Range, 10=Minority, 11=Majority, 12=Variety, 13=Q1, 14=Q3, 15=IQR)
@@ -4104,7 +4453,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extractspecificvertices: Extract specific vertices
-Generates a point layer with points representing specific vertices in the input geometries.
+This algorithm takes a vector layer and generates a point layer with points representing specific vertices in the input geometries. For instance, this algorithm can be used to extract the first or last vertices in the geometry. The attributes associated to each point are the same ones associated to the feature that the point belongs to.
+The vertex indices parameter accepts a comma separated string specifying the indices of the vertices to extract. The first vertex corresponds to an index of 0, the second vertex has an index of 1, etc. Negative indices can be used to find vertices at the end of the geometry, e.g., an index of -1 corresponds to the last vertex, -2 corresponds to the second last vertex, etc.
+Additional fields are added to the points indicating the specific vertex position (e.g., 0, -1, etc), the original vertex index, the vertex’s part and its index within the part (as well as its ring for polygons), distance along the original geometry and bisector angle of vertex for the original geometry.
 Parameters:
 - INPUT [source]: Input layer
 - VERTICES [string]: Vertex indices (default 0)
@@ -4112,14 +4463,16 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extractvertices: Extract vertices
-Generates a point layer with points representing the vertices of the input geometries.
+This algorithm takes a vector layer and generates a point layer with points representing the vertices of the input geometries. The attributes associated to each point are the same ones associated to the feature that the point belongs to.
+Additional fields are added to the point indicating the vertex index (beginning at 0), the vertex’s part and its index within the part (as well as its ring for polygons), distance along original geometry and bisector angle of vertex for original geometry.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Vertices
 Outputs: OUTPUT [outputVector]
 
 ### native:extractzvalues: Extract Z values
-Extracts z values (or z value statistics) from geometries into feature attributes.
+Extracts z values from geometries into feature attributes.
+By default only the z value from the first vertex of each feature is extracted, however the algorithm can optionally calculate statistics on all of the geometry's z values, including sums, means, and minimums and maximums
 Parameters:
 - INPUT [source]: Input layer
 - SUMMARIES [enum]: Summaries to calculate (default [0]; options 0=First, 1=Last, 2=Count, 3=Sum, 4=Mean, 5=Median, 6=St dev (pop), 7=Minimum, 8=Maximum, 9=Range, 10=Minority, 11=Majority, 12=Variety, 13=Q1, 14=Q3, 15=IQR)
@@ -4128,7 +4481,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:filterverticesbym: Filter vertices by M value
-Filters away vertices based on their m-value value.
+Filters away vertices based on their m-value, returning geometries with only vertex points that have a m-value ≥ the specified minimum value and ≤ the maximum value.
+If the minimum value is not specified then only the maximum value is tested, and similarly if the maximum value is not specified then only the minimum value is tested.
+Depending on the input geometry attributes and the filters used, the resultant geometries created by this algorithm may no longer be valid.
 Parameters:
 - INPUT [source]: Input layer
 - MIN [number]: Minimum (optional)
@@ -4137,7 +4492,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:filterverticesbyz: Filter vertices by Z value
-Filters away vertices based on their z-value value.
+Filters away vertices based on their z-value, returning geometries with only vertex points that have a z-value ≥ the specified minimum value and ≤ the maximum value.
+If the minimum value is not specified then only the maximum value is tested, and similarly if the maximum value is not specified then only the minimum value is tested.
+Depending on the input geometry attributes and the filters used, the resultant geometries created by this algorithm may no longer be valid.
 Parameters:
 - INPUT [source]: Input layer
 - MIN [number]: Minimum (optional)
@@ -4146,7 +4503,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:fixgeometries: Fix geometries
-Attempts to create a valid representation of a given invalid geometry without losing any of the input vertices.
+This algorithm attempts to create a valid representation of a given invalid geometry without losing any of the input vertices. Already-valid geometries are returned without further intervention. Always outputs multi-geometry layer.
+NOTE: M values will be dropped from the output.
 Parameters:
 - INPUT [source]: Input layer
 - METHOD [enum]: Repair method (default 1; options 0=Linework, 1=Structure)
@@ -4154,14 +4512,15 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:forcerhr: Force right-hand-rule
-Forces polygon geometries to respect the Right-Hand-Rule.
+This algorithm forces polygon geometries to respect the Right-Hand-Rule, in which the area that is bounded by a polygon is to the right of the boundary. In particular, the exterior ring is oriented in a clockwise direction and the interior rings in a counter-clockwise direction.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Reoriented
 Outputs: OUTPUT [outputVector]
 
 ### native:geometrybyexpression: Geometry by expression
-Updates existing geometries (or creates new geometries) for input features by use of a QGIS expression.
+This algorithm updates existing geometries (or creates new geometries) for input features by use of a QGIS expression. This allows complex geometry modifications which can utilize all the flexibility of the QGIS expression engine to manipulate and create geometries for output features.
+For help with QGIS expression functions, see the inbuilt help for specific functions which is available in the expression builder.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT_GEOMETRY [enum]: Output geometry type (default 0; options 0=Polygon, 1=Line, 2=Point)
@@ -4172,7 +4531,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:interpolatepoint: Interpolate point on line
-Interpolates a point along lines at a set distance.
+This algorithm creates a point geometry interpolated at a set distance along line or curve geometries.
+Z and M values are linearly interpolated from existing values.
+If a multipart geometry is encountered, only the first part is considered when interpolating the point.
+If the specified distance is greater than the curve's length, the resultant feature will have a null geometry.
 Parameters:
 - INPUT [source]: Input layer
 - DISTANCE [distance]: Distance (default 0.0)
@@ -4180,7 +4542,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:keepnbiggestparts: Keep N biggest parts
-Creates a polygon layer in which multipart geometries have been removed, leaving only the n largest (in terms of area) parts.
+This algorithm takes a polygon layer and creates a new polygon layer in which multipart geometries have been removed, leaving only the n largest (in terms of area) parts.
 Parameters:
 - POLYGONS [source]: Input layer
 - PARTS [number]: Parts to keep (default 1.0)
@@ -4188,7 +4550,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:linesubstring: Line substring
-Returns the substring of lines which fall between start and end distances.
+This algorithm returns the portion of a line (or curve) which falls between the specified start and end distances (measured from the beginning of the line).
+Z and M values are linearly interpolated from existing values.
+If a multipart geometry is encountered, only the first part is considered when calculating the substring.
 Parameters:
 - INPUT [source]: Input layer
 - START_DISTANCE [distance]: Start distance (default 0.0)
@@ -4197,14 +4561,16 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:mergelines: Merge lines
-Joins all connected parts of MultiLineString geometries into single LineString geometries.
+This algorithm joins all connected parts of MultiLineString geometries into single LineString geometries.
+If any parts of the input MultiLineString geometries are not connected, the resultant geometry will be a MultiLineString containing any lines which could be merged and any non-connected line parts.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Merged
 Outputs: OUTPUT [outputVector]
 
 ### native:minimumenclosingcircle: Minimum enclosing circles
-Calculates the minimum enclosing circle which covers each feature in an input layer.
+This algorithm calculates the minimum enclosing circle which covers each feature in an input layer.
+See the 'Minimum bounding geometry' algorithm for a minimal enclosing circle calculation which covers the whole layer or grouped subsets of features.
 Parameters:
 - INPUT [source]: Input layer
 - SEGMENTS [number]: Number of segments in circles (default 72)
@@ -4212,14 +4578,14 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:multiparttosingleparts: Multipart to singleparts
-Takes a vector layer with multipart geometries and generates a new one in which all geometries contain a single part.
+This algorithm takes a vector layer with multipart geometries and generates a new one in which all geometries contain a single part. Features with multipart geometries are divided in as many different features as parts the geometry contain, and the same attributes are used for each of them.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Single parts
 Outputs: OUTPUT [outputVector]
 
 ### native:multiringconstantbuffer: Multi-ring buffer (constant distance)
-Computes multi-ring ('donuts') buffer using a fixed or dynamic distance and number of rings.
+This algorithm computes multi-ring ('donuts') buffer for the features in an input layer, using a fixed or dynamic distance and number of rings.
 Parameters:
 - INPUT [source]: Input layer
 - RINGS [number]: Number of rings (default 1)
@@ -4228,7 +4594,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:offsetline: Offset lines
-Offsets lines by a specified distance.
+This algorithm offsets lines by a specified distance. Positive distances will offset lines to the left, and negative distances will offset to the right of lines.
+The segments parameter controls the number of line segments to use to approximate a quarter circle when creating rounded offsets.
+The join style parameter specifies whether round, miter or beveled joins should be used when offsetting corners in a line.
+The miter limit parameter is only applicable for miter join styles, and controls the maximum distance from the offset curve to use when creating a mitered join.
 Parameters:
 - INPUT [source]: Input layer
 - DISTANCE [distance]: Distance (default 10.0)
@@ -4239,14 +4608,18 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:orientedminimumboundingbox: Oriented minimum bounding box
-Calculates the minimum area rotated rectangle which covers each feature in an input layer.
+This algorithm calculates the minimum area rotated rectangle which covers each feature in an input layer.
+For singlepart point features, the output corresponds to the bounding box of the geometry.
+See the 'Minimum bounding geometry' algorithm for an oriented bounding box calculation which covers the whole layer or grouped subsets of features.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Bounding boxes
 Outputs: OUTPUT [outputVector]
 
 ### native:orthogonalize: Orthogonalize
-Takes a line or polygon layer and attempts to orthogonalize all the geometries in the layer.
+Takes a line or polygon layer and attempts to orthogonalize all the geometries in the layer. This process shifts the nodes in the geometries to try to make every angle in the geometry either a right angle or a straight line.
+The angle tolerance parameter is used to specify the maximum deviation from a right angle or straight line a node can have for it to be adjusted. Smaller tolerances mean that only nodes which are already closer to right angles will be adjusted, and larger tolerances mean that nodes which deviate further from right angles will also be adjusted.
+The algorithm is iterative. Setting a larger number for the maximum iterations will result in a more orthogonal geometry at the cost of extra processing time.
 Parameters:
 - INPUT [source]: Input layer
 - ANGLE_TOLERANCE [number]: Maximum angle tolerance (degrees) (default 15.0)
@@ -4255,7 +4628,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:pointonsurface: Point on surface
-Returns a point guaranteed to lie on the surface of a geometry.
+This algorithm returns a point guaranteed to lie on the surface of a geometry.
 Parameters:
 - INPUT [source]: Input layer
 - ALL_PARTS [boolean]: Create point on surface for each part (default False)
@@ -4263,7 +4636,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:pointsalonglines: Points along geometry
-Creates regularly spaced points along line features.
+This algorithm creates a points layer, with points distributed along the lines of an input vector layer. The distance between points (measured along the line) is defined as a parameter.
+Start and end offset distances can be defined, so the first and last point will not fall exactly on the line's first and last nodes. These start and end offsets are defined as distances, measured along the line from the first and last nodes of the lines.
 Parameters:
 - INPUT [source]: Input layer
 - DISTANCE [distance]: Distance (default 1.0)
@@ -4273,7 +4647,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:poleofinaccessibility: Pole of inaccessibility
-Creates a point layer with features representing the most distant internal point from the boundary of the surface for a polygon layer.
+This algorithm calculates the pole of inaccessibility for a polygon layer, which is the most distant internal point from the boundary of the surface. This algorithm uses the 'polylabel' algorithm (Vladimir Agafonkin, 2016), which is an iterative approach guaranteed to find the true pole of inaccessibility within a specified tolerance (in layer units). More precise tolerances require more iterations and will take longer to calculate.
+The distance from the calculated pole to the polygon boundary will be stored as a new attribute in the output layer.
 Parameters:
 - INPUT [source]: Input layer
 - TOLERANCE [distance]: Tolerance (default 1.0)
@@ -4281,7 +4656,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:polygonize: Polygonize
-Creates a polygon layer from the input lines layer.
+This algorithm creates a polygon layer from the input lines layer.
 Parameters:
 - INPUT [source]: Input layer
 - KEEP_FIELDS [boolean]: Keep table structure of line layer (default False)
@@ -4289,14 +4664,15 @@ Parameters:
 Outputs: OUTPUT [outputVector], NUM_POLYGONS [outputNumber]
 
 ### native:polygonstolines: Polygons to lines
-Converts polygons to lines.
+This algorithm converts polygons to lines.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Lines
 Outputs: OUTPUT [outputVector]
 
 ### native:projectpointcartesian: Project points (Cartesian)
-Creates a point layer with geometries projected by a specified distance and bearing (azimuth).
+This algorithm projects point geometries by a specified distance and bearing (azimuth), creating a new point layer with the projected points.
+The distance is specified in layer units, and the bearing in degrees clockwise from North.
 Parameters:
 - INPUT [source]: Input layer
 - BEARING [number]: Bearing (degrees from North) (default 0)
@@ -4305,14 +4681,16 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:promotetomulti: Promote to multipart
-Generates a vector layer in which all geometries are multipart.
+This algorithm takes a vector layer with singlepart geometries and generates a new one in which all geometries are multipart. Input features which are already multipart features will remain unchanged.
+This algorithm can be used to force geometries to multipart types in order to be compatible with data providers with strict singlepart/multipart compatibility checks.
+See the 'Collect geometries' or 'Aggregate' algorithms for alternative options.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Multiparts
 Outputs: OUTPUT [outputVector]
 
 ### native:rectanglesovalsdiamonds: Rectangles, ovals, diamonds
-Creates rectangle, oval or diamond-shaped polygons from an input point layer.
+This algorithm creates rectangle, oval or diamond-shaped polygons from the input point layer using specified width, height and (optional) rotation values. Multipart inputs should be promoted to singleparts first.
 Parameters:
 - INPUT [source]: Input layer
 - SHAPE [enum]: Shape (default 0; options 0=Rectangle, 1=Diamond, 2=Oval)
@@ -4324,7 +4702,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:removeduplicatevertices: Remove duplicate vertices
-Removes duplicate vertices from features, wherever removing the vertices does not result in a degenerate geometry.
+This algorithm removes duplicate vertices from features, wherever removing the vertices does not result in a degenerate geometry.
+The tolerance parameter specifies the tolerance for coordinates when determining whether vertices are identical.
+By default, z values are not considered when detecting duplicate vertices. E.g. two vertices with the same x and y coordinate but different z values will still be considered duplicate and one will be removed. If the Use Z Value parameter is true, then the z values are also tested and vertices with the same x and y but different z will be maintained.
+Note that duplicate vertices are not tested between different parts of a multipart geometry. E.g. a multipoint geometry with overlapping points will not be changed by this method.
 Parameters:
 - INPUT [source]: Input layer
 - TOLERANCE [distance]: Tolerance (default 1e-06)
@@ -4333,7 +4714,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:removenullgeometries: Remove null geometries
-Removes any features which do not have a geometry from a vector layer.
+This algorithm removes any features which do not have a geometry from a vector layer. All other features will be copied unchanged.
+Optionally, the features with null geometries can be saved to a separate output.
+If 'Also remove empty geometries' is checked, the algorithm removes features whose geometries have no coordinates, i.e., geometries that are empty. In that case, also the null output will reflect this option, containing both null and empty geometries.
 Parameters:
 - INPUT [source]: Input layer
 - REMOVE_EMPTY [boolean]: Also remove empty geometries (default False)
@@ -4342,14 +4725,15 @@ Parameters:
 Outputs: OUTPUT [outputVector], NULL_OUTPUT [outputVector]
 
 ### native:reverselinedirection: Reverse line direction
-Reverses the direction of curve or LineString geometries.
+This algorithm reverses the direction of curve or LineString geometries.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Reversed
 Outputs: OUTPUT [outputVector]
 
 ### native:rotatefeatures: Rotate
-Rotates feature geometries by a specified angle clockwise.
+This algorithm rotates feature geometries by the specified angle clockwise.
+Optionally, the rotation can occur around a preset point. If not set the rotation occurs around each feature's centroid.
 Parameters:
 - INPUT [source]: Input layer
 - ANGLE [number]: Rotation (degrees clockwise) (default 0.0)
@@ -4358,14 +4742,17 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:roundness: Roundness
-Calculates the roundness of polygon features.
+Calculates the roundness of each feature and stores it as a new field. The input vector layer must contain polygons.
+The roundness of a polygon is defined as 4π × polygon area / perimeter². The roundness value varies between 0 and 1. A perfect circle has a roundness of 1, while a completely flat polygon has a roundness of 0.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Roundness
 Outputs: OUTPUT [outputVector]
 
 ### native:segmentizebymaxangle: Segmentize by maximum angle
-Segmentizes a geometry by converting curved sections to linear sections, given the maximum allowed radius angle between vertices on the straightened geometry.
+This algorithm segmentizes a geometry by converting curved sections to linear sections.
+The segmentization is performed by specifying the maximum allowed radius angle between vertices on the straightened geometry (e.g the angle of the arc created from the original arc center to consecutive output vertices on the linearized geometry).
+Non-curved geometries will be retained without change.
 Parameters:
 - INPUT [source]: Input layer
 - ANGLE [number]: Maximum angle between vertices (degrees) (default 5.0)
@@ -4373,7 +4760,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:segmentizebymaxdistance: Segmentize by maximum distance
-Segmentizes a geometry by converting curved sections to linear sections, given the maximum allowed offset distance between the original curve and the segmentized representation.
+This algorithm segmentizes a geometry by converting curved sections to linear sections.
+The segmentization is performed by specifying the maximum allowed offset distance between the original curve and the segmentized representation.
+Non-curved geometries will be retained without change.
 Parameters:
 - INPUT [source]: Input layer
 - DISTANCE [distance]: Maximum offset distance (default 1.0)
@@ -4381,7 +4770,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:setmfromraster: Set M value from raster
-Sets the M value for vertices to values sampled from a raster layer.
+This algorithm sets the M value for every vertex in the feature geometry to a value sampled from a band within a raster layer.
+The raster values can optionally be scaled by a preset amount and an offset can be algebraically added.
 Parameters:
 - INPUT [source]: Input layer
 - RASTER [raster]: Raster layer
@@ -4393,7 +4783,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:setmvalue: Set M value
-Sets the M value for geometries in a layer.
+This algorithm sets the M value for geometries in a layer.
+If M values already exist in the layer, they will be overwritten with the new value. If no M values exist, the geometry will be upgraded to include M values and the specified value used as the initial M value for all geometries.
 Parameters:
 - INPUT [source]: Input layer
 - M_VALUE [number]: M Value (default 0.0)
@@ -4401,7 +4792,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:setzfromraster: Drape (set Z value from raster)
-Sets the z value for vertices to values sampled from a raster layer.
+This algorithm sets the z value of every vertex in the feature geometry to a value sampled from a band within a raster layer.
+The raster values can optionally be scaled by a preset amount and an offset can be algebraically added.
 Parameters:
 - INPUT [source]: Input layer
 - RASTER [raster]: Raster layer
@@ -4413,7 +4805,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:setzvalue: Set Z value
-Sets the Z value for geometries in a layer.
+This algorithm sets the Z value for geometries in a layer.
+If Z values already exist in the layer, they will be overwritten with the new value. If no Z values exist, the geometry will be upgraded to include Z values and the specified value used as the initial Z value for all geometries.
 Parameters:
 - INPUT [source]: Input layer
 - Z_VALUE [number]: Z Value (default 0.0)
@@ -4421,7 +4814,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:simplifygeometries: Simplify
-Simplifies the geometries in a line or polygon layer by removing a number of vertices.
+This algorithm simplifies the geometries in a line or polygon layer. It creates a new layer with the same features as the ones in the input layer, but with geometries containing a lower number of vertices.
+The algorithm gives a choice of simplification methods, including distance based (the "Douglas-Peucker" algorithm), area based ("Visvalingam" algorithm) and snapping geometries to a grid.
 Parameters:
 - INPUT [source]: Input layer
 - METHOD [enum]: Simplification method (default 0; options 0=Distance (Douglas-Peucker), 1=Snap to grid, 2=Area (Visvalingam))
@@ -4430,7 +4824,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:singlesidedbuffer: Single sided buffer
-Buffers lines by a specified distance on one side of the line only.
+This algorithm buffers lines by a specified distance on one side of the line only.
+The segments parameter controls the number of line segments to use to approximate a quarter circle when creating rounded buffers. The join style parameter specifies whether round, miter or beveled joins should be used when buffering corners in a line. The miter limit parameter is only applicable for miter join styles, and controls the maximum distance from the buffer to use when creating a mitered join.
 Parameters:
 - INPUT [source]: Input layer
 - DISTANCE [distance]: Distance (default 10)
@@ -4442,7 +4837,11 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:smoothgeometry: Smooth
-Smooths the geometries in a line or polygon layer by adding vertices and rounding corners.
+This algorithm smooths the geometries in a line or polygon layer. It creates a new layer with the same features as the ones in the input layer, but with geometries containing a higher number of vertices and corners in the geometries smoothed out.
+The iterations parameter dictates how many smoothing iterations will be applied to each geometry. A higher number of iterations results in smoother geometries with the cost of greater number of nodes in the geometries.
+The offset parameter controls how "tightly" the smoothed geometries follow the original geometries. Smaller values results in a tighter fit, and larger values will create a looser fit.
+The maximum angle parameter can be used to prevent smoothing of nodes with large angles. Any node where the angle of the segments to either side is larger than this will not be smoothed. For example, setting the maximum angle to 90 degrees or lower would preserve right angles in the geometry.
+If input geometries contain Z or M values, these will also be smoothed and the output geometry will retain the same dimensionality as the input geometry.
 Parameters:
 - INPUT [source]: Input layer
 - ITERATIONS [number]: Iterations (default 1)
@@ -4452,7 +4851,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:snapgeometries: Snap geometries to layer
-Snaps the geometries to the geometries within the same layer or from another layer.
+This algorithm snaps the geometries in a layer. Snapping can be done either to the geometries from another layer, or to geometries within the same layer.
+A tolerance is specified in layer units to control how close vertices need to be to the reference layer geometries before they are snapped.
+Snapping occurs to both nodes and edges. Depending on the snapping behavior, either nodes or edges will be preferred.
+Vertices will be inserted or removed as required to make the geometries match the reference geometries.
 Parameters:
 - INPUT [source]: Input layer
 - REFERENCE_LAYER [source]: Reference layer
@@ -4462,7 +4864,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:snappointstogrid: Snap points to grid
-Modifies the coordinates of geometries in a vector layer, so that all points or vertices are snapped to the closest point of a grid.
+This algorithm modifies the coordinates of geometries in a vector layer, so that all points or vertices are snapped to the closest point of the grid.
+If the snapped geometry cannot be calculated (or is totally collapsed) the feature's geometry will be cleared.
+Note that snapping to grid may generate an invalid geometry in some corner cases.
+Snapping can be performed on the X, Y, Z or M axis. A grid spacing of 0 for any axis will disable snapping for that axis.
 Parameters:
 - INPUT [source]: Input layer
 - HSPACING [distance]: X Grid Spacing (default 1)
@@ -4473,7 +4878,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:splitlinesbylength: Split lines by maximum length
-Splits lines into parts which are not longer than a specified length.
+This algorithm takes a line (or curve) layer and splits each feature into multiple parts, where each part is of a specified maximum length.
+Z and M values at the start and end of the new line substrings are linearly interpolated from existing values.
 Parameters:
 - INPUT [source]: Input layer
 - LENGTH [distance]: Maximum line length (default 10)
@@ -4481,7 +4887,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:subdivide: Subdivide
-Subdivides the geometry into parts that have less than a specified maximum number of nodes.
+This algorithm subdivides the geometry. The returned geometry will be a collection containing subdivided parts from the original geometry, where no part has more than the specified maximum number of nodes.
+This is useful for dividing a complex geometry into less complex parts, which are better able to be spatially indexed and faster to perform further operations such as intersects on. The returned geometry parts may not be valid and may contain self-intersections.
+Curved geometries will be segmentized before subdivision.
 Parameters:
 - INPUT [source]: Input layer
 - MAX_NODES [number]: Maximum nodes in parts (default 256)
@@ -4489,14 +4897,14 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:swapxy: Swap X and Y coordinates
-Swaps the X and Y coordinate values in input geometries.
+This algorithm swaps the X and Y coordinate values in input geometries. It can be used to repair geometries which have accidentally had their latitude and longitude values reversed.
 Parameters:
 - INPUT [source]: Input layer
 - OUTPUT [sink]: Swapped
 Outputs: OUTPUT [outputVector]
 
 ### native:taperedbuffer: Tapered buffers
-Creates tapered buffers along line geometries.
+This algorithm creates tapered buffers along line geometries, using a specified start and end buffer diameter corresponding to the buffer diameter at the start and end of the linestrings.
 Parameters:
 - INPUT [source]: Input layer
 - START_WIDTH [number]: Start width (default 0.0)
@@ -4506,7 +4914,15 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:transect: Transect
-Creates transects on vertices for (multi)linestrings.
+This algorithm creates transects on vertices for (multi)linestrings.
+A transect is a line oriented from an angle (by default perpendicular) to the input polylines (at vertices).
+Field(s) from feature(s) are returned in the transect with these new fields:
+- TR_FID: ID of the original feature
+- TR_ID: ID of the transect. Each transect have an unique ID
+- TR_SEGMENT: ID of the segment of the linestring
+- TR_ANGLE: Angle in degrees from the original line at the vertex
+- TR_LENGTH: Total length of the transect returned
+- TR_ORIENT: Side of the transect (only on the left or right of the line, or both side)
 Parameters:
 - INPUT [source]: Input layer
 - LENGTH [distance]: Length of the transect (default 5.0)
@@ -4516,7 +4932,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:translategeometry: Translate
-Moves the geometries within a layer, by offsetting them with a specified x, y, z or m displacement.
+This algorithm moves the geometries within a layer, by offsetting them with a specified x and y displacement.
+Z and M values present in the geometry can also be translated.
 Parameters:
 - INPUT [source]: Input layer
 - DELTA_X [distance]: Offset distance (x-axis) (default 0.0)
@@ -4527,7 +4944,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:voronoipolygons: Voronoi polygons
-Generates a polygon layer containing the Voronoi diagram corresponding to input points.
+This algorithm generates a polygon layer containing the Voronoi diagram corresponding to input points.
 Parameters:
 - INPUT [source]: Input layer
 - BUFFER [number]: Buffer region (% of extent) (default 0)
@@ -4537,7 +4954,10 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:wedgebuffers: Create wedge buffers
-Creates wedge shaped buffers from input points.
+This algorithm creates wedge shaped buffers from input points.
+The azimuth parameter gives the angle (in degrees) for the middle of the wedge to point. The buffer width (in degrees) is specified by the width parameter. Note that the wedge will extend to half of the angular width either side of the azimuth direction.
+The outer radius of the buffer is specified via outer radius, and optionally an inner radius can also be specified.
+The native output from this algorithm are CurvePolygon geometries, but these may be automatically segmentized to Polygons depending on the output format.
 Parameters:
 - INPUT [source]: Input layer
 - AZIMUTH [number]: Azimuth (degrees from North) (default 0)
@@ -4551,7 +4971,8 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (native c++) / Vector overlay
 
 ### native:clip: Clip
-Clips a vector layer using the features of an additional polygon layer.
+This algorithm clips a vector layer using the features of an additional polygon layer. Only the parts of the features in the Input layer that fall within the polygons of the Overlay layer will be added to the resulting layer.
+The attributes of the features are not modified, although properties such as area or length of the features will be modified by the clipping operation. If such properties are stored as attributes, those attributes will have to be manually updated.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAY [source]: Overlay layer
@@ -4559,7 +4980,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:difference: Difference
-Extracts features from an input layer that fall outside, or partially overlap, features in an overlay layer.
+This algorithm extracts features from the Input layer that fall outside, or partially overlap, features in the Overlay layer. Input layer features that partially overlap feature(s) in the Overlay layer are split along those features' boundary and only the portions outside the Overlay layer features are retained.
+Attributes are not modified, although properties such as area or length of the features will be modified by the difference operation. If such properties are stored as attributes, those attributes will have to be manually updated.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAY [source]: Overlay layer
@@ -4568,7 +4990,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extractbyextent: Extract/clip by extent
-Creates a vector layer that only contains features which intersect a specified extent.
+This algorithm creates a new vector layer that only contains features which fall within a specified extent. Any features which intersect the extent will be included.
+Optionally, feature geometries can also be clipped to the extent. If this option is selected, then the output geometries will automatically be converted to multi geometries to ensure uniform output geometry types.
 Parameters:
 - INPUT [source]: Input layer
 - EXTENT [extent]: Extent
@@ -4577,7 +5000,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:intersection: Intersection
-Extracts overlapping portions of features between two layers.
+This algorithm extracts the overlapping portions of features in the Input and Overlay layers. Features in the output Intersection layer are assigned the attributes of the overlapping features from both the Input and Overlay layers.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAY [source]: Overlay layer
@@ -4589,7 +5012,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:lineintersections: Line intersections
-Creates point features at the intersection of lines from two different layers.
+This algorithm creates point features where the lines in the Intersect layer intersect the lines in the Input layer.
 Parameters:
 - INPUT [source]: Input layer
 - INTERSECT [source]: Intersect layer
@@ -4600,7 +5023,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:multidifference: Difference (multiple)
-Extracts features from a layer that fall completely outside or only partially overlap the features from other layer(s).
+This algorithm extracts features from the Input layer that fall completely outside or only partially overlap the features from any of the Overlay layer(s). For each overlay layer the difference is calculated between the result of all previous difference operations and this overlay layer. Input layer features that partially overlap feature(s) in the Overlay layers are split along those features' boundary and only the portions outside the Overlay layer features are retained.
+Attributes are not modified, although properties such as area or length of the features will be modified by the difference operation. If such properties are stored as attributes, those attributes will have to be manually updated.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAYS [multilayer]: Overlay layers
@@ -4608,7 +5032,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:multiintersection: Intersection (multiple)
-Extracts portions of input features that overlap features from all other layers.
+This algorithm extracts the overlapping portions of features in the Input and all Overlay layers. Features in the output layer are assigned the attributes of the overlapping features from both the Input and Overlay layers.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAYS [multilayer]: Overlay layers
@@ -4617,7 +5041,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:multiunion: Union (multiple)
-Checks overlaps between features on the same layer or on more layers and creates separate features for overlapping and non-overlapping parts.
+This algorithm checks overlaps between features within the Input layer and creates separate features for overlapping and non-overlapping parts. The area of overlap will create as many identical overlapping features as there are features that participate in that overlap.
+Multiple Overlay layers can also be used, in which case features from each layer are split at their overlap with features from all other layers, creating a layer containing all the portions from both Input and Overlay layers. The attribute table of the Union layer is filled with attribute values from the respective original layer for non-overlapping features, and attribute values from both layers for overlapping features.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAYS [multilayer]: Overlay layers (optional)
@@ -4626,7 +5051,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:splitwithlines: Split with lines
-Splits the lines or polygons in one layer using the lines or polygon rings in another layer to define the breaking points.
+This algorithm splits the lines or polygons in one layer using the lines or polygon rings in another layer to define the breaking points. Intersection between geometries in both layers are considered as split points.
 Parameters:
 - INPUT [source]: Input layer
 - LINES [source]: Split layer
@@ -4634,7 +5059,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:symmetricaldifference: Symmetrical difference
-Extracts the portions of features from two layers that do not overlap.
+This algorithm extracts the portions of features from both the Input and Overlay layers that do not overlap. Overlapping areas between the two layers are removed. The attribute table of the Symmetrical Difference layer contains original attributes from both the Input and Overlay layers.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAY [source]: Overlay layer
@@ -4644,7 +5069,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:union: Union
-Checks overlaps between features on the same layer or on two different layers and creates separate features for overlapping and non-overlapping parts.
+This algorithm checks overlaps between features within the Input layer and creates separate features for overlapping and non-overlapping parts. The area of overlap will create as many identical overlapping features as there are features that participate in that overlap.
+An Overlay layer can also be used, in which case features from each layer are split at their overlap with features from the other one, creating a layer containing all the portions from both Input and Overlay layers. The attribute table of the Union layer is filled with attribute values from the respective original layer for non-overlapping features, and attribute values from both layers for overlapping features.
 Parameters:
 - INPUT [source]: Input layer
 - OVERLAY [source]: Overlay layer (optional)
@@ -4657,7 +5083,7 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (native c++) / Vector selection
 
 ### native:extractbyattribute: Extract by attribute
-Creates a vector layer that only contains features matching an attribute value from an input layer.
+This algorithm creates a new vector layer that only contains matching features from an input layer. The criteria for adding features to the resulting layer is defined based on the values of an attribute from the input layer.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Selection attribute
@@ -4668,7 +5094,8 @@ Parameters:
 Outputs: OUTPUT [outputVector], FAIL_OUTPUT [outputVector]
 
 ### native:extractbyexpression: Extract by expression
-Creates a vector layer that only contains features matching a QGIS expression from an input layer.
+This algorithm creates a new vector layer that only contains matching features from an input layer. The criteria for adding features to the resulting layer is based on a QGIS expression.
+For help with QGIS expression functions, see the inbuilt help for specific functions which is available in the expression builder.
 Parameters:
 - INPUT [source]: Input layer
 - EXPRESSION [expression]: Expression
@@ -4677,7 +5104,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], FAIL_OUTPUT [outputVector]
 
 ### native:extractbylocation: Extract by location
-Creates a vector layer that only contains features matching a spatial relationship with the features in an additional layer.
+This algorithm creates a new vector layer that only contains matching features from an input layer. The criteria for adding features to the resulting layer is defined based on the spatial relationship between each feature and the features in an additional layer.
 Parameters:
 - INPUT [source]: Extract features from
 - PREDICATE [enum]: Where the features (geometric predicate) (default [0]; options 0=intersect, 1=contain, 2=disjoint, 3=equal, 4=touch, 5=overlap, 6=are within, 7=cross)
@@ -4686,7 +5113,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extractwithindistance: Extract within distance
-Creates a new vector layer with features that are within a specified distance from features in another layer.
+This algorithm creates a new vector layer that only contains matching features from an input layer. Features are copied wherever they are within the specified maximum distance from the features in an additional reference layer.
 Parameters:
 - INPUT [source]: Extract features from
 - REFERENCE [source]: By comparing to the features from
@@ -4695,7 +5122,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:filterbygeometry: Filter by geometry type
-Filters features by geometry type.
+This algorithm filters features by their geometry type. Incoming features will be directed to different outputs based on whether they have a point, line or polygon geometry.
 Parameters:
 - INPUT [source]: Input layer
 - POINTS [sink]: Point features (optional)
@@ -4705,7 +5132,8 @@ Parameters:
 Outputs: POINTS [outputVector], LINES [outputVector], POLYGONS [outputVector], NO_GEOMETRY [outputVector], POINT_COUNT [outputNumber], LINE_COUNT [outputNumber], POLYGON_COUNT [outputNumber], NO_GEOMETRY_COUNT [outputNumber]
 
 ### native:randomextract: Random extract
-Generates a vector layer that contains only a random subset of the features in an input layer.
+This algorithm takes a vector layer and generates a new one that contains only a subset of the features in the input layer.
+The subset is defined randomly, using a percentage or count value to define the total number of features in the subset.
 Parameters:
 - INPUT [source]: Input layer
 - METHOD [enum]: Method (default 0; options 0=Number of features, 1=Percentage of features)
@@ -4714,7 +5142,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:selectbylocation: Select by location
-Creates a selection in a vector layer based on the spatial relationship with features in an additional layer.
+This algorithm creates a selection in a vector layer. The criteria for selecting features is based on the spatial relationship between each feature and the features in an additional layer.
 Parameters:
 - INPUT [vector]: Select features from
 - PREDICATE [enum]: Where the features (geometric predicate) (default [0]; options 0=intersect, 1=contain, 2=disjoint, 3=equal, 4=touch, 5=overlap, 6=are within, 7=cross)
@@ -4722,7 +5150,7 @@ Parameters:
 - METHOD [enum]: Modify current selection by (default 0; options 0=creating new selection, 1=adding to current selection, 2=selecting within current selection, 3=removing from current selection)
 
 ### native:selectwithindistance: Select within distance
-Selects features that are within a specified distance from features in another layer.
+This algorithm creates a selection in a vector layer. Features are selected wherever they are within the specified maximum distance from the features in an additional reference layer.
 Parameters:
 - INPUT [vector]: Select features from
 - REFERENCE [source]: By comparing to the features from
@@ -4733,7 +5161,12 @@ Parameters:
 ## QGIS (native c++) / Vector table
 
 ### native:addautoincrementalfield: Add autoincremental field
-Adds a new integer field to a vector layer, with a sequential value for each feature, usable as a unique ID for features in the layer.
+This algorithm adds a new integer field to a vector layer, with a sequential value for each feature.
+This field can be used as a unique ID for features in the layer. The new attribute is not added to the input layer but a new layer is generated instead.
+The initial starting value for the incremental series can be specified.
+Specifying an optional modulus value will restart the count to START whenever the field value reaches the modulus value.
+Optionally, grouping fields can be specified. If group fields are present, then the field value will be reset for each combination of these group field values.
+The sort order for features may be specified, if so, then the incremental field will respect this sort order.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD_NAME [string]: Field name (default AUTO)
@@ -4747,7 +5180,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:addfieldtoattributestable: Add field to attributes table
-Adds a new attribute to a vector layer.
+This algorithm adds a new attribute to a vector layer.
+The name and characteristics of the attribute are defined as parameters. The new attribute is not added to the input layer but a new layer is generated instead.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD_NAME [string]: Field name
@@ -4760,7 +5194,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:adduniquevalueindexfield: Add unique value index field
-Adds a numeric field and assigns the same index to features of the same attribute value.
+This algorithm takes a vector layer and an attribute and adds a new numeric field. Values in this field correspond to values in the specified attribute, so features with the same value for the attribute will have the same value in the new numeric field. This creates a numeric equivalent of the specified attribute, which defines the same classes.
+The new attribute is not added to the input layer but a new layer is generated instead.
+Optionally, a separate table can be output which contains a summary of the class field values mapped to the new unique numeric value.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Class field
@@ -4770,7 +5206,7 @@ Parameters:
 Outputs: OUTPUT [outputVector], SUMMARY_OUTPUT [outputVector]
 
 ### native:addxyfields: Add X/Y fields to layer
-Adds X and Y (or latitude/longitude) fields to a point layer.
+This algorithm adds X and Y (or latitude/longitude) fields to a point layer. The X/Y fields can be calculated in a different CRS to the layer (e.g. creating latitude/longitude fields for a layer in a project CRS).
 Parameters:
 - INPUT [source]: Input layer
 - CRS [crs]: Coordinate system (default EPSG:4326)
@@ -4779,7 +5215,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:deletecolumn: Drop field(s)
-Deletes fields from a vector layer.
+This algorithm takes a vector layer and generates a new one that has the exact same content but without the selected columns.
 Parameters:
 - INPUT [source]: Input layer
 - COLUMN [field]: Fields to drop
@@ -4787,7 +5223,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:explodehstorefield: Explode HStore Field
-Creates a copy of the input layer and adds a new field for every unique key in the HStore field.
+This algorithm creates a copy of the input layer and adds a new field for every unique key in the HStore field.
+The expected field list is an optional comma separated list. By default, all unique keys are added. If this list is specified, only these fields are added and the HStore field is updated.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: HStore field
@@ -4796,7 +5233,8 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:extractbinary: Extract binary field
-Extracts contents from a binary field, saving them to individual files.
+This algorithm extracts contents from a binary field, saving them to individual files.
+Filenames can be generated using values taken from an attribute in the source table or based on a more complex expression.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Binary field
@@ -4805,7 +5243,7 @@ Parameters:
 Outputs: FOLDER [outputFolder]
 
 ### native:fieldcalculator: Field calculator
-Computes a new vector layer with the same features of the input layer, but either overwriting an existing attribute or adding an additional attribute.
+This algorithm computes a new vector layer with the same features of the input layer, but either overwriting an existing attribute or adding an additional attribute. The values of this field are computed from each feature using an expression, based on the properties and attributes of the feature. Note that if "Field name" is an existing field in the layer then all the rest of the field settings are ignored.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD_NAME [string]: Field name
@@ -4817,7 +5255,9 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:refactorfields: Refactor fields
-Allows editing the structure of the attributes table of a vector layer, permitting field renaming, creation and deletion.
+This algorithm allows editing the structure of the attributes table of a vector layer. Fields can be modified in their type and name, using a fields mapping.
+The original layer is not modified. A new layer is generated, which contains a modified attribute table, according to the provided fields mapping.
+Rows in orange have constraints in the template layer from which these fields were loaded. Treat this information as a hint during configuration. No constraints will be added on an output layer nor will they be checked or enforced by the algorithm.
 Parameters:
 - INPUT [source]: Input layer
 - FIELDS_MAPPING [fields_mapping]: Fields mapping
@@ -4825,7 +5265,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:renametablefield: Rename field
-Renames an existing field from a vector layer.
+This algorithm renames an existing field from a vector layer.
 Parameters:
 - INPUT [source]: Input layer
 - FIELD [field]: Field to rename
@@ -4834,7 +5274,7 @@ Parameters:
 Outputs: OUTPUT [outputVector]
 
 ### native:retainfields: Retain fields
-Retains selected fields from a vector layer.
+This algorithm takes a vector layer and generates a new one that retains only the selected fields. All other fields will be dropped.
 Parameters:
 - INPUT [source]: Input layer
 - FIELDS [field]: Fields to retain
@@ -4845,7 +5285,7 @@ Outputs: OUTPUT [outputVector]
 ## QGIS (native c++) / Vector tiles
 
 ### native:downloadvectortiles: Download vector tiles
-Downloads vector tiles of the input vector tile layer and saves them in the local vector tile file.
+This algorithm downloads vector tiles of the input vector tile layer and saves them in the local vector tile file.
 Parameters:
 - INPUT [layer]: Input layer
 - EXTENT [extent]: Extent
@@ -4855,7 +5295,7 @@ Parameters:
 Outputs: OUTPUT [outputVectorTile]
 
 ### native:writevectortiles_mbtiles: Write Vector Tiles (MBTiles)
-Exports one or more vector layers to vector tiles.
+This algorithm exports one or more vector layers to vector tiles - a data format optimized for fast map rendering and small data size.
 Parameters:
 - OUTPUT [vectorTileDestination]: Destination MBTiles
 - LAYERS [vectortilewriterlayers]: Input layers
@@ -4871,7 +5311,7 @@ Parameters:
 Outputs: OUTPUT [outputVectorTile]
 
 ### native:writevectortiles_xyz: Write Vector Tiles (XYZ)
-Exports one or more vector layers to vector tiles.
+This algorithm exports one or more vector layers to vector tiles - a data format optimized for fast map rendering and small data size.
 Parameters:
 - OUTPUT_DIRECTORY [folderDestination]: Output directory
 - XYZ_TEMPLATE [string]: File template (default {z}/{x}/{y}.pbf)

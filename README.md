@@ -110,9 +110,10 @@ qgis_agent/
 api.py                     REST API (Month 1): /health, /run, /tools ...
 data/                      Sharjah data from OpenStreetMap + descriptions.json
 scripts/download_osm_data.py   re-downloads that data
-prompts/                   everything the model is told, exported as files: the full system
-                           prompt, the 33 helper tools, and a reference for all 440 QGIS
-                           algorithms (regenerate: python scripts/export_prompts.py)
+prompts/                   the full system prompt (system_prompt_full.txt) with EVERY QGIS
+                           tool in it: all 440 processing algorithms with their complete
+                           help and parameters, read from the installed QGIS
+                           (regenerate: python scripts/export_prompts.py)
 evaluation/                accuracy test: tasks.py (questions + checks), run_eval.py, results/
 tests/                     tests for the fixed tools (python tests/test_tools.py: 42/42)
 outputs/                   everything the agent produces (git-ignored)
@@ -144,6 +145,19 @@ of it, never the full files.
 ---
 
 ## The model
+
+**The system prompt contains every QGIS tool.** Besides the rules, the 33
+helpers and the data briefing, the model is given all 440 QGIS processing
+algorithms (QGIS native, QGIS, GDAL, 3D and PDAL) with their complete help text
+and every parameter, so it can run any of them with `run_algorithm(id, params)`.
+That is about 95,000 tokens, so the model must support a context of at least
+128k tokens (`CONTEXT_TOKENS=131072`, the default) and run on a machine with
+enough memory, i.e. a VM with a larger model such as `qwen3-coder:30b`. The
+prompt is in `prompts/system_prompt_full.txt`; regenerate it with
+`python scripts/export_prompts.py` after a QGIS upgrade.
+
+The tests below were run before this change, with only the 33 helpers in the
+prompt, on the laptop models described here.
 
 The language model is **Qwen 2.5 Coder** (Alibaba, open source), run on this
 laptop by **Ollama**, the free program that loads a model onto the graphics

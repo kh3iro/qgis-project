@@ -1,13 +1,17 @@
 """
-export_prompts.py: write out everything the language model is told, as files.
+export_prompts.py: build the full system prompt, with every QGIS tool in it.
 
 WHY THIS EXISTS
 ---------------
-The model knows nothing about QGIS or our data except the text we send it
-(the "system prompt"). This script saves that text so it can be read, reviewed
-and reused with any local model, and also exports a reference for EVERY tool
-QGIS has, read straight from the installed QGIS (so nothing is guessed or out
-of date).
+The model knows nothing about QGIS or our data except the text we send it,
+called the "system prompt". To let it use EVERY QGIS tool, the prompt must
+describe every tool: what it does and exactly which parameters it takes. This
+script reads all of that straight from the installed QGIS (all processing
+providers: native, QGIS, GDAL, 3D, PDAL), so nothing is guessed or out of date,
+and writes it into the prompts/ folder. The agent then sends it with every
+question (see qgis_agent/prompts.py).
+
+Run it again whenever QGIS is upgraded or a plugin adds new tools.
 
 HOW TO RUN (git bash, from the project folder)
 ----------------------------------------------
@@ -15,23 +19,19 @@ HOW TO RUN (git bash, from the project folder)
     source fix_qgis_env.sh
     python scripts/export_prompts.py
 
-WHAT IT WRITES (in the prompts/ folder)
----------------------------------------
-    system_prompt_full.txt        the exact system prompt sent with every question
-                                  today: rules + 33 helper tools + data briefing
-                                  + worked examples
-    helper_tools.md               the 33 helper tools with their full descriptions
-    qgis_all_algorithms.md        every QGIS processing algorithm (all providers):
-                                  what it does, every parameter (type, default,
-                                  options), and its outputs
-    qgis_all_algorithms_compact.txt   the same, one line per algorithm
-    qgis_algorithms.json          the same data in machine-readable form, for
-                                  looking tools up automatically
-    README.md                     what each file is and how big it is
-
-Sizes are reported in tokens (the unit models read; about 3.5 characters of
-English or code each), because a model can only read a limited number of them
-at once: the 3B model here reads 8,192.
+WHAT IT WRITES (in prompts/)
+----------------------------
+    system_prompt_full.txt    THE full system prompt the agent sends: rules,
+                              the 33 helper tools, the data briefing, worked
+                              examples, and every QGIS tool
+    qgis_all_algorithms.md    the "every QGIS tool" part on its own: for each
+                              algorithm its id, name, group, complete help
+                              text, every parameter (type, default, options,
+                              optional or not) and its outputs
+    qgis_algorithms.json      the same, machine-readable
+    helper_tools.md           the 33 helper tools with their full descriptions
+    README.md                 what each file is and how big it is (in tokens,
+                              the unit models read, ~3.5 characters each)
 """
 
 import inspect
@@ -57,12 +57,14 @@ def tokens(text):
     return round(len(text) / 3.5)
 
 
-def first_paragraph(text, limit=400):
-    """The first paragraph of a help text, as plain text, shortened if long."""
-    text = re.sub(r"<[^>]+>", " ", text or "")          # some help texts are HTML
-    paragraph = text.strip().split("\n\n")[0]
-    paragraph = re.sub(r"\s+", " ", paragraph).strip()
-    return paragraph if len(paragraph) <= limit else paragraph[:limit].rsplit(" ", 1)[0] + " ..."
+def clean_help(text):
+    """A help text as plain text: HTML tags removed, paragraphs kept."""
+    text = re.sub(r"<br\s*/?>", "\n", text or "", flags=re.IGNORECASE)
+    text = re.sub(r"</p>|</li>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+    paragraphs = [re.sub(r"[ \t]+", " ", p).strip() for p in re.split(r"\n\s*\n", text)]
+    return "\n".join(p for p in paragraphs if p)
 
 
 def describe_parameter(parameter):
@@ -90,13 +92,15 @@ def export_algorithms():
 
     catalogue = []
     for algorithm in QgsApplication.processingRegistry().algorithms():
-        description = algorithm.shortDescription() or first_paragraph(algorithm.shortHelpString())
+        # The complete help text; a few algorithms have none, so fall back to
+        # their one-line description.
+        help_text = clean_help(algorithm.shortHelpString()) or algorithm.shortDescription() or ""
         catalogue.append({
             "id": algorithm.id(),
             "name": algorithm.displayName(),
             "provider": algorithm.provider().name(),
             "group": algorithm.group() or "Other",
-            "description": first_paragraph(description),
+            "help": help_text,
             "parameters": [describe_parameter(p) for p in algorithm.parameterDefinitions()],
             "outputs": [{"name": o.name(), "type": o.type(), "description": o.description()}
                         for o in algorithm.outputDefinitions()],
@@ -106,12 +110,9 @@ def export_algorithms():
 
 
 def write_algorithm_files(catalogue):
-    # 1. Full reference, grouped by provider and group.
-    lines = ["# Every QGIS processing algorithm",
-             "",
-             f"Read from QGIS {qgis_engine.qgis_version()}: {len(catalogue)} algorithms. "
-             "Run one with run_algorithm(id, params); OUTPUT is filled in automatically.",
-             ""]
+    """The every-tool reference (Markdown, sent to the model) and its JSON twin."""
+    lines = [f"QGIS {qgis_engine.qgis_version()}: {len(catalogue)} processing algorithms, "
+             "grouped by provider and group.", ""]
     current = None
     for a in catalogue:
         heading = f"{a['provider']} / {a['group']}"
@@ -119,8 +120,8 @@ def write_algorithm_files(catalogue):
             lines += ["", f"## {heading}", ""]
             current = heading
         lines.append(f"### {a['id']}: {a['name']}")
-        if a["description"]:
-            lines.append(a["description"])
+        if a["help"]:
+            lines.append(a["help"])
         lines.append("Parameters:")
         for p in a["parameters"]:
             extra = []
@@ -135,22 +136,13 @@ def write_algorithm_files(catalogue):
         if a["outputs"]:
             lines.append("Outputs: " + ", ".join(f"{o['name']} [{o['type']}]" for o in a["outputs"]))
         lines.append("")
-    full = "\n".join(lines)
-
-    # 2. Compact: one line per algorithm.
-    compact_lines = [f"{a['id']}: {a['name']}. "
-                     + f"{a['description']} Params: "
-                     + ", ".join(p["name"] + ("?" if p["optional"] else "") for p in a["parameters"])
-                     for a in catalogue]
-    compact = "\n".join(compact_lines)
+    reference = "\n".join(lines)
 
     with open(os.path.join(OUT_DIR, "qgis_all_algorithms.md"), "w", encoding="utf-8") as handle:
-        handle.write(full)
-    with open(os.path.join(OUT_DIR, "qgis_all_algorithms_compact.txt"), "w", encoding="utf-8") as handle:
-        handle.write(compact)
+        handle.write(reference)
     with open(os.path.join(OUT_DIR, "qgis_algorithms.json"), "w", encoding="utf-8") as handle:
         json.dump(catalogue, handle, indent=1, ensure_ascii=False)
-    return full, compact
+    return reference
 
 
 def write_helper_file():
@@ -162,9 +154,8 @@ def write_helper_file():
     for group, functions in HELPER_GROUPS.items():
         lines += [f"## {group}", ""]
         for fn in functions:
-            signature = f"{fn.__name__}{inspect.signature(fn)}"
-            doc = inspect.cleandoc(fn.__doc__ or "")
-            lines += [f"### {signature}", "", doc, ""]
+            lines += [f"### {fn.__name__}{inspect.signature(fn)}", "",
+                      inspect.cleandoc(fn.__doc__ or ""), ""]
     text = "\n".join(lines)
     with open(os.path.join(OUT_DIR, "helper_tools.md"), "w", encoding="utf-8") as handle:
         handle.write(text)
@@ -172,7 +163,7 @@ def write_helper_file():
 
 
 def write_system_prompt():
-    """The exact system prompt the agent sends today (with the live data briefing)."""
+    """The exact, complete system prompt the agent sends (with the live data briefing)."""
     from qgis_agent import prompts
     from qgis_agent.agent import Agent
 
@@ -184,32 +175,36 @@ def write_system_prompt():
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    # Files from earlier versions of this script, no longer produced.
+    for old in ("qgis_all_algorithms_compact.txt", "system_prompt_with_all_tools_full.txt",
+                "system_prompt_with_all_tools_compact.txt"):
+        if os.path.exists(os.path.join(OUT_DIR, old)):
+            os.remove(os.path.join(OUT_DIR, old))
+
     qgis_engine.start_qgis()
     warnings.simplefilter("ignore")
 
-    system_prompt = write_system_prompt()
-    helpers = write_helper_file()
+    # The tool reference must exist before the full prompt is built from it.
     catalogue = export_algorithms()
-    full, compact = write_algorithm_files(catalogue)
+    reference = write_algorithm_files(catalogue)
+    helpers = write_helper_file()
+    system_prompt = write_system_prompt()
 
-    budget = config.CONTEXT_TOKENS
-    rows = [
-        ("system_prompt_full.txt", "The system prompt sent today", system_prompt),
-        ("helper_tools.md", "The 33 helper tools, full descriptions", helpers),
-        ("qgis_all_algorithms.md", f"All {len(catalogue)} QGIS algorithms, full detail", full),
-        ("qgis_all_algorithms_compact.txt", "All QGIS algorithms, one line each", compact),
-    ]
+    providers = sorted({a["provider"] for a in catalogue})
     report = ["# Prompt files", "",
-              f"Generated by scripts/export_prompts.py from QGIS {qgis_engine.qgis_version()} "
-              f"({len(catalogue)} algorithms). The local model ({config.MODEL}) reads at most "
-              f"{budget:,} tokens at once, including the question and its own answer.", "",
-              "| File | What it is | Size (tokens, approx.) | Fits in the model's window? |",
-              "|---|---|---|---|"]
-    for name, what, text in rows:
-        size = tokens(text)
-        fits = "yes" if size < budget * 0.6 else ("no" if size > budget else "barely")
-        report.append(f"| {name} | {what} | {size:,} | {fits} |")
-    report.append("| qgis_algorithms.json | All algorithms, machine-readable | (for lookup) | n/a |")
+              f"Generated by scripts/export_prompts.py from QGIS {qgis_engine.qgis_version()}: "
+              f"{len(catalogue)} processing algorithms from {len(providers)} providers "
+              f"({', '.join(providers)}).", "",
+              f"The model needs a context of at least 128k tokens (CONTEXT_TOKENS is "
+              f"{config.CONTEXT_TOKENS:,}).", "",
+              "| File | What it is | Size (tokens, approx.) |", "|---|---|---|",
+              f"| system_prompt_full.txt | **The full system prompt sent with every question**: "
+              f"rules, helper tools, data briefing, examples, every QGIS tool | "
+              f"{tokens(system_prompt):,} |",
+              f"| qgis_all_algorithms.md | Every QGIS tool on its own: complete help text, "
+              f"parameters, defaults, options, outputs | {tokens(reference):,} |",
+              "| qgis_algorithms.json | The same, machine-readable | (data) |",
+              f"| helper_tools.md | The 33 helper tools, full descriptions | {tokens(helpers):,} |"]
     with open(os.path.join(OUT_DIR, "README.md"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(report) + "\n")
     print("\n".join(report))

@@ -253,6 +253,20 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     Nothing pending. Possible next work (not started): bigger held-out set,
     fixed-tools vs code-generation comparison on the same questions, raster
     data, more regions; decide direction with the supervisor's feedback.
+  - **2026-11-03: Mentor feedback, item 1 done.** The system prompt now
+    ALWAYS contains every QGIS tool: all 440 processing algorithms (5
+    providers) with complete help text and every parameter, read from the
+    installed QGIS by `scripts/export_prompts.py` into
+    `prompts/qgis_all_algorithms.md`, appended by `prompts.tool_reference()`.
+    Full prompt = `prompts/system_prompt_full.txt`, ~95k tokens, so
+    CONTEXT_TOKENS default is now 131072 and the model must support 128k
+    context: it will run on a VM with a bigger model (user's decision; the
+    laptop 3B cannot hold it). User explicitly wanted ONE full version, no
+    compact/optional modes. `run_algorithm` now works for any tool: it reads
+    each tool's parameter definitions, converts layer names for every layer
+    parameter, fills every output, opens GDAL file outputs as layers.
+    Accuracy numbers in the README predate this change. More mentor feedback
+    items to come.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 

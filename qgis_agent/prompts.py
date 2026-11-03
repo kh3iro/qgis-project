@@ -21,6 +21,9 @@ The other prompts below are short follow-up messages: one asks the model to
 fix its code after an error, one asks it to explain the result in plain words.
 """
 
+import os
+
+from . import config
 from .helpers import helper_reference
 
 SYSTEM_PROMPT = """You are a GIS assistant connected to QGIS. People who know nothing about \
@@ -126,6 +129,33 @@ facts. No code, no technical words like "layer" or "buffer", no file paths. If t
 result is empty, say clearly that nothing matched."""
 
 
+TOOL_REFERENCE_HEADER = """
+
+ALL QGIS PROCESSING ALGORITHMS
+Besides the helpers above, you can run any of these with \
+run_algorithm("algorithm_id", {{"PARAMETER": value, ...}}). OUTPUT is filled in for you. \
+Use the exact parameter names listed. Prefer a helper when one fits; use these for \
+anything else (raster, terrain, interpolation, networks, conversion, ...).
+
+"""
+
+# The reference of every QGIS tool, written by scripts/export_prompts.py from the
+# installed QGIS (so it always matches the QGIS version actually running).
+TOOL_REFERENCE_FILE = os.path.join(config.PROJECT_ROOT, "prompts", "qgis_all_algorithms.md")
+
+
+def tool_reference():
+    """Every QGIS processing algorithm, with its full help and parameters.
+
+    About 100,000 tokens: this is why the model needs a 128k-token context.
+    """
+    if not os.path.exists(TOOL_REFERENCE_FILE):
+        raise FileNotFoundError(
+            f"{TOOL_REFERENCE_FILE} is missing. Create it with: python scripts/export_prompts.py")
+    with open(TOOL_REFERENCE_FILE, encoding="utf-8") as handle:
+        return TOOL_REFERENCE_HEADER.format() + handle.read()
+
+
 def build_system_prompt(data_briefing):
-    """Fill the helper list and the data briefing into the system prompt."""
-    return SYSTEM_PROMPT.format(helpers=helper_reference(), data=data_briefing)
+    """The full system prompt: rules, helpers, data briefing, examples, every QGIS tool."""
+    return SYSTEM_PROMPT.format(helpers=helper_reference(), data=data_briefing) + tool_reference()

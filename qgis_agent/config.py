@@ -63,9 +63,11 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 MODEL = os.environ.get("MODEL", "qwen2.5-coder:3b")
 
 # How much text the model can "see" at once, in tokens (roughly 3/4 of a word
-# each). Our instructions + data description + conversation fit comfortably in
-# 8192. Bigger costs more graphics memory.
-CONTEXT_TOKENS = int(os.environ.get("CONTEXT_TOKENS", "8192"))
+# each). The system prompt describes EVERY QGIS tool (all 440 processing
+# algorithms with their full help and parameters), about 100,000 tokens, plus
+# the conversation and the reply. So the model must support a context of at
+# least 128k tokens (131,072), and the machine needs the memory for it.
+CONTEXT_TOKENS = int(os.environ.get("CONTEXT_TOKENS", "131072"))
 
 # "Temperature" controls randomness. 0 = the model always picks its most likely
 # answer, so the same question gives the same code every time (reproducible
