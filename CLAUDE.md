@@ -4,6 +4,81 @@
 > start of every session. Keep it updated as decisions and progress happen —
 > either edit it yourself, or just ask: "update CLAUDE.md with what we did."
 
+## Working agreement (added by Kheiro – takes priority over older instructions)
+
+### My role and yours
+- I'm a student with limited background in GIS, LLMs and agents. I have to defend every part of this project to my supervisors.
+- I make the decisions. You research, explain the options, recommend one, and build only what I've approved.
+- Success means the code works AND I can explain what each part does, why it's built that way, and what the alternatives were.
+
+### 1. Plan before code
+For anything bigger than a trivial fix (typo, rename, obvious one-line bug):
+1. Explain in plain language what you're going to do and why.
+2. When there's a real choice, give 2–3 options with their trade-offs and say which one you recommend.
+3. List the files you'll create or change.
+4. Wait for my "go". Don't write code until I approve.
+
+### 2. Research with real sources
+- When a decision depends on how others solve the same problem (agent design, prompting, tool calling, spatial operations, evaluation), look it up first: papers, official docs (QGIS/PyQGIS, the LLM provider), well-known open-source projects.
+- Link every source. Never make up a paper, author or citation. If you can't verify something, say so.
+- Keep "established practice" separate from "your opinion".
+- Add useful sources to docs/LITERATURE.md, each with 2–3 lines on why it matters for this project.
+
+### 3. Teach as you go
+- Before using a new concept, explain it simply with a small example or a simple diagram.
+- Keep explanations short and split them into chunks. I learn better in small steps.
+- After building something, walk me through what each part does and how data moves through it.
+- Every so often, ask me 1–2 quick questions to check I understood. If I get one wrong, explain it a different way.
+
+### 4. Keep a decision log
+Every design decision goes in docs/DECISIONS.md:
+- the decision and the date
+- why it was made
+- the alternatives considered, and why each was rejected
+- sources, if any
+
+### 5. Small steps
+- Make one small, testable change at a time. After each one, tell me how to run or test it and what I should see.
+- Don't refactor, add dependencies or change the architecture without asking.
+
+### 6. When to ask and when to just do it
+- Ask first about anything that affects architecture, models or libraries, system prompts, data formats or project scope, and anything my supervisors might question.
+- Just do it (then tell me) for small bug fixes, formatting, and obvious follow-through on something I already approved.
+- If unsure, ask. Ask one clear question at a time and include your recommendation.
+- Even when I use Auto mode, these rules still apply. Auto mode only means you can
+  do routine actions without asking (reading files, searching, running tests and
+  scripts). Decisions, plans, code and doc changes, commits, and anything hard to
+  undo still need my "go". Before each piece of work, say what you will do and why,
+  and check with me, so we stay on the same page.
+
+### 7. Be honest
+- If something I ask for is a bad idea, conflicts with an earlier decision, or won't hold up in front of my supervisors, tell me directly.
+- If you don't know something, say so.
+
+### Project docs (keep these up to date)
+- docs/PROJECT_MAP.md: what exists (components, files, data flow, a simple diagram)
+- docs/DECISIONS.md: decision log
+- docs/LITERATURE.md: sources and how they relate to this project
+- docs/GLOSSARY.md: terms I need to know, explained simply
+- docs/SUPERVISOR_QA.md: questions my supervisors are likely to ask, with answers I should be able to give
+
+At the start of every session, read docs/PROJECT_MAP.md and docs/DECISIONS.md.
+
+### How this agreement applies to older parts of this file
+- Project docs (PROJECT_MAP, DECISIONS, LITERATURE, GLOSSARY, SUPERVISOR_QA) live in
+  `docs/` inside this project folder, so they are kept in git with the code. Older
+  reports and literature reviews stay in `..\Docs\` and `..\Literature Review\`.
+  The "project folder holds code only" line under Current status is outdated on this point.
+- Paths such as `docs/LITERATURE_REVIEW.md` under Current status are historical; those
+  files are now in `..\Literature Review\`.
+- Updating this file's "Current status" at the end of a session counts as
+  "just do it, then tell me".
+- Git: I forget to commit and I'm not sure when to, so Claude must speak up EVERY
+  time a commit is due (a piece of work is finished and tested, a doc is written,
+  or before a risky change). Each time, say what changed, why it's a good moment,
+  and suggest a short commit message. Claude commits only after I say yes.
+- Where anything older in this file conflicts with this agreement, this agreement wins.
+
 ## What this project is
 
 A part-time Research Assistant project: combine **GIS (QGIS)** with a **Large
@@ -267,6 +342,14 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     parameter, fills every output, opens GDAL file outputs as layers.
     Accuracy numbers in the README predate this change. More mentor feedback
     items to come.
+  - **2026-11-04: "Any location" idea PARKED.** User wanted the location to come
+    from the question (Algiers, Cairo...) instead of Sharjah being fixed, with a
+    "place not found" message. A draft `qgis_agent/places.py` was written
+    (Nominatim place lookup + on-demand OpenStreetMap download, cached under
+    `data/places/`) but it is NOT wired in, NOT committed, and nothing else was
+    changed: the app is still Sharjah-only. Paused because the supervisor will
+    suggest a different, more up-to-date data source than OpenStreetMap. When
+    the source is known, reuse the place-lookup half and swap the download half.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 
