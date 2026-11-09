@@ -350,6 +350,13 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     changed: the app is still Sharjah-only. Paused because the supervisor will
     suggest a different, more up-to-date data source than OpenStreetMap. When
     the source is known, reuse the place-lookup half and swap the download half.
+  - **2026-11-08: New way of working.** Kheiro added the "Working agreement" at
+    the top of this file (commit 04da134). Plan of catch-up, no code changes:
+    Phase 1 map what exists (docs/PROJECT_MAP.md), Phase 2 retroactive decisions
+    (docs/DECISIONS.md), Phase 3 literature (docs/LITERATURE.md), Phase 4
+    glossary + supervisor Q&A + plan. **Stopped here:** Phase 1 plan was shown and
+    Kheiro chose option A (short 2-3 page map, detail in the walkthrough), but
+    said NOT to start yet. Next session: confirm with Kheiro, then begin Phase 1.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 
