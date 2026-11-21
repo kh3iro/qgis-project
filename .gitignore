@@ -28,3 +28,6 @@ Thumbs.db
 
 # Gradio (the chat window) keeps a cache folder here
 .gradio/
+
+# Data downloaded on demand for each place (can be large; re-downloadable).
+data/places/
