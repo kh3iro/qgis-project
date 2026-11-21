@@ -12,6 +12,18 @@ uvicorn        # runs the FastAPI server
 requests       # talks to Ollama (the local model) and OpenStreetMap
 gradio         # the chat window (app.py)
 
+# World data for any place (added 2026-11-21). Install these with conda, NOT
+# pip, so conda keeps them compatible with the GDAL that QGIS uses:
+#     conda install -n gis-llm -c conda-forge geopandas networkx overturemaps
+# then osmnx on its own, without its optional extras (its conda package would
+# pull in rasterio, which upgrades GDAL underneath QGIS):
+#     pip install osmnx==2.2.0 --no-deps
+#
+# geopandas      tables of map features (used by osmnx and overturemaps)
+# networkx       road networks as graphs (shortest path, service areas)
+# overturemaps   downloads Overture Maps data (buildings, places) for an area
+# osmnx==2.2.0   downloads OpenStreetMap data and road networks for an area
+
 # The model itself is run by Ollama, a separate Windows program:
 #     winget install Ollama.Ollama
 #     ollama pull qwen2.5-coder:3b
