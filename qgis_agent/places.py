@@ -76,6 +76,7 @@ class Place:
     kind: str = ""       # what Nominatim says it is, e.g. "city", "state"
     date: str = ""       # the snapshot date, e.g. "2026-11-21"
     has_outline: bool = True   # False if OSM only knows it as a point (outline = rectangle)
+    country_code: str = ""     # two-letter country code, e.g. "ae" (used to find boundaries)
     # Other places with the same name, so the agent can say which one it used,
     # e.g. "Sharjah (city)" vs "Sharjah Emirate (state)".
     alternatives: list = field(default_factory=list)
@@ -151,7 +152,8 @@ def _nominatim_search(query):
         response = requests.get(
             NOMINATIM_URL, timeout=30, headers={"User-Agent": USER_AGENT},
             params={"q": query, "format": "jsonv2", "limit": 5, "accept-language": "en",
-                    "polygon_geojson": 1})   # 1 = also send the outline
+                    "polygon_geojson": 1,    # 1 = also send the outline
+                    "addressdetails": 1})    # 1 = also send country code etc.
         response.raise_for_status()
         return response.json()
     except (requests.RequestException, ValueError):
@@ -219,6 +221,7 @@ def find_place(query, refresh=False):
                   north=north, east=east, slug=slugify(f"{name} {country}"),
                   kind=found.get("addresstype") or found.get("type", ""),
                   date=datetime.date.today().isoformat(), has_outline=has_outline,
+                  country_code=found.get("address", {}).get("country_code", ""),
                   alternatives=others[:4])
 
     os.makedirs(place.folder, exist_ok=True)
@@ -235,6 +238,38 @@ def find_place(query, refresh=False):
     cache[key] = asdict(place)
     _write_cache(cache)
     return place
+
+
+def country_iso3(country_code):
+    """'ae' -> 'ARE'. The three-letter code that boundary datasets use.
+
+    The country's own OpenStreetMap entry carries its three-letter code
+    (tag ISO3166-1:alpha3), so one Nominatim request translates it without
+    installing a country-code package. Answers are cached.
+    """
+    country_code = (country_code or "").lower()
+    if not country_code:
+        return ""
+    cache = _read_cache()
+    key = f"_iso3_{country_code}"
+    if key in cache:
+        return cache[key]
+    _polite_pause()
+    try:
+        response = requests.get(
+            NOMINATIM_URL, timeout=30, headers={"User-Agent": USER_AGENT},
+            params={"country": country_code, "featureType": "country", "format": "jsonv2",
+                    "limit": 1, "extratags": 1})
+        response.raise_for_status()
+        results = response.json()
+    except (requests.RequestException, ValueError):
+        return ""
+    iso3 = ((results[0].get("extratags") or {}).get("ISO3166-1:alpha3", "")
+            if results else "")
+    if iso3:
+        cache[key] = iso3
+        _write_cache(cache)
+    return iso3
 
 
 def saved_places():
