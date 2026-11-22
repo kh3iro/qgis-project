@@ -357,6 +357,40 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     glossary + supervisor Q&A + plan. **Stopped here:** Phase 1 plan was shown and
     Kheiro chose option A (short 2-3 page map, detail in the walkthrough), but
     said NOT to start yet. Next session: confirm with Kheiro, then begin Phase 1.
+  - **2026-11-09 to 2026-11-22: World data for any place.** Phase 1 map done
+    (docs/PROJECT_MAP.md). Research reports in docs/reports/ (Data sources,
+    World data coverage, OSM download method) with notes in docs/research_notes/.
+    docs/DECISIONS.md started (2026-11-21 entries: ambiguous names -> bigger
+    place + say so; multi-source data; fixed download functions; on-demand +
+    dated cache; no point clouds; package install method). Built and pushed
+    `qgis_agent/places.py` (Nominatim lookup with outline, dated folders
+    data/places/<slug>/<date>/) and `qgis_agent/data_fetch.py` (OSM 18 layers
+    + roads via OSMnx, Overture places+buildings, geoBoundaries, GHS-POP 2025,
+    Copernicus DEM, ESA WorldCover 2021, Sentinel-2 image+NDVI, manifest.json).
+    Repo kh3iro/qgis-project made PUBLIC on request. Packages: geopandas,
+    networkx, overturemaps via conda; osmnx==2.2.0 via pip --no-deps (GDAL
+    untouched). Problem found: Overpass failed (one overpass-api.de IP down and
+    OSMnx pins to it); Cairo test: Geofabrik .pbf + GDAL gave the full set in
+    40 s, Overpass never finished. Same counts (304 hospitals).
+    **OPEN DECISIONS (ask Kheiro next session):**
+    1. OSM layers: A fixed 18-layer list / B fetch tags per question / C cut
+       ALL of OSM for the place once, question filters it (heavy layers
+       satellite + buildings only on demand). Recommended C; first measure the
+       size/time of a "whole Cairo" cut from the Egypt file. Kheiro asked "why
+       not B" and "is C slower"; answered (C: slower first step, <1 s after).
+    2. OSM route: A Geofabrik only vs A+ Geofabrik + Overpass emergency backup
+       for small places. Recommended A+.
+    Then: rewrite OSM part of data_fetch.py, record decisions, re-test Al Nahda
+    + Sharjah Emirate; step 9 weather (Open-Meteo); step 10 connect to agent +
+    delete old data/sharjah_*.geojson, descriptions.json,
+    scripts/download_osm_data.py (Kheiro chose "delete at step 10"); step 12
+    GRASS test; step 11 (tool search instead of full prompt) postponed. VM
+    guide later (repo public, clone needs no login). Redo the ohsome edit-count
+    comparison (Sharjah/Dubai/Cairo/Berlin; ohsome data ends 2026-07-27),
+    it was interrupted. Not committed yet: OSM download method report + notes.
+    Standing rule from Kheiro: check every design/test against ALL request
+    types (heatmaps, rasters, networks, specific tools, change over time),
+    not just simple counts, and back it with literature.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 
