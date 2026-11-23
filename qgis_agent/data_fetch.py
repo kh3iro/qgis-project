@@ -236,7 +236,12 @@ def geofabrik_region(place, progress=print):
         if not feature.get("geometry") or "pbf" not in feature["properties"].get("urls", {}):
             continue
         region = shape(feature["geometry"])
-        if region.contains(area):
+        # The smallest region covering at least 90% of the place. Found
+        # 2026-11-24: Malta's outline includes its territorial sea, which sticks
+        # out of Geofabrik's "Malta" region, so "fully contains" picked all of
+        # Europe (tens of GB). Land features lie inside the national region.
+        if region.intersects(area) and \
+                shapely.area(region.intersection(area)) >= 0.9 * shapely.area(area):
             size = shapely.area(region)
             if best is None or size < best[0]:
                 best = (size, feature["properties"])
