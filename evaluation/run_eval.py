@@ -193,6 +193,8 @@ def main():
                         help="places = questions about the downloaded evaluation places "
                              "(places_bench.py); geobenchx = the published GeoBenchX subset")
     parser.add_argument("--places", default="", help="comma-separated place keys, e.g. sharjah,cairo")
+    parser.add_argument("--resume", action="store_true",
+                        help="continue an interrupted run (a QGIS crash) from its progress file")
     parser.add_argument("--mode", choices=["full", "lookup"], default=config.PROMPT_MODE,
                         help="full = every QGIS algorithm in the prompt; lookup = the model "
                              "searches for algorithms itself (see config.PROMPT_MODE)")
@@ -234,8 +236,46 @@ def main():
     truths = {t["id"]: checked[t["id"]]["truth"] for t in tasks}
 
     print(f"Evaluating {arguments.model} ({arguments.mode} prompt) on {len(tasks)} tasks\n")
-    records = []
+    # Progress is written after every question, so a crash of QGIS itself (which
+    # ends the whole program) loses one question, not the run. --resume continues.
+    label = arguments.model + f"_{arguments.set}_{arguments.mode}" + \
+        (f"_{arguments.places.replace(',', '+')}" if arguments.places else "") + \
+        (f"_{arguments.tag}" if arguments.tag else "")
+    progress_path = os.path.join(RESULTS_DIR, "logs", label.replace(":", "_") + ".progress.jsonl")
+    os.makedirs(os.path.dirname(progress_path), exist_ok=True)
+    records, done = [], set()
+    if arguments.resume and os.path.exists(progress_path):
+        with open(progress_path, encoding="utf-8") as handle:
+            lines = [json.loads(line) for line in handle if line.strip()]
+        records = [r for r in lines if "started" not in r]
+        finished = {r["id"] for r in records}
+        by_id = {t["id"]: t for t in tasks}
+        for line in lines:
+            # Started but never finished = the question during which QGIS crashed.
+            if "started" in line and line["started"] not in finished and line["started"] in by_id:
+                task = by_id[line["started"]]
+                crashed = {"id": task["id"], "category": task["category"], "request": task["request"],
+                           "pair": None, "code": "", "output": "", "error": "", "answer": "",
+                           "code_runs": 0, "attempts": 0, "files": [], "saved_counts": [],
+                           "seconds": 0.0, "crashed": "QGIS crashed (segmentation fault)",
+                           "lookups": 0, "ran_ok": False, "truth": truths.get(task["id"]),
+                           "mode": arguments.mode, "set": arguments.set, "correct": False,
+                           "correct_lenient": False}
+                for key in ("level", "family", "needs", "place"):
+                    crashed[key] = task.get(key)
+                records.append(crashed)
+                finished.add(task["id"])
+                with open(progress_path, "a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(crashed, ensure_ascii=False, default=str) + "\n")
+        done = finished
+        print(f"Resuming: {len(done)} questions already done")
+    elif os.path.exists(progress_path):
+        os.remove(progress_path)
     for number, task in enumerate(tasks, 1):
+        if task["id"] in done:
+            continue
+        with open(progress_path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"started": task["id"]}) + "\n")
         truth = truths[task["id"]]
         if task.get("folder"):
             use_data_folder(task["folder"])
@@ -257,6 +297,8 @@ def main():
             record["correct_lenient"] = (not record["crashed"]) and is_correct_v2(task, truth,
                                                                                 lenient)
         records.append(record)
+        with open(progress_path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
         mark = "PASS" if record["correct"] else "FAIL"
         shown = f"{truth:.4g}" if isinstance(truth, float) else str(truth)[:40]
         print(f"[{number:3}/{len(tasks)}] {mark}  {task['id']:<34} "

@@ -768,6 +768,11 @@ def run_algorithm(algorithm_id, params):
     # measures distances in the layer's units. So when a tool has a distance
     # parameter, inputs in degrees are first converted to metres (the local UTM
     # zone), and so is a grid's CRS. Then 500 means 500 metres.
+    if algorithm_id == "native:rastersampling" and "INPUT" in params:
+        sampled = _layer(params["INPUT"]) if not isinstance(params["INPUT"], QgsRasterLayer) else None
+        if sampled is not None and sampled.geometryType() != 0:
+            raise ValueError("native:rastersampling needs a POINT layer (with areas it crashes "
+                             "QGIS). For areas use zonal_statistics(layer, raster, (\"mean\",)).")
     has_distance = any(d.type() == "distance" for d in definitions.values())
     params = dict(params)
     if has_distance:
@@ -937,6 +942,12 @@ def zonal_statistics(polygons, raster, stats=("sum", "mean")):
 def raster_values_at(points, raster, field="value"):
     """raster_values_at(points, raster, field="value") -> layer. Copy of the points with the raster value under each one (e.g. elevation at each school) in `field`."""
     points = _layer(points)
+    if points.geometryType() != 0:
+        # Found 2026-11-24: QGIS's raster sampling CRASHES the whole program
+        # (segmentation fault) when given polygons, e.g. parks.
+        raise ValueError(f"raster_values_at needs POINTS, but '{points.name()}' has lines or "
+                         f"areas. For areas use zonal_statistics({points.name()!r}, raster, "
+                         f"(\"mean\",)); or use centroids(layer) first.")
     raster_layer = _as_raster(raster)
     if raster_layer is None:
         raise ValueError(f"'{raster}' is not a raster.")
@@ -1036,48 +1047,142 @@ def _point_text(layer, crs):
     return f"{point.x()},{point.y()} [{crs.authid()}]"
 
 
+_GRAPHS = {}
+
+
+def _road_graph(roads):
+    """The road network as a graph (networkx), built once per roads file and reused.
+
+    Nodes are road ends (junctions), edges are road pieces with their length and
+    driving time; one-way roads only go one way. Replaced QGIS's network tools on
+    2026-11-24: on a whole emirate (58,000 road pieces) QGIS's service-area tool
+    rebuilt its graph on every call and used more than 12 GB of memory.
+    """
+    import pickle
+    import networkx as nx
+    original = _layer(roads)
+    key = original.source()
+    if key in _GRAPHS:
+        return _GRAPHS[key]
+    # Saved next to the roads file, so a big city's graph is built only once
+    # (Cairo: ~20 s to build, ~1 s to load). Rebuilt if the roads file changes.
+    path = original.source().split("|")[0]
+    cache = os.path.splitext(path)[0] + "_graph.pickle"
+    if os.path.exists(cache) and os.path.getmtime(cache) > os.path.getmtime(path):
+        try:
+            with open(cache, "rb") as handle:
+                graph, nodes, coords, authid = pickle.load(handle)
+            _GRAPHS[key] = (graph, nodes, coords, QgsCoordinateReferenceSystem(authid))
+            return _GRAPHS[key]
+        except Exception:
+            pass                                 # a broken cache file: build again
+    network = _roads_in_metres(roads)
+    graph = nx.DiGraph()
+    names = network.fields().names()
+    for feature in network.getFeatures():
+        geometry = feature.geometry()
+        if geometry.isEmpty():
+            continue
+        lines = geometry.asMultiPolyline() if geometry.isMultipart() else [geometry.asPolyline()]
+        speed = feature["speed_kmh"] if "speed_kmh" in names and feature["speed_kmh"] else 50
+        oneway = "oneway" in names and str(feature["oneway"]).lower() in ("yes", "true", "1")
+        for line in lines:
+            if len(line) < 2:
+                continue
+            u = (round(line[0].x(), 1), round(line[0].y(), 1))
+            v = (round(line[-1].x(), 1), round(line[-1].y(), 1))
+            length = QgsGeometry.fromPolylineXY(line).length()
+            seconds = length / (float(speed) / 3.6)
+            wkt = QgsGeometry.fromPolylineXY(line).asWkt()
+            for x, y in ((u, v),) if oneway else ((u, v), (v, u)):
+                old = graph.get_edge_data(x, y)
+                if old is None or old["seconds"] > seconds:
+                    graph.add_edge(x, y, metres=length, seconds=seconds, wkt=wkt)
+    import numpy as np
+    nodes = list(graph.nodes)
+    _GRAPHS[key] = (graph, nodes, np.array(nodes, dtype=float), network.crs())
+    try:
+        with open(cache + ".tmp", "wb") as handle:     # complete file, or none
+            pickle.dump((graph, nodes, _GRAPHS[key][2], network.crs().authid()), handle)
+        os.replace(cache + ".tmp", cache)
+    except Exception:
+        pass                                     # caching is only an optimisation
+    return _GRAPHS[key]
+
+
+def _nearest_nodes(points_layer, roads):
+    """The graph node (road end) nearest to each feature of a layer."""
+    import numpy as np
+    from qgis.core import QgsCoordinateTransform
+    graph, nodes, coords, crs = _road_graph(roads)
+    layer = _layer(points_layer)
+    transform = QgsCoordinateTransform(layer.crs(), crs, QgsProject.instance())
+    result = []
+    for feature in layer.getFeatures():
+        p = transform.transform(feature.geometry().pointOnSurface().asPoint())
+        index = int(np.argmin((coords[:, 0] - p.x()) ** 2 + (coords[:, 1] - p.y()) ** 2))
+        result.append(nodes[index])
+    if not result:
+        raise ValueError(f"'{layer.name()}' is empty, so there is no place to start or end at.")
+    return result
+
+
+def _memory_layer(wkts, kind, crs, fields):
+    """A QGIS memory layer from WKT geometries and attribute dicts."""
+    from qgis.core import QgsFeature
+    layer = QgsVectorLayer(f"{kind}?crs={crs.authid()}", "result", "memory")
+    provider = layer.dataProvider()
+    provider.addAttributes([QgsField(name, QMetaType.Type.Double) for name in fields[0]])
+    layer.updateFields()
+    for wkt, values in zip(wkts, fields):
+        feature = QgsFeature(layer.fields())
+        feature.setGeometry(QgsGeometry.fromWkt(wkt))
+        for name, value in values.items():
+            feature[name] = value
+        provider.addFeature(feature)
+    layer.updateExtents()
+    return layer
+
+
 def route(start, end, fastest=False, roads="roads"):
     """route(start, end, fastest=False) -> layer. The shortest (or fastest) drive along the roads from `start` to `end` (layers, e.g. from find_by_name; their first feature is used). Fields: length_km, minutes."""
-    network = _roads_in_metres(roads)
-    crs = network.crs()
-    out = _run("native:shortestpathpointtopoint", {
-        "INPUT": network, "STRATEGY": 1 if fastest else 0,
-        "DIRECTION_FIELD": "oneway", "VALUE_FORWARD": "yes", "VALUE_BACKWARD": "",
-        "VALUE_BOTH": "no", "DEFAULT_DIRECTION": 2, "SPEED_FIELD": "speed_kmh",
-        "DEFAULT_SPEED": 50, "TOLERANCE": 0, "START_POINT": _point_text(start, crs),
-        "END_POINT": _point_text(end, crs)})
-    out = _add_measure(out, "length_km", lambda m, g: m.measureLength(g) / 1000)
-    # Driving time from the same path's segments would need the network again;
-    # estimate it from the length and the road speeds along it.
-    fast = _run("native:shortestpathpointtopoint", {
-        "INPUT": network, "STRATEGY": 1, "DIRECTION_FIELD": "oneway", "VALUE_FORWARD": "yes",
-        "VALUE_BACKWARD": "", "VALUE_BOTH": "no", "DEFAULT_DIRECTION": 2,
-        "SPEED_FIELD": "speed_kmh", "DEFAULT_SPEED": 50, "TOLERANCE": 0,
-        "START_POINT": _point_text(start, crs), "END_POINT": _point_text(end, crs)})
-    hours = next(fast.getFeatures())["cost"]
-    out.startEditing()
-    out.addAttribute(QgsField("minutes", QMetaType.Type.Double))
-    out.updateFields()
-    index = out.fields().indexOf("minutes")
-    for feature in out.getFeatures():
-        out.changeAttributeValue(feature.id(), index, round(hours * 60, 1))
-    out.commitChanges()
-    return _named(out, "route")
+    import networkx as nx
+    from shapely import wkt as shapely_wkt
+    from shapely.ops import linemerge
+    graph, _, _, crs = _road_graph(roads)
+    source, target = _nearest_nodes(start, roads)[0], _nearest_nodes(end, roads)[0]
+    weight = "seconds" if fastest else "metres"
+    try:
+        path = nx.shortest_path(graph, source, target, weight=weight)
+    except nx.NetworkXNoPath:
+        raise ValueError("No road connection was found between these two places.") from None
+    edges = [graph[a][b] for a, b in zip(path, path[1:])]
+    metres = sum(e["metres"] for e in edges)
+    seconds = sum(e["seconds"] for e in edges)
+    line = linemerge([shapely_wkt.loads(e["wkt"]) for e in edges]) if edges else None
+    wkt = line.wkt if line is not None else "LINESTRING EMPTY"
+    return _named(_memory_layer([wkt], "MultiLineString", crs,
+                                [{"length_km": round(metres / 1000, 3),
+                                  "minutes": round(seconds / 60, 1)}]), "route")
 
 
 def reachable_area(points, minutes, roads="roads"):
     """reachable_area(points, minutes) -> layer. The area that can be reached by car within `minutes` from any of the points (e.g. fire stations), as one polygon with area_km2."""
-    network = _roads_in_metres(roads)
-    starts = _layer(points)
-    lines = _run("native:serviceareafromlayer", {
-        "INPUT": network, "STRATEGY": 1, "DIRECTION_FIELD": "oneway", "VALUE_FORWARD": "yes",
-        "VALUE_BACKWARD": "", "VALUE_BOTH": "no", "DEFAULT_DIRECTION": 2,
-        "SPEED_FIELD": "speed_kmh", "DEFAULT_SPEED": 50, "TOLERANCE": 0,
-        "START_POINTS": starts, "TRAVEL_COST2": float(minutes) / 60.0, "INCLUDE_BOUNDS": False})
+    import networkx as nx
+    import shapely
+    from shapely import wkt as shapely_wkt
+    graph, _, _, crs = _road_graph(roads)
+    sources = set(_nearest_nodes(points, roads))
+    limit = float(minutes) * 60
+    reached = nx.multi_source_dijkstra_path_length(graph, sources, cutoff=limit, weight="seconds")
+    lines = [shapely_wkt.loads(data["wkt"]) for a, b, data in graph.edges(data=True)
+             if a in reached and b in reached]
+    if not lines:
+        raise ValueError("No roads could be reached from these points.")
     # The reachable roads, widened by 150 m, are the reachable area.
-    area = _run("native:buffer", {"INPUT": lines, "DISTANCE": 150, "SEGMENTS": 5,
-                                  "DISSOLVE": True})
-    return _named(_add_measure(area, "area_km2", lambda m, g: m.measureArea(g) / 1e6),
+    area = shapely.union_all([line.buffer(150, 4) for line in lines])
+    return _named(_memory_layer([area.wkt], "MultiPolygon", crs,
+                                [{"area_km2": round(area.area / 1e6, 2)}]),
                   f"reachable_{minutes:g}_min")
 
 

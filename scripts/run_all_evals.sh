@@ -14,11 +14,20 @@ for run in "places sharjah" "places cairo" "geobenchx gbx" "places berlin"; do
   fi
   for mode in lookup full; do
     echo "##### $1 $2 $mode $(date +%H:%M)" >> $LOG/chain.log
-    if [ "$1" = "geobenchx" ]; then
-      python -W ignore -u evaluation/run_eval.py --set geobenchx --mode $mode > $LOG/$2_$mode.log 2>&1
-    else
-      python -W ignore -u evaluation/run_eval.py --set places --places $2 --mode $mode > $LOG/$2_$mode.log 2>&1
-    fi
+    # If QGIS crashes (segmentation fault), resume from the progress file
+    # (the crashed question counts as wrong), up to 5 times.
+    resume=""
+    for attempt in 1 2 3 4 5 6; do
+      if [ "$1" = "geobenchx" ]; then
+        python -W ignore -u evaluation/run_eval.py --set geobenchx --mode $mode $resume >> $LOG/$2_$mode.log 2>&1
+      else
+        python -W ignore -u evaluation/run_eval.py --set places --places $2 --mode $mode $resume >> $LOG/$2_$mode.log 2>&1
+      fi
+      status=$?
+      [ $status -eq 0 ] && break
+      echo "  crashed (exit $status), resuming" >> $LOG/chain.log
+      resume="--resume"
+    done
     grep -a -E "Accuracy, final|Saved|Left out" $LOG/$2_$mode.log >> $LOG/chain.log
   done
 done
