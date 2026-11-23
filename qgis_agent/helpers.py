@@ -532,10 +532,36 @@ def find_by_name(layer, text, field="name"):
     """find_by_name(layer, text, field="name") -> layer. Features whose name contains `text` (not case-sensitive), e.g. find_by_name("parks", "Central Park")."""
     layer = _layer(layer)
     _check_fields(layer, [field])
+    if _is_place_name(text):
+        # Found repeatedly (2026-11-23/24): asked about "schools in Sharjah", the
+        # model wrote find_by_name("schools", "Sharjah") and kept only schools
+        # NAMED Sharjah (1 instead of 34), despite the prompt rule. The data
+        # already covers only the place, so its own name means "all of them".
+        print(f"(Note: all {layer.name()} are already in {text}; using every one of them.)")
+        return layer
     safe = str(text).replace("'", "''")   # a quote inside a name must be doubled
     return _named(_run("native:extractbyexpression",
                        {"INPUT": layer, "EXPRESSION": f"\"{field}\" ILIKE '%{safe}%'"}),
                   f"{layer.name()}_{re.sub(r'[^A-Za-z0-9]+', '_', str(text))[:20]}")
+
+
+def _is_place_name(text):
+    """True if `text` is just the current place's name (e.g. "Sharjah", "Cairo, Egypt")."""
+    import json
+    path = os.path.join(config.DATA_DIR, "place.json")
+    if not os.path.exists(path):
+        return False
+    with open(path, encoding="utf-8") as handle:
+        info = json.load(handle)
+    wanted = re.sub(r"[^a-z ]", " ", str(text).lower()).split()
+    names = set()
+    for name in (info.get("name", ""), info.get("display_name", "")):
+        words = re.sub(r"[^a-z ]", " ", name.lower()).split()
+        names.add(" ".join(words))
+        names.update(words)
+    generic = {"emirate", "city", "state", "governorate", "the", "of", "uae", "usa", "us", "uk", "ksa"}
+    wanted = [w for w in wanted if w not in generic]
+    return bool(wanted) and all(w in names for w in wanted)
 
 
 def within_distance(layer, other, metres):
