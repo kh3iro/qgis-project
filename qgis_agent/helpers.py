@@ -419,7 +419,7 @@ def join_by_location(layer, other, relation="intersects"):
 
 
 def nearest(layer, other):
-    """nearest(layer, other) -> layer. Copy of `layer` where each feature gets the closest feature of `other`: its name is in "nearest_name" (NOT "name", which is still the original feature), the distance in "distance_m" (METRES).
+    """nearest(layer, other) -> layer. Copy of `layer` where each feature gets the closest feature of `other`: its name is in "nearest_name" (NOT "name", which is still the original feature), the distance in "distance_m" (METRES). Rows are sorted closest first.
 
     Learned from testing: both the 3B and the 7B model read row["name"] (the
     ORIGINAL feature) instead of row["nearest_name"], and answered "the school
@@ -452,7 +452,13 @@ def nearest(layer, other):
             if value is not None:
                 joined.changeAttributeValue(feature.id(), index, round(value, 1))
     joined.commitChanges()
-    return _named(_back_to(joined, original_crs), f"{layer.name()}_nearest")
+    # Rows come back CLOSEST FIRST. Found 2026-11-24: asked for the hospital
+    # closest to a park, the model took the first row of nearest(hospitals, park)
+    # and answered a hospital 31 km away. Sorted, the natural code is right.
+    ordered = _run("native:orderbyexpression", {"INPUT": _back_to(joined, original_crs),
+                                                "EXPRESSION": '"distance_m"', "ASCENDING": True,
+                                                "NULLS_FIRST": False})
+    return _named(ordered, f"{layer.name()}_nearest")
 
 
 def _as_raster(value):
