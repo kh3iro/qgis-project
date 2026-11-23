@@ -11,7 +11,8 @@ system is frozen; it is then run once.
 
 WHAT IS NEW
 -----------
-- AREAS: 9 areas of different TYPES and regions, none used in development,
+- AREAS: 17 areas of different TYPES and regions (towns, emirates, an exclave,
+  islands, capitals, neighbourhoods inside cities, small countries), none used in development,
   chosen by criteria (fixed here before any result): a historic mountain town,
   a mountain-and-coast emirate, a rural mountain exclave, an island city, an
   island country, a hilly African capital, a small European capital, a coastal
@@ -46,6 +47,16 @@ AREAS = {
     "luxembourg": "Luxembourg",              # small European capital
     "montevideo": "Montevideo",              # coastal South American capital
     "thimphu": "Thimphu",                    # Himalayan capital
+    # Amendment 04:00, before any model run (Kheiro's request): neighbourhoods
+    # inside cities (none in the development cities) and small countries.
+    "deira": "Deira, Dubai",                 # old commercial district
+    "malaz": "Al Malaz, Riyadh",             # city district (Al Olaya resolved to the wrong place)
+    "hamra": "Hamra, Beirut",                # dense city neighbourhood
+    "soho": "Soho, London",                  # central London neighbourhood
+    "capitol_hill": "Capitol Hill, Washington, D.C.",   # US city neighbourhood
+    "qatar": "Qatar",                        # small country
+    "lebanon": "Lebanon",                    # small country, mountains and coast
+    "kuwait": "Kuwait",                      # small desert country
 }
 
 
