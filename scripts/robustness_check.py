@@ -43,6 +43,8 @@ CONVERSATIONS = [
     ["Make a Voronoi diagram of the police stations in Sharjah."],
     ["What percentage of Sharjah is built-up land?"],
     ["Find the shortest driving route between the two largest parks in Sharjah and tell me its length."],
+    ["Which parts of Sharjah can be reached by car within 10 minutes from a fire station? Show it on a map."],
+    ["How long does it take to drive from Al Qassimi Hospital to Sharjah National Park?"],
     ["How many hospitals are in Cairo?",
      "Which of them is closest to the centre of Cairo?",
      "Now show me the schools within 1 km of that hospital."],
