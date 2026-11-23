@@ -104,9 +104,11 @@ class Agent:
             self.set_place(found)
             yield {"type": "place", "name": found.name, "display": found.display_name,
                    "note": found.choice_note()}
-        if self.place is None:
+        if self.place is None and not _data_files():
             yield {"type": "answer", "text": prompts.NO_PLACE_MESSAGE}
             return False
+        # No place, but a data folder is already set (e.g. a benchmark's own data):
+        # answer from it. Found 2026-11-24: the GeoBenchX set got "Which place?".
         return True
 
     def choose_place(self, name):
