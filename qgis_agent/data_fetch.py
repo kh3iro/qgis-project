@@ -129,6 +129,174 @@ def _text(value):
 
 
 # ---------------------------------------------------------------------------
+# OpenStreetMap: two ways to get it (decided 2026-11-23, see docs/DECISIONS.md)
+# ---------------------------------------------------------------------------
+# 1. Overpass (public query servers, through OSMnx): quick for a SMALL place,
+#    data up to the minute, but the free servers time out on big areas
+#    (the whole Sharjah emirate failed on 2026-11-21).
+# 2. Geofabrik (ready-made regional files, updated daily): download the region
+#    file once (e.g. "GCC States", 246 MB), cut the place out on this machine
+#    with osmium, and read it with GDAL. Never times out; works offline after
+#    the first download; data at most a day old.
+# OpenStreetMap's own wiki gives the same split: Overpass for small amounts of
+# data, regional extracts for bigger areas
+# (https://wiki.openstreetmap.org/wiki/Downloading_data).
+#
+# Rule: places up to OVERPASS_MAX_KM2 (bounding box) use Overpass; bigger ones
+# use Geofabrik; and if Overpass fails, Geofabrik is used instead.
+OVERPASS_MAX_KM2 = float(os.environ.get("OVERPASS_MAX_KM2", "1000"))
+GEOFABRIK_INDEX = "https://download.geofabrik.de/index-v1.json"
+GEOFABRIK_DIR_NAME = "_geofabrik"
+GEOFABRIK_MAX_AGE_DAYS = 7          # reuse a downloaded region file for a week
+
+
+def _bbox_km2(place):
+    import math
+    middle = math.radians((place.north + place.south) / 2)
+    return (place.north - place.south) * 111.32 * (place.east - place.west) * 111.32 * math.cos(middle)
+
+
+def osm_path(place):
+    """"overpass" or "geofabrik": which way this place's OSM data is downloaded."""
+    forced = os.environ.get("OSM_SOURCE", "").strip().lower()
+    if forced in ("overpass", "geofabrik"):
+        return forced
+    return "overpass" if _bbox_km2(place) <= OVERPASS_MAX_KM2 else "geofabrik"
+
+
+def _geofabrik_dir():
+    folder = os.path.join(places.PLACES_DIR, GEOFABRIK_DIR_NAME)
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _download(url, path, progress=print):
+    import requests
+    partial = path + ".part"
+    with requests.get(url, stream=True, timeout=(15, 120),
+                      headers={"User-Agent": places.USER_AGENT}) as response:
+        response.raise_for_status()
+        total = int(response.headers.get("Content-Length", 0))
+        done, shown = 0, 0
+        with open(partial, "wb") as handle:
+            for chunk in response.iter_content(1 << 20):
+                handle.write(chunk)
+                done += len(chunk)
+                if total and done - shown > total / 5:
+                    shown = done
+                    progress(f"    {done / 1e6:.0f} of {total / 1e6:.0f} MB")
+    os.replace(partial, path)
+
+
+def geofabrik_region(place, progress=print):
+    """The smallest Geofabrik region whose outline contains the whole place.
+
+    Geofabrik publishes an index of every extract with its outline
+    (https://download.geofabrik.de/technical.html). Returns the index entry's
+    properties (id, name, urls...).
+    """
+    import shapely
+    from shapely.geometry import shape
+    index_path = os.path.join(_geofabrik_dir(), "index-v1.json")
+    if not os.path.exists(index_path) or \
+            time.time() - os.path.getmtime(index_path) > 30 * 86400:
+        progress("  Geofabrik: downloading the list of regions ...")
+        _download(GEOFABRIK_INDEX, index_path, progress=lambda _: None)
+    with open(index_path, encoding="utf-8") as handle:
+        index = json.load(handle)
+    area = _outline(place)
+    best = None
+    for feature in index["features"]:
+        if not feature.get("geometry") or "pbf" not in feature["properties"].get("urls", {}):
+            continue
+        region = shape(feature["geometry"])
+        if region.contains(area):
+            size = shapely.area(region)
+            if best is None or size < best[0]:
+                best = (size, feature["properties"])
+    if best is None:
+        raise RuntimeError("No single Geofabrik region contains this place.")
+    return best[1]
+
+
+def _region_file(region, progress=print):
+    """The region's .osm.pbf, downloaded if there is no copy from the last week."""
+    folder = _geofabrik_dir()
+    newest = None
+    for name in os.listdir(folder):
+        if name.startswith(region["id"].replace("/", "_") + "-") and name.endswith(".osm.pbf"):
+            path = os.path.join(folder, name)
+            if newest is None or os.path.getmtime(path) > os.path.getmtime(newest):
+                newest = path
+    if newest and time.time() - os.path.getmtime(newest) < GEOFABRIK_MAX_AGE_DAYS * 86400:
+        return newest
+    path = os.path.join(folder, f"{region['id'].replace('/', '_')}-{time.strftime('%Y-%m-%d')}.osm.pbf")
+    progress(f"  Geofabrik: downloading {region['name']} ...")
+    _download(region["urls"]["pbf"], path, progress=progress)
+    return path
+
+
+def place_pbf(place, progress=print):
+    """The place's own OSM file (osm.pbf in its folder), cut from the Geofabrik region."""
+    import subprocess
+    target = os.path.join(place.folder, "osm.pbf")
+    if os.path.exists(target):
+        return target
+    region = geofabrik_region(place, progress)
+    source = _region_file(region, progress)
+    progress(f"  Geofabrik: cutting {place.name} out of {region['name']} ...")
+    # --strategy smart keeps roads and areas that cross the boundary whole.
+    subprocess.run(["osmium", "extract", "--polygon", place.boundary_file, "--strategy", "smart",
+                    "--overwrite", "--output", target, source],
+                   check=True, capture_output=True, text=True)
+    with open(os.path.join(place.folder, "osm_source.json"), "w", encoding="utf-8") as handle:
+        json.dump({"region": region["name"], "region_id": region["id"],
+                   "region_file": os.path.basename(source)}, handle)
+    return target
+
+
+_OSM_TAG = __import__("re").compile(r'"((?:[^"\\]|\\.)*)"=>"((?:[^"\\]|\\.)*)"')
+
+
+def _features_from_pbf(path, outline):
+    """Every tagged point and area in an OSM file, as one GeoDataFrame with a column per tag.
+
+    Read with GDAL's OSM driver (https://gdal.org/en/stable/drivers/vector/osm.html),
+    which QGIS itself uses. Tags that GDAL does not give their own column are in
+    'other_tags' ("key"=>"value" pairs) and are unpacked here.
+    """
+    import geopandas as gpd
+    import pandas as pd
+    import pyogrio
+
+    frames = []
+    for layer, element in (("points", "node"), ("multipolygons", None)):
+        frame = pyogrio.read_dataframe(path, layer=layer)
+        if not len(frame):
+            continue
+        extra = frame.pop("other_tags") if "other_tags" in frame.columns else None
+        if extra is not None:
+            unpacked = pd.DataFrame([dict(_OSM_TAG.findall(t)) if isinstance(t, str) else {}
+                                     for t in extra], index=frame.index)
+            unpacked = unpacked[[c for c in unpacked.columns if c not in frame.columns]]
+            frame = pd.concat([frame, unpacked], axis=1)
+        if element:
+            frame["element"], frame["id"] = element, frame["osm_id"]
+        else:
+            way = frame["osm_way_id"].notna() if "osm_way_id" in frame.columns else False
+            frame["element"] = ["way" if w else "relation" for w in
+                                (way if not isinstance(way, bool) else [False] * len(frame))]
+            frame["id"] = frame["osm_way_id"].fillna(frame["osm_id"]) \
+                if "osm_way_id" in frame.columns else frame["osm_id"]
+        frames.append(frame)
+    if not frames:
+        return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+    frame = gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), geometry="geometry",
+                             crs="EPSG:4326")
+    return frame[frame.intersects(outline)]
+
+
+# ---------------------------------------------------------------------------
 # Step 3: OpenStreetMap features (facilities, parks, water, land use)
 # ---------------------------------------------------------------------------
 # Each layer: which OpenStreetMap tags select it, whether it is kept as POINTS
@@ -199,6 +367,18 @@ def _setup_osmnx():
     return ox
 
 
+def _osm_source(place, path):
+    """Where this place's OSM layers came from, for the manifest."""
+    if path == "overpass":
+        return "OpenStreetMap (via Overpass / OSMnx)"
+    try:
+        with open(os.path.join(place.folder, "osm_source.json"), encoding="utf-8") as handle:
+            info = json.load(handle)
+        return f"OpenStreetMap (Geofabrik extract: {info['region']}, {info['region_file'][-18:-8]})"
+    except (OSError, ValueError, KeyError):
+        return "OpenStreetMap (Geofabrik extract)"
+
+
 def _osm_name(row):
     """The English name if OpenStreetMap has one, otherwise the local name."""
     for column in ("name:en", "name"):
@@ -221,8 +401,13 @@ def fetch_osm_features(place, progress=print):
     todo = {name: spec for name, spec in OSM_LAYERS.items() if not _have(place, name)}
     if not todo:
         return
-    ox = _setup_osmnx()
     outline = _outline(place)
+    path = osm_path(place)
+    everything = None
+    if path == "geofabrik":
+        everything = _features_from_pbf(place_pbf(place, progress), outline)
+    else:
+        ox = _setup_osmnx()
 
     for shape in ("point", "polygon"):
         group = {name: spec for name, spec in todo.items() if spec["as"] == shape}
@@ -236,19 +421,22 @@ def fetch_osm_features(place, progress=print):
                     tags[key] = True
                 else:
                     tags[key] = sorted(set(tags.get(key, [])) | set(values))
-        progress(f"  OpenStreetMap: downloading {', '.join(group)} ...")
-        try:
-            frame = ox.features.features_from_polygon(outline, tags)
-        except Exception as exc:                       # e.g. nothing at all found
-            if "No matching features" in str(exc) or "InsufficientResponseError" in type(exc).__name__:
-                frame = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
-            else:
-                for name, spec in group.items():
-                    _record(place, name, file="", kind="vector", error=str(exc)[:300],
-                            source=OSM_SOURCE, description=spec["what"])
-                progress(f"  OpenStreetMap: FAILED ({exc})")
-                continue
-        frame = frame.reset_index()
+        if everything is not None:
+            frame = everything.reset_index(drop=True)
+        else:
+            progress(f"  OpenStreetMap (Overpass): downloading {', '.join(group)} ...")
+            try:
+                frame = ox.features.features_from_polygon(outline, tags).reset_index()
+            except Exception as exc:                       # e.g. nothing at all found
+                if "No matching features" in str(exc) or "InsufficientResponseError" in type(exc).__name__:
+                    frame = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+                else:
+                    # The public servers failed (often a timeout on a big area):
+                    # fall back to the Geofabrik regional file for everything.
+                    progress(f"  Overpass failed ({str(exc)[:120]}); using Geofabrik instead")
+                    everything = _features_from_pbf(place_pbf(place, progress), outline)
+                    path = "geofabrik"
+                    frame = everything.reset_index(drop=True)
 
         for name, spec in group.items():
             # Which rows belong to this layer: any of its tag values matches.
@@ -272,8 +460,9 @@ def fetch_osm_features(place, progress=print):
                 records.append(record)
             layer = gpd.GeoDataFrame(records, geometry="geometry", crs="EPSG:4326") \
                 if records else gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
-            _save_vector(place, name, layer, shape, OSM_SOURCE, OSM_LICENCE, spec["what"],
-                         released="live (edits up to the download date)")
+            _save_vector(place, name, layer, shape, _osm_source(place, path), OSM_LICENCE,
+                         spec["what"], released="live (edits up to the download date)"
+                         if path == "overpass" else "Geofabrik daily extract")
         progress(f"  OpenStreetMap: {', '.join(f'{n} {read_manifest(place)[n]['count']}' for n in group)}")
 
 
@@ -298,9 +487,22 @@ def fetch_road_network(place, progress=print):
     if _have(place, "roads"):
         return
     ox = _setup_osmnx()
-    progress("  OpenStreetMap: downloading the road network ...")
-    graph = ox.graph.graph_from_polygon(_outline(place), network_type="drive",
-                                        simplify=True, retain_all=True)
+    path = osm_path(place)
+    graph = None
+    if path == "overpass":
+        progress("  OpenStreetMap (Overpass): downloading the road network ...")
+        try:
+            graph = ox.graph.graph_from_polygon(_outline(place), network_type="drive",
+                                                simplify=True, retain_all=True)
+        except Exception as exc:
+            progress(f"  Overpass failed ({str(exc)[:120]}); using Geofabrik instead")
+            path = "geofabrik"
+    if graph is None:
+        pbf = place_pbf(place, progress)
+        progress("  OpenStreetMap (Geofabrik): building the road network ...")
+        graph = ox.graph.graph_from_pbf(pbf, network_type="drive", simplify=True,
+                                        retain_all=True)
+        graph = ox.truncate.truncate_graph_polygon(graph, _outline(place), truncate_by_edge=True)
     # Speeds: the posted limit where mapped, otherwise the average for that
     # road type in this place (OSMnx's standard method), then travel times.
     graph = ox.routing.add_edge_speeds(graph)
@@ -323,8 +525,9 @@ def fetch_road_network(place, progress=print):
         "speed_kmh": edges["speed_kph"].round(0),
         "travel_s": edges["travel_time"].round(1),
     }, geometry=edges.geometry.values, crs="EPSG:4326")
-    _save_vector(place, "roads", layer, "line", OSM_SOURCE, OSM_LICENCE, ROADS_WHAT,
-                 released="live (edits up to the download date)")
+    _save_vector(place, "roads", layer, "line", _osm_source(place, path), OSM_LICENCE, ROADS_WHAT,
+                 released="live (edits up to the download date)" if path == "overpass"
+                 else "Geofabrik daily extract")
     progress(f"  OpenStreetMap: roads {len(layer)} segments")
 
 
@@ -744,6 +947,16 @@ def fetch_satellite(place, progress=print):
 # ---------------------------------------------------------------------------
 FETCHERS = [fetch_osm_features, fetch_road_network, fetch_overture, fetch_admin_areas,
             fetch_rasters, fetch_satellite]
+
+
+# The layers a place must have before questions can be answered about it.
+CORE_LAYERS = ("hospitals", "schools", "roads")
+
+
+def is_prepared(place):
+    """True if the place's core layers have been fetched (successfully or empty)."""
+    manifest = read_manifest(place)
+    return all(name in manifest and not manifest[name].get("error") for name in CORE_LAYERS)
 
 
 def prepare_place(place, progress=print):

@@ -47,11 +47,86 @@ CODE_BLOCK = re.compile(r"```(?:python|py)?\s*\n(.*?)```", re.DOTALL)
 class Agent:
     """One conversation: its memory, its QGIS workspace and its results."""
 
-    def __init__(self, model=None):
+    def __init__(self, model=None, place=None):
         self.model = model or config.MODEL
         self.runner = CodeRunner()   # the persistent workspace for this conversation
         self.history = []            # earlier exchanges, for follow-up questions
         self.created = []            # paths of every result saved so far
+        self.place = None            # the place whose data is used (places.Place)
+        if place is not None:
+            self.set_place(place)
+
+    # ------------------------------------------------------------------
+    # Places
+    # ------------------------------------------------------------------
+    def set_place(self, place):
+        """Use this place's data folder for every following question."""
+        self.place = place
+        use_data_folder(place.folder)
+
+    def _find_place(self, request):
+        """Step 0: which place is the question about? Download its data the first time.
+
+        Yields events; returns True to carry on, False if the request was answered here
+        (no place known, or the place could not be found).
+        """
+        from . import places as places_module
+        name = None
+        if config.DETECT_PLACE:
+            reply = llm_client.chat([{"role": "user",
+                                      "content": prompts.PLACE_PROMPT.format(request=request)}],
+                                    model=self.model, temperature=0)
+            reply = reply.strip().strip('"').strip()
+            if reply and reply.upper() != "NONE" and len(reply) < 80:
+                name = reply
+        if name and self.place is not None and _same_place(name, self.place):
+            name = None
+        if name:
+            yield {"type": "step", "title": f"Finding {name} on the map", "status": "pending"}
+            try:
+                found = places_module.find_place(name)
+            except places_module.PlaceError as exc:
+                if self.place is None:
+                    yield {"type": "answer", "text": str(exc)}
+                    return False
+                found = None          # keep the current place; mention nothing
+            if found is not None and self.place is not None and self.place.contains(found) \
+                    and found.slug != self.place.slug:
+                found = None          # a district inside the current place: data covers it
+            if found is not None and (self.place is None or found.slug != self.place.slug):
+                yield from self._prepare(found)
+                self.set_place(found)
+                yield {"type": "place", "name": found.name, "display": found.display_name,
+                       "note": found.choice_note()}
+        if self.place is None and config.DEFAULT_PLACE:
+            found = places_module.find_place(config.DEFAULT_PLACE)
+            yield from self._prepare(found)
+            self.set_place(found)
+            yield {"type": "place", "name": found.name, "display": found.display_name,
+                   "note": found.choice_note()}
+        if self.place is None:
+            yield {"type": "answer", "text": prompts.NO_PLACE_MESSAGE}
+            return False
+        return True
+
+    def _prepare(self, place):
+        """Download a place's layers if they are not saved yet, streaming the progress."""
+        import queue
+        import threading
+        from . import data_fetch
+        if data_fetch.is_prepared(place):
+            return
+        yield {"type": "step", "title": f"Downloading map data for {place.name} "
+                                        f"(first time only, a few minutes)", "status": "pending"}
+        messages = queue.Queue()
+        worker = threading.Thread(target=lambda: (data_fetch.prepare_place(
+            place, progress=messages.put), messages.put(None)), daemon=True)
+        worker.start()
+        while True:
+            line = messages.get()
+            if line is None:
+                break
+            yield {"type": "progress", "text": line.strip()}
 
     def reset(self):
         """Start a fresh conversation: forget history, variables and results."""
@@ -83,6 +158,12 @@ class Agent:
             {"type": "done", "seconds": ...}
         """
         started = time.time()
+
+        # 0. WHERE: find the place and make sure its data is downloaded.
+        carry_on = yield from self._find_place(request)
+        if not carry_on:
+            yield {"type": "done", "seconds": time.time() - started}
+            return
 
         # 1. LOOK + 2. ASK
         messages = self._build_messages(request)
@@ -326,13 +407,20 @@ def _mentions_data(request):
             name = os.path.splitext(os.path.basename(path))[0]
             words.update(part.rstrip("s") for part in name.lower().split("_") if len(part) > 3)
             layer = QgsVectorLayer(path, name, "ogr")
+            if not layer.isValid() or layer.featureCount() > 20000:
+                continue                     # e.g. buildings: too big to scan, no categories
             for field in layer.fields():
                 if field.isNumeric():
                     continue
                 values = {str(f[field.name()]).lower() for f in layer.getFeatures()}
                 if len(values) <= 15:          # a category field, not names
                     words.update(v.rstrip("s") for v in values if len(v) > 3)
-        words.discard("sharjah")              # the area name alone is not a data question
+        # The place's own name alone is not a data question.
+        if config.DATA_DIR and os.path.exists(os.path.join(config.DATA_DIR, "place.json")):
+            with open(os.path.join(config.DATA_DIR, "place.json"), encoding="utf-8") as handle:
+                info = json.load(handle)
+            for part in (info.get("name", "") + " " + info.get("display_name", "")).lower().split():
+                words.discard(part.strip(",").rstrip("s"))
         _DATA_WORDS = words
     lowered = request.lower()
     return any(word in lowered for word in _DATA_WORDS)
@@ -409,7 +497,10 @@ def _extract_code(reply):
     match = CODE_BLOCK.search(reply or "")
     if match:
         return match.group(1).strip()
-    text = (reply or "").strip()
+    # Also found: only ONE of the two fences written (e.g. code, then a closing
+    # ``` but no opening one). Drop lone fence lines and try again.
+    text = "\n".join(line for line in (reply or "").splitlines()
+                     if not line.strip().startswith("```")).strip()
     if "print(" in text or "save(" in text:
         try:
             ast.parse(text)
@@ -419,13 +510,30 @@ def _extract_code(reply):
     return None
 
 
+def use_data_folder(folder):
+    """Point the agent, the helpers and the path checks at one data folder."""
+    from . import qgis_tools
+    global _DATA_WORDS
+    config.DATA_DIR = folder
+    qgis_tools.DATA_DIR = folder
+    _DATA_WORDS = None
+
+
+def _same_place(name, place):
+    """True if a place name refers to the place already in use."""
+    wanted = name.lower().split(",")[0].strip()
+    known = {place.name.lower(), place.display_name.lower().split(",")[0].strip()}
+    return wanted in known or any(wanted in k or k in wanted for k in known if len(k) > 3)
+
+
 def _data_files():
     """Every readable layer file in data/."""
     files = []
     for extension in READABLE_EXTENSIONS:
         files += glob.glob(os.path.join(config.DATA_DIR, f"*{extension}"))
-    # descriptions.json is the catalogue of layers, not a layer itself.
-    return sorted(f for f in files if os.path.basename(f) != "descriptions.json")
+    # These JSON files are bookkeeping (layer catalogue, place details), not layers.
+    not_layers = {"descriptions.json", "manifest.json", "place.json", "osm_source.json"}
+    return sorted(f for f in files if os.path.basename(f) not in not_layers)
 
 
 def _other_data_files(extensions):
@@ -513,11 +621,21 @@ def _descriptions():
     A file's fields say WHAT is in it; this says what it MEANS ("districts are
     points, not boundaries"). Like LLM-Find's per-source "handbooks".
     """
+    descriptions = {}
+    # A downloaded place: each layer's description is in its manifest.
+    manifest = os.path.join(config.DATA_DIR, "manifest.json")
+    if os.path.exists(manifest):
+        with open(manifest, encoding="utf-8") as handle:
+            for name, entry in json.load(handle).items():
+                source = entry.get("source", "")
+                descriptions[name] = (entry.get("description", "")
+                                      + (f" Source: {source}." if source else ""))
+        descriptions["boundary"] = "The outline of the place itself (one polygon)."
     path = os.path.join(config.DATA_DIR, "descriptions.json")
-    if not os.path.exists(path):
-        return {}
-    with open(path, encoding="utf-8") as handle:
-        return json.load(handle)
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as handle:
+            descriptions.update(json.load(handle))
+    return descriptions
 
 
 def _evidence(result):

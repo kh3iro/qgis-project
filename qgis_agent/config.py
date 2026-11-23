@@ -91,6 +91,15 @@ PROMPT_MODE = os.environ.get("PROMPT_MODE", "full").strip().lower()
 MAX_LOOKUP_STEPS = int(os.environ.get("MAX_LOOKUP_STEPS", "3"))
 
 # ---------------------------------------------------------------------------
+# Places (any place in the world, added 2026-11-23)
+# ---------------------------------------------------------------------------
+# The place used until the person names another one ("" = none: the agent asks).
+DEFAULT_PLACE = os.environ.get("DEFAULT_PLACE", "").strip()
+# Find the place named in each question (one short extra model call). The
+# evaluation turns this off, because each question set fixes its place.
+DETECT_PLACE = os.environ.get("DETECT_PLACE", "1").strip() not in ("0", "false", "no")
+
+# ---------------------------------------------------------------------------
 # The agent's behaviour
 # ---------------------------------------------------------------------------
 # If the AI's code fails, how many times it may read the error and try again.

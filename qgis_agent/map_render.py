@@ -70,10 +70,18 @@ def render(result_paths, context_paths=(), size=(900, 650), basemap=True):
     # The first layer in the list is drawn on top. Results go above context,
     # and within each group points go above lines above polygons, so a big
     # zone never hides the dots inside it.
-    by_geometry = lambda layer: layer.geometryType()  # 0 point, 1 line, 2 polygon
+    # rasters (no geometry type) go under the vector results
+    by_geometry = lambda layer: layer.geometryType() if isinstance(layer, QgsVectorLayer) else 3
     layers = sorted(results, key=by_geometry) + sorted(context, key=by_geometry)
     extent = _extent_with_margin(results, context)
     crs = results[0].crs()
+    # Every layer's extent must be in the same CRS before being combined.
+    if any(layer.crs() != crs for layer in results + context):
+        extent = QgsRectangle()
+        for layer in results:
+            extent.combineExtentWith(QgsCoordinateTransform(
+                layer.crs(), crs, QgsProject.instance()).transformBoundingBox(layer.extent()))
+        extent.scale(1.15)
     if basemap and _internet_available():
         streets = QgsRasterLayer(OSM_TILES, "OpenStreetMap", "wms")
         if streets.isValid():
@@ -128,12 +136,44 @@ def _internet_available():
 
 
 def _open(path):
-    layer = QgsVectorLayer(path, os.path.splitext(os.path.basename(path))[0], "ogr")
+    name = os.path.splitext(os.path.basename(path))[0]
+    if path.lower().endswith((".tif", ".tiff")):
+        layer = QgsRasterLayer(path, name)
+    else:
+        layer = QgsVectorLayer(path, name, "ogr")
     return layer if layer.isValid() else None
+
+
+def _style_raster(layer):
+    """A raster result: colour the values from low to high (the Viridis colour ramp),
+    semi-transparent so the streets underneath stay readable."""
+    from qgis.core import (QgsColorRampShader, QgsRasterBandStats, QgsRasterShader,
+                           QgsSingleBandPseudoColorRenderer, QgsStyle)
+    provider = layer.dataProvider()
+    # Stretch the colours between the 2% and 98% values (the usual "cumulative
+    # cut"), so a few extreme cells do not wash out everything else.
+    low, high = provider.cumulativeCut(1, 0.02, 0.98, layer.extent(), 250000)
+    if not high > low:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            stats = provider.bandStatistics(1, QgsRasterBandStats.Min | QgsRasterBandStats.Max)
+        low, high = stats.minimumValue, stats.maximumValue
+    ramp = QgsStyle.defaultStyle().colorRamp("Viridis")
+    shader_function = QgsColorRampShader(low, high, ramp)
+    shader_function.classifyColorRamp(8)
+    shader = QgsRasterShader()
+    shader.setRasterShaderFunction(shader_function)
+    renderer = QgsSingleBandPseudoColorRenderer(provider, 1, shader)
+    renderer.setOpacity(0.75)
+    layer.setRenderer(renderer)
 
 
 def style_layer(layer, colour, strong):
     """Give a layer a simple colour, and labels if it is a highlighted result."""
+    if isinstance(layer, QgsRasterLayer):
+        _style_raster(layer)
+        return
     symbol = QgsSymbol.defaultSymbol(layer.geometryType())
     if symbol is None:
         return
@@ -168,7 +208,7 @@ def _extent_with_margin(results, context):
     """Frame the results, with 15% margin so nothing touches the edge."""
     extent = QgsRectangle()
     for layer in results:
-        if layer.featureCount() > 0:
+        if isinstance(layer, QgsRasterLayer) or layer.featureCount() > 0:
             extent.combineExtentWith(layer.extent())
     if extent.isEmpty() or extent.isNull():
         # An empty result (e.g. "no cities matched"): show the context instead.

@@ -126,7 +126,9 @@ ANSWER_PROMPT = """Your code ran successfully. This is what it printed:
 {saved}
 Now answer the person's original request in 1-4 short, plain sentences, using ONLY these \
 facts. No code, no technical words like "layer" or "buffer", no file paths. If the \
-result is empty, say clearly that nothing matched."""
+result is empty, say clearly that nothing matched. If the person asked about a kind of \
+thing that has no data at all (no layer for it), say that this information is not in the \
+data, instead of saying that zero were found."""
 
 
 # Sent when the answer contains a number that is not in what the code printed.
@@ -180,6 +182,20 @@ with the exact parameter names from algorithm_help. OUTPUT is filled in for you.
 Search with one plain English keyword (e.g. "buffer", "slope", "zonal", "heatmap"). \
 If a helper fits, use the helper and do not look anything up.
 """
+
+# Asked before each question (a separate, short model call) to find which place
+# the person is asking about. Not a building, park or road: those are looked up
+# INSIDE the place's data.
+PLACE_PROMPT = """Which geographic place (a city, district, region or country) is this \
+message asking about? Reply with ONLY the place name as you would type it into a map search, \
+in English, including the country if it helps (e.g. "Cairo, Egypt"). Do not name buildings, \
+parks, schools, hospitals or roads. If the message names no place, reply NONE.
+
+Message: {request}"""
+
+NO_PLACE_MESSAGE = ("Which place should I look at? Name a city, district or region, for "
+                    "example \"hospitals in Sharjah\" or \"parks in Berlin\".")
+
 
 # Added to the fix message in "lookup" mode. Found in testing (2026-11-23): the
 # model guessed algorithm ids that do not exist ("native:rastercalculator") and

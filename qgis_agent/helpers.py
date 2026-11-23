@@ -140,6 +140,11 @@ def _layer(value):
         selected = source.materialize(QgsFeatureRequest().setFilterFids(
             [row.feature_id for row in value]))
         return _named(selected, source.name() + "_selection")
+    if isinstance(value, QgsRasterLayer):
+        raise TypeError(
+            f"'{value.name()}' is a raster (a grid of values), but this helper needs a vector "
+            f"layer. For rasters use clip(), reproject(), describe_raster(), or a QGIS raster "
+            f"algorithm through run_algorithm (e.g. zonal statistics, raster sampling).")
     raise TypeError(
         f"Expected a layer or a layer name, got {type(value).__name__}. "
         f"Use load('layer_name') to open a layer."
@@ -439,8 +444,27 @@ def nearest(layer, other):
     return _named(_back_to(joined, original_crs), f"{layer.name()}_nearest")
 
 
+def _as_raster(value):
+    """A raster layer if `value` is one (or names one), else None."""
+    if isinstance(value, QgsRasterLayer):
+        return value
+    if isinstance(value, str) and not os.path.splitext(value)[1] and _find_file(value, RASTER_EXTENSIONS):
+        return load(value)
+    if isinstance(value, str) and value.lower().endswith(RASTER_EXTENSIONS) and os.path.exists(value):
+        return QgsRasterLayer(value, os.path.splitext(os.path.basename(value))[0])
+    return None
+
+
 def clip(layer, mask):
-    """clip(layer, mask) -> layer. Cut `layer` to the inside of the polygon layer `mask`."""
+    """clip(layer, mask) -> layer. Cut a layer OR a raster to the inside of the polygon layer `mask`."""
+    # Found in testing (2026-11-23): the model naturally calls clip() on rasters
+    # (e.g. "land cover inside the park"), which only worked for vector layers.
+    raster = _as_raster(layer)
+    if raster is not None:
+        out = qgis_engine.run_step("gdal:cliprasterbymasklayer", {
+            "INPUT": raster, "MASK": _layer(mask), "CROP_TO_CUTLINE": True,
+            "KEEP_RESOLUTION": True, "OUTPUT": "TEMPORARY_OUTPUT"})["OUTPUT"]
+        return QgsRasterLayer(out, f"{raster.name()}_clipped")
     layer, mask = _layer(layer), _layer(mask)
     return _named(_run("native:clip", {"INPUT": layer, "OVERLAY": mask}), f"{layer.name()}_clipped")
 
@@ -728,7 +752,13 @@ def _as_layer_input(value):
 
 
 def reproject(layer, crs):
-    """reproject(layer, crs) -> layer. Convert to another CRS, e.g. "EPSG:32640" (UTM 40N, metres)."""
+    """reproject(layer, crs) -> layer. Convert a layer or raster to another CRS, e.g. "EPSG:32640" (UTM 40N, metres)."""
+    raster = _as_raster(layer)
+    if raster is not None:
+        out = qgis_engine.run_step("gdal:warpreproject", {
+            "INPUT": raster, "TARGET_CRS": crs, "RESAMPLING": 0,
+            "OUTPUT": "TEMPORARY_OUTPUT"})["OUTPUT"]
+        return QgsRasterLayer(out, f"{raster.name()}_{crs.replace(':', '')}")
     layer = _layer(layer)
     return _named(_run("native:reprojectlayer", {"INPUT": layer, "TARGET_CRS": crs}),
                   f"{layer.name()}_{crs.replace(':', '')}")
@@ -742,7 +772,17 @@ def merge_layers(*layers):
 
 
 def save(layer, name):
-    """save(layer, name) -> path. Save a result to outputs/<name>.gpkg; it is then drawn on the map. ALWAYS save your final result."""
+    """save(layer, name) -> path. Save a result (layer or raster) to outputs/; it is then drawn on the map. ALWAYS save your final result."""
+    # Rasters (heatmaps, slope, clipped land cover...) are saved as GeoTIFF and
+    # drawn on the map too (added 2026-11-23).
+    raster = _as_raster(layer) if not isinstance(layer, (QgsVectorLayer, list)) else None
+    if raster is not None:
+        clean = re.sub(r"[^A-Za-z0-9_-]", "_", os.path.splitext(os.path.basename(str(name)))[0]) or "result"
+        os.makedirs(config.OUTPUTS_DIR, exist_ok=True)
+        path = os.path.join(config.OUTPUTS_DIR, f"{clean}.tif")
+        qgis_engine.run_step("gdal:translate", {"INPUT": raster, "OUTPUT": path})
+        SAVED_RESULTS.append({"name": clean, "path": path, "count": None, "kind": "raster"})
+        return f"outputs/{clean}.tif"
     # Saving is the last step, after the answer has been printed. Learned from
     # testing: a mistake in save() (e.g. passing a word instead of a layer)
     # used to throw away a correct, already-printed answer. Now it only warns.
