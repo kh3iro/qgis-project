@@ -48,6 +48,15 @@ mistake; the model kept doing it (next entry).
 
 **Why.** Each was found by a failing test tonight; each made a wrong answer look right.
 
+Added during the final evaluation run (after Sharjah, before Cairo; both modes
+of every place use the same version): the prompt says never to answer with a
+stand-in kind of data. Seen: "which neighbourhood has the highest crime rate?"
+was answered with population density "as a proxy". Also found and fixed in the
+same night: `nearest()` rows sorted closest first; routing rebuilt on a networkx
+graph (QGIS's service-area tool used more than 12 GB on a whole emirate); QGIS's
+raster sampling crashes the program when given polygons, so helpers refuse them;
+the evaluation saves after every question and resumes after a crash.
+
 ---
 
 ## 2026-11-24 (overnight): Fix a 47 GB memory bug; run heavy jobs as capped services
