@@ -106,6 +106,14 @@ def find_qgis_desktop():
     configured = os.environ.get("QGIS_DESKTOP")
     if configured and os.path.exists(configured):
         return configured
+    if os.name != "nt":
+        # Linux (the university VM): QGIS Desktop comes with the conda environment.
+        import shutil
+        import sys
+        for candidate in (os.path.join(sys.prefix, "bin", "qgis"), shutil.which("qgis")):
+            if candidate and os.path.exists(candidate):
+                return candidate
+        return None
     candidates = sorted(glob.glob(r"C:\Program Files\QGIS *\bin\qgis.bat"), reverse=True)
     candidates += glob.glob(r"C:\OSGeo4W\bin\qgis.bat")
     return candidates[0] if candidates else None
@@ -117,6 +125,15 @@ def open_in_qgis(project_path=PROJECT_PATH):
     if launcher is None:
         return ("QGIS Desktop was not found. Install it, or set QGIS_DESKTOP in .env to "
                 f"its qgis.bat. You can still open {project_path} by hand.")
+
+    if os.name != "nt":
+        # Same conda environment, but WITH a screen: the headless agent sets
+        # QT_QPA_PLATFORM=offscreen, which would make the desktop window invisible.
+        environment = {k: v for k, v in os.environ.items() if k != "QT_QPA_PLATFORM"}
+        environment.setdefault("DISPLAY", ":0")
+        subprocess.Popen([launcher, project_path], env=environment, start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return "QGIS Desktop is opening with the results (it can take 20-30 seconds)."
 
     environment = {key: value for key, value in os.environ.items()
                    if key not in _CONDA_VARIABLES and not key.startswith("CONDA")}
