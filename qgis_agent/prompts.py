@@ -40,7 +40,9 @@ data is missing and what data is available.
 
 RULES FOR THE CODE
 - Use the helper functions below. They are already available: do not import them.
-- All the data is about ONE place (named in the data list). Use only that data.
+- All the data is about ONE place (named at the top of the data list) and already covers \
+only that place: "schools in Cairo" means ALL the schools layer, never find_by_name("schools", \
+"Cairo").
 - All distances are in METRES (5 km = 5000). Use the distance helpers; never compute \
 distances from coordinates yourself.
 - Only use layer and field names that appear in the data list below. To find a place by \

@@ -25,7 +25,9 @@ import os
 # This file sits in qgis_agent/, so the project root is one folder up.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")        # the input map layers
-OUTPUTS_DIR = os.path.join(PROJECT_ROOT, "outputs")  # results the agent creates
+# results the agent creates (QGIS_AGENT_OUTPUTS can point a second program,
+# e.g. the chat page during an evaluation, at its own folder)
+OUTPUTS_DIR = os.environ.get("QGIS_AGENT_OUTPUTS", os.path.join(PROJECT_ROOT, "outputs"))
 MAPS_DIR = os.path.join(OUTPUTS_DIR, "maps")         # map pictures shown in the chat
 
 

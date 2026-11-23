@@ -429,6 +429,15 @@ $("themeToggle").onclick = () => {
 $("modeSelect").onchange = () => { try { localStorage.setItem("qgis-agent-mode", $("modeSelect").value); } catch {} };
 
 try { applyTheme(localStorage.getItem("qgis-agent-theme")); $("modeSelect").value = localStorage.getItem("qgis-agent-mode") || "lookup"; } catch {}
-if (chats.length) openChat(chats[0]); else startNewChat();
+// Demo/screenshot helper: /#load=/files/demo_chat.json opens saved conversations
+// (a JSON list in the same format the page stores). Used for the slides.
+async function start() {
+  const match = location.hash.match(/^#load=(.+)$/);
+  if (match) {
+    try { chats = await (await fetch(decodeURIComponent(match[1]))).json(); } catch {}
+  }
+  if (chats.length) openChat(chats[0]); else startNewChat();
+}
+start();
 refreshStatus();
 setInterval(refreshStatus, 30000);

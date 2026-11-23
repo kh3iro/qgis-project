@@ -32,11 +32,12 @@ Python traceback mentions QGIS internals the model can do nothing about; "line
 
 import contextlib
 import io
+import os
 import sys
 import traceback
 from dataclasses import dataclass, field
 
-from . import helpers
+from . import config, helpers
 
 # The name Python shows for our code in error messages, so we can find the
 # lines that belong to the AI's code inside a long traceback.
@@ -91,8 +92,18 @@ class CodeRunner:
             compiled = compile(code, CODE_LABEL, "exec")
             # Everything the code prints goes into `printed` instead of the
             # terminal, so we can hand it to the model.
-            with contextlib.redirect_stdout(printed):
-                exec(compiled, self.workspace)
+            # Run inside the outputs folder. Found in testing (2026-11-23): when the
+            # model names an output file itself ("contours.shp", "TEMP"), it was
+            # written into whatever folder the program was started from (the
+            # project folder). Now any such file lands in outputs/.
+            os.makedirs(config.OUTPUTS_DIR, exist_ok=True)
+            previous = os.getcwd()
+            os.chdir(config.OUTPUTS_DIR)
+            try:
+                with contextlib.redirect_stdout(printed):
+                    exec(compiled, self.workspace)
+            finally:
+                os.chdir(previous)
             ok, error = True, ""
         except Exception as exc:  # any mistake in the AI's code lands here
             ok, error = False, _short_error(exc, code)

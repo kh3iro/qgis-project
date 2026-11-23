@@ -34,3 +34,4 @@ data/places/
 
 # Benchmark data downloaded from elsewhere (large; see scripts/prepare_geobenchx.py)
 evaluation/external/
+outputs_ui/

@@ -63,7 +63,7 @@ from . import qgis_engine  # the headless QGIS module, in this same folder
 # This file sits in qgis_agent/, so the project root is one folder up.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")        # inputs live here
-OUTPUTS_DIR = os.path.join(PROJECT_ROOT, "outputs")  # results are written here
+OUTPUTS_DIR = os.environ.get("QGIS_AGENT_OUTPUTS", os.path.join(PROJECT_ROOT, "outputs"))  # results
 
 # Vector formats we accept as input. Anything else is refused with a clear error.
 READABLE_EXTENSIONS = (".geojson", ".json", ".gpkg", ".shp", ".gml", ".kml")

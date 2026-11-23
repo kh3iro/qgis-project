@@ -1,7 +1,7 @@
 # Project map
 
 What exists in this project today, and how the pieces fit together.
-Last checked against the code: 2026-11-09 (commit 9de4aec).
+Last checked against the code: 2026-11-24 (overnight work before the presentation).
 
 This file describes; it does not propose. Why things are built this way is in
 `DECISIONS.md`.
@@ -10,143 +10,123 @@ This file describes; it does not propose. Why things are built this way is in
 
 ## 1. What the system does, in one paragraph
 
-A person types a question about map data in plain English, for example "Which
-schools are more than 3 km from a hospital?". A language model (Qwen 2.5 Coder,
-running locally through Ollama) writes Python code for QGIS. That code runs
-inside QGIS with no window open ("headless"). If the code fails, the error goes
-back to the model so it can fix it. When it works, the model turns the printed
-result into a plain sentence, and the result is drawn on a map, saved as files,
-and can be opened in QGIS Desktop. The data is real OpenStreetMap data for
-Sharjah.
+A person types a question in plain words about any place, for example "How many
+people in Cairo live within 1 km of a hospital?". The agent finds the place on
+the map and, the first time, downloads open data for it (OpenStreetMap features
+and roads, administrative areas, population, elevation, land cover). A language
+model (qwen3-coder:30b, running locally with Ollama on the university VM) writes
+Python code for QGIS. The code runs inside QGIS with no window ("headless"). If
+it fails, the error goes back to the model to fix. The printed result becomes a
+plain answer, checked so that every number comes from QGIS, plus a map and files
+that open in QGIS Desktop.
 
 ---
 
 ## 2. How a question travels through the system
 
 ```
-  Person types a question
+  Person types a question (chat page in the browser, or the terminal)
           |
           v
-  app.py  (chat window in the browser, or --terminal)
-          |                                   api.py /ask  (same agent, for other programs)
-          v                                        |
-  qgis_agent/agent.py   <--------------------------+
-     |  1. LOOK     read data/ -> short briefing (layers, fields, example values)
-     |  2. ASK      system prompt + briefing + recent chat + question
-     |                 |
-     |                 v
-     |            llm_client.py --HTTP--> Ollama --> Qwen model
-     |                 |
-     |                 v   reply = Python code (or a short plain answer)
-     |  3. RUN      code_runner.py  runs the code with exec(), inside
-     |                 |           headless QGIS (started by qgis_engine.py)
-     |                 |           the code can call helpers.py (33 shortcuts)
-     |                 |           or any of the 440 QGIS algorithms
-     |                 v
-     |  4. FIX      error or nothing printed? send the error back, try again
-     |              (up to 3 more times)
-     |  5. EXPLAIN  printed output -> model -> one plain-language answer
-     |              map_render.py draws saved results as a PNG over OpenStreetMap
-     |  6. REMEMBER keep the last few exchanges + the code's variables
-     v
-  Answer + map + files in outputs/   (optional: qgis_project.py opens them in QGIS Desktop)
+  webapp.py  (serves web/ and streams the agent's steps to the page)
+          |
+          v
+  qgis_agent/agent.py
+     0. WHERE   which place? (short model call) -> places.py (Nominatim)
+                first time: data_fetch.py downloads the place's layers
+                (OSM via Overpass or Geofabrik, roads, admin areas, population,
+                 elevation, land cover) into data/places/<place>/<date>/
+     1. LOOK    describe the place's layers, rasters and tables (the "briefing")
+     2. ASK     system prompt (rules + helpers + briefing + examples
+                + all 440 algorithms in "full" mode, or a look-up note in
+                "lookup" mode) + recent chat + question
+                    -> llm_client.py -> Ollama -> qwen3-coder:30b
+     3. RUN     code_runner.py runs the code in headless QGIS (qgis_engine.py);
+                the code uses helpers.py (35 helpers + any QGIS algorithm)
+        LOOK UP (lookup mode) the code only searched for an algorithm:
+                show the model the result, let it write the real code
+     4. FIX     error, empty output or a warning: send it back, try again (x3)
+     5. EXPLAIN printed output -> one plain answer; numbers must come from the
+                output (self-check); map_render.py draws the saved results
+     6. REMEMBER keep the last exchanges and the code's variables
+          v
+  Answer + map + files (outputs/), "Open in QGIS" (qgis_project.py)
 ```
 
-Two things to notice:
-- The **model never sees the data files**. It only sees the short briefing and
-  whatever its own code prints. QGIS does the real spatial work.
-- The **workspace persists** between questions, like a Jupyter notebook, so
-  "now do the same for 5 km" can reuse a variable from the previous question.
+The model never sees the data files. It sees a short description and what its own
+code prints. QGIS does every calculation.
 
 ---
 
 ## 3. What each file does
 
-### The agent (the current system, Month 2)
+### The agent
 
 | File | Job, in one line |
 |---|---|
-| `app.py` | Start here. Boots QGIS and the model, shows the chat window (Gradio) or a terminal chat. Presentation only. |
-| `qgis_agent/agent.py` | The loop: look, ask, run, fix, explain, remember. Also the self-checks (field names, empty filters, repeated code, numbers answered without code). |
-| `qgis_agent/prompts.py` | Builds the system prompt: rules + helper list + data briefing + worked examples + every QGIS algorithm. Also the "fix your code" and "explain the result" messages. |
-| `qgis_agent/llm_client.py` | The only file that talks to the model (Ollama over HTTP). Swap provider here. |
-| `qgis_agent/code_runner.py` | Runs the model's code with `exec()` in a shared workspace; captures what it printed, the error, and the layers it saved. |
-| `qgis_agent/helpers.py` | 33 tested GIS shortcuts the model's code may call (`buffer_metres`, `nearest`, `within_distance`, `save`...), plus the gateway to all 440 QGIS algorithms (`find_algorithms`, `algorithm_help`, `run_algorithm`). |
-| `qgis_agent/map_render.py` | Draws results as a PNG with QGIS's own map engine, over an OpenStreetMap background. |
-| `qgis_agent/qgis_project.py` | "Open in QGIS Desktop": writes `outputs/agent_results.qgz` and launches the installed QGIS. |
-| `qgis_agent/config.py` | Every setting in one place, read from `.env` (model, Ollama address, context size, temperature, retries). |
-| `qgis_agent/qgis_engine.py` | Starts QGIS headless, once, and keeps it running. Shared by everything. |
+| `app.py` | Start here. Boots QGIS and the model, then serves the chat page (or `--terminal`). |
+| `webapp.py` | The web server for the chat page: streams answers, serves maps and files. |
+| `web/index.html`, `style.css`, `app.js` | The chat page (ChatGPT-style, works offline). |
+| `qgis_agent/agent.py` | The loop: where, look, ask, run, look up, fix, explain, remember; the self-checks. |
+| `qgis_agent/prompts.py` | The system prompt (two modes), place prompt, fix / answer / check messages. |
+| `qgis_agent/llm_client.py` | The only file that talks to the model (Ollama over HTTP). |
+| `qgis_agent/code_runner.py` | Runs the model's code with `exec()` in a workspace kept per conversation. |
+| `qgis_agent/helpers.py` | 35 tested shortcuts (`buffer_metres`, `nearest`, `describe_raster`, `read_table`, `save`...) and the gateway to all 440 QGIS algorithms. |
+| `qgis_agent/places.py` | Place name -> outline (Nominatim), ambiguity rule, dated folder per place. |
+| `qgis_agent/data_fetch.py` | Downloads a place's layers; Overpass/Geofabrik hybrid for OpenStreetMap; repairs invalid shapes. |
+| `qgis_agent/map_render.py` | Draws results (vectors and rasters) as a PNG over OpenStreetMap. |
+| `qgis_agent/qgis_project.py` | "Open in QGIS Desktop". |
+| `qgis_agent/config.py` | Every setting, read from `.env` (model, prompt mode, context, place...). |
+| `qgis_agent/qgis_engine.py` | Starts QGIS headless once and keeps it running. |
 
 ### From Month 1, still in use
-
-| File | Job, and how it is used now |
+| File | Use now |
 |---|---|
-| `qgis_agent/qgis_tools.py` | The 11 fixed tools with strict JSON schemas (Month 1). Kept as the comparison baseline. **Still needed by the agent:** `helpers.py` uses its path check (`resolve_layer_path`) and error type, and `agent.py` uses its list of readable file types. |
-| `api.py` | REST API (FastAPI). Month 1 endpoints (`/health`, `/run`, `/buffer`, `/tools`, `/tools/execute`, `/layers`) plus `/ask`, which calls the same agent as the chat. |
-| `tests/test_tools.py` | 42 automatic checks of the fixed tools (`tests/data/` = Month 1 teaching data). |
+| `qgis_agent/qgis_tools.py` | The 11 fixed tools (baseline); its path check is used by the helpers. |
+| `api.py` | The Month 1 REST API (`/docs`), plus `/ask`. |
+| `tests/test_tools.py` | 42 automatic checks of the fixed tools. |
 
-### Data, prompts, evaluation, scripts
-
-| Folder / file | What it holds |
+### Evaluation
+| File | What it holds |
 |---|---|
-| `data/` | Real Sharjah data from OpenStreetMap: hospitals+clinics (154), schools (128), districts (109 points), parks (46 polygons), main roads (67 lines). `descriptions.json` = one plain sentence per layer for the briefing. |
-| `prompts/` | Generated files: `system_prompt_full.txt` (the full prompt, about 95k tokens), `qgis_all_algorithms.md` / `.json` (all 440 algorithms), `helper_tools.md`. Not edited by hand. |
-| `scripts/download_osm_data.py` | Re-downloads the Sharjah data (needs internet). |
-| `scripts/export_prompts.py` | Rebuilds `prompts/` from the installed QGIS. |
-| `evaluation/tasks.py` | 23 test questions + 6 held-out questions, each with an independently computed correct answer. |
-| `evaluation/run_eval.py`, `summarise.py` | Run the test; re-score all saved runs into one table. |
-| `evaluation/results/` | Every saved run (JSON + Markdown) and `SUMMARY.md`. |
-| `outputs/` | Everything the agent produces (git-ignored). |
-| `fix_qgis_env.sh` | Fixes QGIS paths on Windows; must be sourced before running anything there. Not needed on the Linux VM. |
+| `evaluation/places_bench.py` | The main question set: ~35 templates x Sharjah, Cairo, Berlin; counting to visual tasks. |
+| `evaluation/geobenchx.py` | The GeoBenchX subset (7 exact + 26 must-refuse), with corrected answers. |
+| `evaluation/reference.py` | The independent way to compute answers (geopandas/shapely/numpy). |
+| `evaluation/verify_truth.py` | Computes every answer both ways; writes `results/truth_check.md`. |
+| `evaluation/run_eval.py` | Runs the agent on a set (`--set`, `--mode full/lookup`), scores, saves results. |
+| `evaluation/results/` | Every run (JSON + Markdown); October runs in `archive_sharjah/`. |
+
+### Scripts and data
+| Path | What it is |
+|---|---|
+| `scripts/prepare_eval_places.py` | Downloads the three evaluation places once (frozen copies). |
+| `scripts/prepare_geobenchx.py` | Turns the GeoBenchX data archive into an agent-readable folder. |
+| `scripts/run_all_evals.sh` | The complete evaluation, both modes. |
+| `scripts/repair_place_polygons.py` | Repairs invalid shapes in older downloads. |
+| `scripts/export_prompts.py` | Rebuilds `prompts/` (all 440 algorithms) from the installed QGIS. |
+| `data/places/` | One folder per place and date; `_geofabrik/` keeps region files for a week (git-ignored). |
+| `evaluation/external/` | GeoBenchX data (git-ignored, ~0.8 GB). |
 
 ---
 
-## 4. Who calls whom
-
-```
-app.py ----------+
-api.py (/ask) ---+--> agent.py --> llm_client.py --> Ollama
-run_eval.py -----+       |
-                         +--> prompts.py --> helpers.py (helper list)
-                         +--> code_runner.py --> helpers.py --> qgis_engine.py
-                         |                          |
-                         |                          +--> qgis_tools.py (path check)
-                         +--> map_render.py
-                         +--> qgis_project.py --> map_render.py (styles)
-
-config.py is read by almost every module.
-```
-
----
-
-## 5. Status of each part
+## 4. Status of each part
 
 | Part | Status |
 |---|---|
-| Agent loop, helpers, chat app, map, "Open in QGIS Desktop" | Working, tested by hand and by the evaluation. |
-| Evaluation (October 2026) | Done. Strict scores: 3B 65-70% (held-out 17%), 7B 83% (held-out 50%). |
-| Full system prompt with all 440 algorithms (2026-11-03) | Built and committed. **Not yet evaluated** (see section 6). |
-| Fixed tools + tests | Working, 42/42. Kept as baseline and as path checks. |
-| `qgis_agent/places.py` (any-city lookup) | **Parked.** Draft only, not wired in, not committed. Waiting for the supervisor's data source. |
+| Agent, helpers, self-checks, any-place data | Working; tested by the evaluation and through the chat page. |
+| Chat page | Working (screenshots in the presentation). |
+| Evaluation (places + GeoBenchX, full vs lookup) | Answer key verified; runs on 2026-11-24 night: see `evaluation/results/SUMMARY.md`. |
+| Old October evaluation | Archived; its data was removed (fresh start). |
 
 ---
 
-## 6. Things to be aware of (honest notes)
+## 5. Things to be aware of
 
-1. **The current default settings do not fit the laptop.** The full prompt is
-   about 95k tokens and needs a 128k context (`CONTEXT_TOKENS=131072`), but the
-   default model is still `qwen2.5-coder:3b`, and the laptop (4 GB GPU, 8 GB
-   RAM) cannot hold that much context. The plan is to run on a VM with a bigger
-   model. Since 2026-11-23 the university VM (L40S GPU, 46 GB, shared with
-   other projects) has the `gis-llm` environment and passes the tests; the
-   bigger model is not chosen or downloaded yet.
-2. **The accuracy numbers are from before the full prompt.** They were measured
-   with only the 33 helpers in the prompt. They have not been re-measured.
-3. **No automatic tests for the agent itself.** `tests/test_tools.py` covers the
-   Month 1 fixed tools only. The agent is checked by the evaluation, which needs
-   the model running.
-4. **The model's code runs with full Python access** (`exec()`), by design; the
-   supervisor did not want a sandbox framing. Input/output paths in the helpers
-   are still confined to `data/` and `outputs/`.
-5. **Data is Sharjah only**, from OpenStreetMap; the supervisor may suggest a
-   different source.
+1. **The VM is shared.** Another user's job holds ~9.5 GB of the GPU; our model
+   needs ~32 GB at 128k context. If memory runs short, Ollama moves part of the
+   model to the CPU and answers slow down (the page shows "% on GPU").
+2. **Never run the evaluation and the chat page on the same outputs folder.**
+   Start the page with `QGIS_AGENT_OUTPUTS=outputs_ui` during an evaluation.
+3. **First question about a new place is slow** (download: minutes for a big
+   region, then reused for a week).
+4. **The model's code runs with full Python access** (`exec()`), by design.
