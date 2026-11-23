@@ -1,16 +1,23 @@
 """
-summarise.py: one table of all the evaluation results (writes results/SUMMARY.md).
+summarise.py: one report of all the evaluation results (writes results/SUMMARY.md
+and results/summary.json, which the presentation charts are drawn from).
 
-For every question set and place it takes the LATEST run in each prompt mode
-(full / lookup) and reports:
-  - accuracy overall, by level, by what the question needs, by family, by place;
-  - a PAIRED comparison of the two modes on the same questions: how many only
-    "full" got right (b), how many only "lookup" got right (c), and the exact
-    McNemar test p-value (the chance of a split at least this uneven if the two
-    modes were really equally good). p < 0.05 is the usual threshold.
+THREE GROUPS, NEVER MIXED
+-------------------------
+  development : places_bench.py (Sharjah, Cairo, Berlin). The system was improved
+                while looking at these, so these scores are optimistic.
+  external    : the GeoBenchX subset (a published benchmark, never tuned on).
+  held-out    : heldout_bench.py (new areas, new questions; run once on the
+                frozen system). THIS is the fair final measurement.
+
+For each group and prompt mode (full / lookup), the latest run of each place:
+  - accuracy with a 95% confidence interval (Wilson score interval);
+  - by level, by what the question needs, by family, by place;
+  - successes by attempt (as in GIS Copilot's Table 1) and the accuracy each cap
+    on attempts would give;
+  - a PAIRED comparison of the two modes on the same questions (exact McNemar test).
 
 Run:  python evaluation/summarise.py
-Also writes results/summary.json (used to draw the presentation charts).
 """
 
 import glob
@@ -21,25 +28,40 @@ from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(ROOT, "evaluation", "results")
+GROUPS = {"places": "development", "geobenchx": "external", "heldout": "held-out"}
 
 
 def latest_runs():
-    """{(set, place or '', mode): records} using the newest file of each kind."""
+    """{(group, place, mode): records} using the newest file of each kind."""
     runs = {}
     files = sorted(glob.glob(os.path.join(RESULTS, "*.json")), key=os.path.getmtime)
     for path in files:
-        if "smoke" in path or path.endswith("summary.json"):
+        if "smoke" in path or os.path.basename(path).startswith("summary"):
             continue
         try:
             records = json.load(open(path, encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if not records or "mode" not in records[0] or records[0].get("set") not in ("places", "geobenchx"):
+        if not isinstance(records, list) or not records or "mode" not in records[0] \
+                or records[0].get("set") not in GROUPS:
             continue
-        places = {r.get("place") or "" for r in records}
-        key = (records[0]["set"], "+".join(sorted(places)), records[0]["mode"])
-        runs[key] = records            # newer files overwrite older ones
+        group = GROUPS[records[0]["set"]]
+        by_place = defaultdict(list)
+        for r in records:
+            by_place[r.get("place") or "GeoBenchX"].append(r)
+        for place, rs in by_place.items():
+            runs[(group, place, records[0]["mode"])] = rs   # newer files overwrite
     return runs
+
+
+def wilson(k, n, z=1.96):
+    """95% confidence interval for a proportion (Wilson score interval)."""
+    if n == 0:
+        return 0.0, 0.0
+    p = k / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return max(0.0, centre - half), min(1.0, centre + half)
 
 
 def mcnemar(b, c):
@@ -48,67 +70,54 @@ def mcnemar(b, c):
     if n == 0:
         return 1.0
     k = min(b, c)
-    p = sum(math.comb(n, i) for i in range(k + 1)) / 2 ** n
-    return min(1.0, 2 * p)
+    return min(1.0, 2 * sum(math.comb(n, i) for i in range(k + 1)) / 2 ** n)
 
 
 def rate(records):
     if not records:
         return "-"
-    good = sum(r["correct"] for r in records)
-    return f"{good}/{len(records)} ({100 * good / len(records):.0f}%)"
+    k, n = sum(r["correct"] for r in records), len(records)
+    low, high = wilson(k, n)
+    return f"{k}/{n} ({100 * k / n:.0f}%, 95% CI {100 * low:.0f}-{100 * high:.0f}%)"
 
 
-def main():
-    runs = latest_runs()
-    by_mode = defaultdict(list)
-    for (set_name, place, mode), records in runs.items():
-        by_mode[mode] += records
-    lines = ["# Evaluation summary", "",
-             "Latest run of each question set and prompt mode; model qwen3-coder:30b. "
-             "Strict scoring: only the final answer counts (visual tasks: what was saved). "
-             "Answer key computed twice (QGIS + geopandas/numpy); disputed questions excluded.", ""]
-
-    lines += ["## Overall", "", "| Set | Place | full | lookup | avg seconds (full / lookup) |",
-              "|---|---|---|---|---|"]
-    for set_name, place in sorted({(s, p) for s, p, _ in runs}):
-        full = runs.get((set_name, place, "full"), [])
-        look = runs.get((set_name, place, "lookup"), [])
-        secs = " / ".join(f"{sum(r['seconds'] for r in x) / len(x):.0f}" if x else "-" for x in (full, look))
-        lines.append(f"| {set_name} | {place or '-'} | {rate(full)} | {rate(look)} | {secs} |")
-    lines.append(f"| **all** | | **{rate(by_mode['full'])}** | **{rate(by_mode['lookup'])}** | |")
+def report(group, by_mode, runs):
+    lines = [f"# {group.capitalize()} results", ""]
+    lines += ["| Place | full | lookup |", "|---|---|---|"]
+    for place in sorted({p for g, p, _ in runs if g == group}):
+        lines.append(f"| {place} | {rate(runs.get((group, place, 'full'), []))} | "
+                     f"{rate(runs.get((group, place, 'lookup'), []))} |")
+    lines.append(f"| **all** | **{rate(by_mode.get('full', []))}** | **{rate(by_mode.get('lookup', []))}** |")
+    secs = {m: sum(r["seconds"] for r in rs) / max(len(rs), 1) for m, rs in by_mode.items()}
+    lines.append("")
+    lines.append("Average seconds per question: " + ", ".join(f"{m} {s:.0f}" for m, s in secs.items()))
 
     def table(title, key, order=None):
-        values = order or sorted({r.get(key) for m in by_mode.values() for r in m if r.get(key) is not None},
-                                 key=str)
+        values = order or sorted({r.get(key) for rs in by_mode.values() for r in rs
+                                  if r.get(key) is not None}, key=str)
         out = ["", f"## By {title}", "", f"| {title} | full | lookup |", "|---|---|---|"]
         for value in values:
-            out.append(f"| {value} | {rate([r for r in by_mode['full'] if r.get(key) == value])} | "
-                       f"{rate([r for r in by_mode['lookup'] if r.get(key) == value])} |")
+            out.append(f"| {value} | {rate([r for r in by_mode.get('full', []) if r.get(key) == value])} | "
+                       f"{rate([r for r in by_mode.get('lookup', []) if r.get(key) == value])} |")
         return out
     lines += table("level", "level", [1, 2, 3])
     lines += table("what the question needs", "needs", ["helper", "algorithm", "none"])
     lines += table("family", "family")
 
-    # Paired comparison on questions answered in both modes.
-    full = {(r.get("set"), r["id"]): r for r in by_mode["full"]}
-    look = {(r.get("set"), r["id"]): r for r in by_mode["lookup"]}
+    full = {r["id"]: r for r in by_mode.get("full", [])}
+    look = {r["id"]: r for r in by_mode.get("lookup", [])}
     both = sorted(set(full) & set(look))
     b = sum(1 for k in both if full[k]["correct"] and not look[k]["correct"])
     c = sum(1 for k in both if look[k]["correct"] and not full[k]["correct"])
     p = mcnemar(b, c)
-    lines += ["", "## Paired comparison (same questions, both modes)", "",
-              f"- Questions answered in both modes: {len(both)}",
-              f"- Both right: {sum(1 for k in both if full[k]['correct'] and look[k]['correct'])}; "
-              f"both wrong: {sum(1 for k in both if not full[k]['correct'] and not look[k]['correct'])}",
-              f"- Only full right (b): {b}; only lookup right (c): {c}",
-              f"- Exact McNemar test: p = {p:.3f} "
-              f"({'a real difference at the 5% level' if p < 0.05 else 'not a significant difference at the 5% level'})",
-              f"- Look-ups used in lookup mode: {sum(1 for r in by_mode['lookup'] if r.get('lookups'))} questions"]
+    if both:
+        lines += ["", "## Paired comparison (same questions, both modes)", "",
+                  f"- Questions answered in both modes: {len(both)}; only full right: {b}; "
+                  f"only lookup right: {c}",
+                  f"- Exact McNemar test: p = {p:.4f} "
+                  f"({'a real difference at the 5% level' if p < 0.05 else 'not significant at the 5% level'})"]
 
-    # GIS Copilot-style table (Akinboyewa et al. 2024, Table 1): successes by the
-    # attempt on which the code first worked, failures, by level. Our agent fixes
-    # its own code automatically: attempt 1 = first code, 2-4 = after 1-3 fixes.
+    attempts = {}
     for mode in ("lookup", "full"):
         rs = by_mode.get(mode, [])
         if not rs:
@@ -116,60 +125,65 @@ def main():
         lines += ["", f"## Successes by attempt, {mode} prompt (as in GIS Copilot's Table 1)", "",
                   "| Level | Questions | 1st attempt | 2nd | 3rd | 4th | Failed | Success rate |",
                   "|---|---|---|---|---|---|---|---|"]
+        table_ = {}
         for level in (1, 2, 3):
-            group = [r for r in rs if r.get("level") == level]
-            if not group:
+            group_rs = [r for r in rs if r.get("level") == level]
+            if not group_rs:
                 continue
-            by_attempt = [sum(1 for r in group if r["correct"] and max(r.get("attempts") or 1, 1) == k)
-                          for k in (1, 2, 3, 4)]
-            failed = sum(1 for r in group if not r["correct"])
-            lines.append(f"| {level} | {len(group)} | " + " | ".join(map(str, by_attempt))
-                         + f" | {failed} | {100 * (len(group) - failed) / len(group):.0f}% |")
-        # What accuracy WOULD be with a smaller cap on attempts (exact: the run up to
-        # attempt k is identical whatever the cap).
-        total = len(rs)
-        caps = []
-        for cap in (1, 2, 3, 4):
-            ok = sum(1 for r in rs if r["correct"] and max(r.get("attempts") or 1, 1) <= cap)
-            caps.append(f"{cap}: {100 * ok / total:.0f}%")
-        still_erroring = sum(1 for r in rs if not r["correct"] and r.get("error")
-                             and (r.get("attempts") or 0) >= 4)
-        lines += ["", f"Accuracy if the number of attempts were capped at  " + " · ".join(caps),
-                  f"Wrong answers that still ended in an error after all 4 attempts "
-                  f"(the only ones more attempts could rescue): {still_erroring} of "
-                  f"{sum(1 for r in rs if not r['correct'])}"]
+            counts = [sum(1 for r in group_rs if r["correct"] and max(r.get("attempts") or 1, 1) == k)
+                      for k in (1, 2, 3, 4)]
+            failed = sum(1 for r in group_rs if not r["correct"])
+            table_[str(level)] = [len(group_rs)] + counts + [failed]
+            lines.append(f"| {level} | {len(group_rs)} | " + " | ".join(map(str, counts))
+                         + f" | {failed} | {100 * (len(group_rs) - failed) / len(group_rs):.0f}% |")
+        caps = {str(c_): round(100 * sum(1 for r in rs if r["correct"] and
+                                         max(r.get("attempts") or 1, 1) <= c_) / len(rs))
+                for c_ in (1, 2, 3, 4)}
+        erroring = sum(1 for r in rs if not r["correct"] and r.get("error") and (r.get("attempts") or 0) >= 4)
+        lines += ["", "Accuracy if attempts were capped at 1 / 2 / 3 / 4: "
+                  + " / ".join(f"{caps[k]}%" for k in ("1", "2", "3", "4")),
+                  f"Wrong answers still ending in an error after 4 attempts (the only ones more "
+                  f"attempts could rescue): {erroring} of {sum(1 for r in rs if not r['correct'])}"]
+        attempts[mode] = {"by_level": table_, "caps": caps, "still_erroring": erroring}
 
-    with open(os.path.join(RESULTS, "SUMMARY.md"), "w", encoding="utf-8") as handle:
-        handle.write("\n".join(lines) + "\n")
-    summary = {"modes": {m: {"correct": sum(r["correct"] for r in rs), "total": len(rs)}
-                         for m, rs in by_mode.items()},
-               "paired": {"n": len(both), "only_full": b, "only_lookup": c, "p": p},
-               "by": {}}
-    for key in ("level", "needs", "family", "place", "set"):
-        summary["by"][key] = {}
+    data = {"modes": {m: {"correct": sum(r["correct"] for r in rs), "total": len(rs),
+                          "ci": wilson(sum(r["correct"] for r in rs), len(rs))}
+                      for m, rs in by_mode.items()},
+            "paired": {"n": len(both), "only_full": b, "only_lookup": c, "p": p},
+            "seconds": secs, "attempts": attempts, "by": {}}
+    for key in ("level", "needs", "family", "place"):
+        data["by"][key] = {}
         for mode, rs in by_mode.items():
             groups = defaultdict(list)
             for r in rs:
-                groups[str(r.get(key) or "geobenchx")].append(r["correct"])
-            summary["by"][key][mode] = {g: [sum(v), len(v)] for g, v in groups.items()}
-    summary["seconds"] = {m: sum(r["seconds"] for r in rs) / max(len(rs), 1) for m, rs in by_mode.items()}
-    summary["attempts"] = {}
-    for mode, rs in by_mode.items():
-        table = {}
-        for level in (1, 2, 3):
-            group = [r for r in rs if r.get("level") == level]
-            table[str(level)] = [len(group)] + [
-                sum(1 for r in group if r["correct"] and max(r.get("attempts") or 1, 1) == k)
-                for k in (1, 2, 3, 4)] + [sum(1 for r in group if not r["correct"])]
-        caps = {str(c): round(100 * sum(1 for r in rs if r["correct"] and
-                                        max(r.get("attempts") or 1, 1) <= c) / max(len(rs), 1))
-                for c in (1, 2, 3, 4)}
-        summary["attempts"][mode] = {"by_level": table, "caps": caps,
-                                     "still_erroring": sum(1 for r in rs if not r["correct"] and
-                                                           r.get("error") and (r.get("attempts") or 0) >= 4)}
+                groups[str(r.get(key) or "GeoBenchX")].append(r["correct"])
+            data["by"][key][mode] = {g: [sum(v), len(v)] for g, v in groups.items()}
+    return lines, data
+
+
+def main():
+    runs = latest_runs()
+    all_lines = ["# Evaluation summary", "",
+                 "Model qwen3-coder:30b. Strict scoring: only the final answer counts (visual "
+                 "tasks: what was saved). Answer keys computed twice (QGIS + geopandas/numpy); "
+                 "disputed questions excluded. Development = places tuned on; external = "
+                 "GeoBenchX; held-out = new areas and questions, run once on the frozen system.", ""]
+    summary = {}
+    for group in ("held-out", "external", "development"):
+        by_mode = defaultdict(list)
+        for (g, place, mode), rs in runs.items():
+            if g == group:
+                by_mode[mode] += rs
+        if not by_mode:
+            continue
+        lines, data = report(group, by_mode, runs)
+        all_lines += lines + [""]
+        summary[group] = data
+    with open(os.path.join(RESULTS, "SUMMARY.md"), "w", encoding="utf-8") as handle:
+        handle.write("\n".join(all_lines) + "\n")
     with open(os.path.join(RESULTS, "summary.json"), "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=1)
-    print("\n".join(lines))
+    print("\n".join(all_lines))
 
 
 if __name__ == "__main__":

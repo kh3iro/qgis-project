@@ -66,6 +66,10 @@ def compare(task):
     else:
         agree = _same_name(q_value, r_value)
         truth = r_value
+        if not str(r_value).strip():
+            # An unnamed feature cannot be asked for by name (and an empty name
+            # would match any answer).
+            return truth, "disputed", f"QGIS={q_value!r}  independent={r_value!r} (no name)"
     detail = f"QGIS={q_value!r}  independent={r_value!r}"
     if margin is not None:
         detail += f"  winner ahead by {margin:.1%}"

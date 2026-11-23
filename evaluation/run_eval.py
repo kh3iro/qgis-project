@@ -189,7 +189,7 @@ def main():
     parser.add_argument("--model", default=config.MODEL)
     parser.add_argument("--only", default="", help="comma-separated task ids")
     parser.add_argument("--tag", default="", help="label added to the results file name")
-    parser.add_argument("--set", choices=["places", "geobenchx"], default="places",
+    parser.add_argument("--set", choices=["places", "geobenchx", "heldout"], default="places",
                         help="places = questions about the downloaded evaluation places "
                              "(places_bench.py); geobenchx = the published GeoBenchX subset")
     parser.add_argument("--places", default="", help="comma-separated place keys, e.g. sharjah,cairo")
@@ -218,6 +218,10 @@ def main():
         from evaluation import geobenchx
         geobenchx.use_data()
         tasks = geobenchx.TASKS
+    elif arguments.set == "heldout":
+        from evaluation import heldout_bench
+        keys = [k for k in arguments.places.split(",") if k] or None
+        tasks = heldout_bench.all_tasks(keys)
     else:
         from evaluation import places_bench
         keys = [k for k in arguments.places.split(",") if k] or None
