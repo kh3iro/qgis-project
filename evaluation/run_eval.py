@@ -377,3 +377,7 @@ def save(records, summary, model):
 
 if __name__ == "__main__":
     main()
+    # Leave without QGIS's own shutdown, which can crash (segmentation fault)
+    # after everything is saved; that made the chain think the run had failed.
+    sys.stdout.flush()
+    os._exit(0)
