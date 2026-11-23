@@ -322,13 +322,24 @@ def read_table(name):
     return pd.read_csv(path, skiprows=header, encoding="utf-8-sig")
 
 
+def total(layer, field):
+    """total(layer, field) -> float. The sum of a number field over ALL features, e.g. total(add_length_km(roads), "length_km")."""
+    layer = _layer(layer)
+    _check_fields(layer, [field])
+    return float(sum(f[field] for f in layer.getFeatures()
+                     if f[field] is not None and f[field] == f[field]))
+
+
 def count(layer):
     """count(layer) -> int. Number of features in a layer."""
     return _layer(layer).featureCount()
 
 
-def rows(layer, fields=None, limit=50):
-    """rows(layer, fields=None, limit=50) -> list of dicts. The attribute table, e.g. to print names."""
+def rows(layer, fields=None, limit=None):
+    """rows(layer, fields=None, limit=None) -> list of dicts. The attribute table (ALL rows unless limit is given), e.g. to print names or add up values."""
+    # Found 2026-11-24: the default used to be 50 rows, so the model's
+    # sum(r["area_km2"] for r in rows(parks)) silently added up only the first
+    # 50 of 285 parks (1.1 km2 instead of 5.8). Now every row is returned.
     layer = _layer(layer)
     if isinstance(fields, str):
         fields = [fields]      # rows(layer, "name") is a common slip
@@ -1109,7 +1120,7 @@ def save(layer, name):
 
 # The helpers shown to the model, grouped so it can find the right one.
 HELPER_GROUPS = {
-    "Open and inspect": [load, describe, count, rows, count_by, top, find_by_name,
+    "Open and inspect": [load, describe, count, rows, total, count_by, top, find_by_name,
                          describe_raster, read_table],
     "Distance and nearness (all in METRES)": [buffer_metres, within_distance, farther_than,
                                               nearest, distance_m],
