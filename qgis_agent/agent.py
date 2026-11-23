@@ -317,7 +317,9 @@ class Agent:
         if saved_paths:
             yield {"type": "step", "title": "Drawing the map", "status": "pending"}
             try:
-                png = map_render.render(saved_paths, context_paths=_data_files())
+                # Only the place's outline as background (drawing every layer of a
+                # city underneath made the map cluttered and slow).
+                png = map_render.render(saved_paths, context_paths=_context_files())
             except Exception:      # a map problem must never cost the answer
                 png = None
             if png:
@@ -561,6 +563,12 @@ def _same_place(name, place):
     return wanted in known or any(wanted in k or k in wanted for k in known if len(k) > 3)
 
 
+def _context_files():
+    """What to draw faintly under results: the place's outline, or the old data/ layers."""
+    boundary = os.path.join(config.DATA_DIR, "boundary.geojson")
+    return [boundary] if os.path.exists(boundary) else _data_files()
+
+
 def _data_files():
     """Every readable layer file in data/."""
     files = []
@@ -679,6 +687,12 @@ def _evidence(result):
         return ""
     lines = ["", "Saved for the map:"]
     for item in result.saved:
+        if item.get("kind") == "raster" or item["count"] is None:
+            # Found 2026-11-24: a saved heatmap was described as "None features",
+            # and the model told the person the heatmap was empty.
+            lines.append(f"- {item['name']}: a raster image (e.g. heatmap), drawn on the map "
+                         f"(this is a result, not an empty layer)")
+            continue
         note = " (EMPTY: nothing matched)" if item["count"] == 0 else ""
         lines.append(f"- {item['name']}: {item['count']} features{note}")
     return "\n".join(lines) + "\n"

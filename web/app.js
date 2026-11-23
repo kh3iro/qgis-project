@@ -177,7 +177,7 @@ class BotMessage {
     this.data.map = url;
     const m = document.createElement("div");
     m.className = "map";
-    m.innerHTML = `<img src="${esc(url)}" alt="Map of the result" loading="lazy">`;
+    m.innerHTML = `<img src="${esc(url)}" alt="Map of the result">`;
     m.onclick = () => openLightbox(url);
     this.body.append(m);
   }
@@ -431,12 +431,16 @@ $("modeSelect").onchange = () => { try { localStorage.setItem("qgis-agent-mode",
 try { applyTheme(localStorage.getItem("qgis-agent-theme")); $("modeSelect").value = localStorage.getItem("qgis-agent-mode") || "lookup"; } catch {}
 // Demo/screenshot helper: /#load=/files/demo_chat.json opens saved conversations
 // (a JSON list in the same format the page stores). Used for the slides.
+// Options after the file: &chat=<id> opens that conversation, &theme=light|dark.
 async function start() {
-  const match = location.hash.match(/^#load=(.+)$/);
-  if (match) {
-    try { chats = await (await fetch(decodeURIComponent(match[1]))).json(); } catch {}
+  const params = new URLSearchParams(location.hash.slice(1));
+  if (window.DEMO_CHATS) chats = window.DEMO_CHATS;          // embedded (screenshots)
+  else if (params.get("load")) {
+    try { chats = await (await fetch(params.get("load"))).json(); } catch {}
   }
-  if (chats.length) openChat(chats[0]); else startNewChat();
+  if (params.get("theme")) applyTheme(params.get("theme"));
+  const wanted = chats.find((c) => c.id === params.get("chat"));
+  if (wanted) openChat(wanted); else if (chats.length) openChat(chats[0]); else startNewChat();
 }
 start();
 refreshStatus();
