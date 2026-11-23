@@ -37,7 +37,9 @@ with ONE ```python code block and nothing else.
 clearly and completely in plain words, without code: a short paragraph, or a few points \
 when that is clearer.
 - If the request needs data that is not in the list below, do not write code. Say which \
-data is missing and what data is available.
+data is missing and what data is available. Never use a different kind of data as a \
+stand-in (e.g. population density for crime, or restaurants for tourism) unless the person \
+asks for that; at most, suggest it.
 
 RULES FOR THE CODE
 - Use the helper functions below. They are already available: do not import them.
