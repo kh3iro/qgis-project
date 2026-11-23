@@ -365,6 +365,25 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
   - **2026-11-23: Moved to the university VM** (see "Running on the VM" below).
     `gis-llm` env created, tests 42/42. Next: Geofabrik decision, then choose the
     bigger model for the 128k-context prompt.
+  - **2026-11-23/24 (overnight, Kheiro asleep, authorised "do everything"):**
+    see docs/DECISIONS.md entries marked "overnight" (to review with Kheiro).
+    Fresh start: old Sharjah data and October question set removed (git history;
+    results in evaluation/results/archive_sharjah/). Agent finds the place in each
+    question and downloads data per place (Overpass small / Geofabrik big,
+    osmium + pyosmium installed). Model qwen3-coder:30b. PROMPT_MODE full|lookup.
+    44 helpers (rasters, heatmap, grid, routing). New chat page: webapp.py + web/
+    (app.py serves it). Evaluation v3: evaluation/places_bench.py (Sharjah, Cairo,
+    Berlin) + evaluation/geobenchx.py, answer key computed twice
+    (evaluation/reference.py, verify_truth.py), summarise.py with McNemar test.
+    scripts/robustness_check.py = 33 free-form requests. Docs: LITERATURE,
+    GLOSSARY, SUPERVISOR_QA, PROJECT_MAP, README rewritten. Presentation built
+    from SlidesCarnival "Antonio" template in ~/Desktop/Kheiro QGIS/presentation/
+    (builder in ~/qgis-slides-work/).
+    **VS Code crashes were the kernel OOM killer** (a 47 GB bug reading Berlin's
+    OSM file, fixed). Run long jobs as capped services, NOT from the VS Code
+    terminal: `systemd-run --user --unit=NAME -p MemoryMax=30G --working-directory="$PWD"
+    bash -c "source ~/anaconda3/etc/profile.d/conda.sh && conda activate gis-llm && <cmd>"`;
+    check with `systemctl --user list-units "qgis-*"`; logs in evaluation/results/logs/.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 
@@ -377,7 +396,8 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
 - To run anything: `conda activate gis-llm` then `python <script>`. No
   `fix_qgis_env.sh` needed on Linux. "PDAL Error ... libhdf5_cpp" lines at QGIS
   start-up are harmless (unused point-cloud readers).
-- Ollama runs as a system service; models so far: only `llama3.2:3b` (not ours).
+- Ollama runs as a system service; our model: `qwen3-coder:30b` (set in `.env`).
+- Start the chat: `python app.py` (page on http://127.0.0.1:7860).
 
 ## Environment setup on the Windows laptop (read this before running anything there)
 

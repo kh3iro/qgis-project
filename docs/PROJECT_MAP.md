@@ -42,7 +42,7 @@ that open in QGIS Desktop.
                 "lookup" mode) + recent chat + question
                     -> llm_client.py -> Ollama -> qwen3-coder:30b
      3. RUN     code_runner.py runs the code in headless QGIS (qgis_engine.py);
-                the code uses helpers.py (35 helpers + any QGIS algorithm)
+                the code uses helpers.py (44 helpers + any QGIS algorithm)
         LOOK UP (lookup mode) the code only searched for an algorithm:
                 show the model the result, let it write the real code
      4. FIX     error, empty output or a warning: send it back, try again (x3)
@@ -71,7 +71,7 @@ code prints. QGIS does every calculation.
 | `qgis_agent/prompts.py` | The system prompt (two modes), place prompt, fix / answer / check messages. |
 | `qgis_agent/llm_client.py` | The only file that talks to the model (Ollama over HTTP). |
 | `qgis_agent/code_runner.py` | Runs the model's code with `exec()` in a workspace kept per conversation. |
-| `qgis_agent/helpers.py` | 35 tested shortcuts (`buffer_metres`, `nearest`, `describe_raster`, `read_table`, `save`...) and the gateway to all 440 QGIS algorithms. |
+| `qgis_agent/helpers.py` | 44 tested shortcuts (distances, zones, rasters, heatmap, grid, routing, `save`...) and the gateway to all 440 QGIS algorithms. |
 | `qgis_agent/places.py` | Place name -> outline (Nominatim), ambiguity rule, dated folder per place. |
 | `qgis_agent/data_fetch.py` | Downloads a place's layers; Overpass/Geofabrik hybrid for OpenStreetMap; repairs invalid shapes. |
 | `qgis_agent/map_render.py` | Draws results (vectors and rasters) as a PNG over OpenStreetMap. |

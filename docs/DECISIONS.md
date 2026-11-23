@@ -13,6 +13,55 @@ written up here yet; they will be added in the catch-up "Phase 2".
 > "get things done with everything" before the presentation. Each is to be
 > reviewed with Kheiro; any of them can be reversed.
 
+## 2026-11-24 (overnight): More helpers for the requests that kept failing
+
+**Decision.** 44 helpers (was 33). New: `zonal_statistics`, `raster_values_at`,
+`raster_stats`, `raster_classes`, `heatmap`, `grid`, `route`, `reachable_area`,
+`total`, `describe_raster`, `read_table`. All raw QGIS algorithms stay available.
+
+**Why.** Kheiro asked for a system that works for any request a supervisor might
+type. Free-form tests showed the model failing on the same few common requests,
+each time because of a GIS trap, not because it misunderstood: "people within
+1 km" answered "67" (statistic code 2 = mean, not sum); a heatmap with a radius
+of 500 *degrees*; a hexagon grid in degrees; reading raster cells with a function
+that does not exist; no way to compute a drive. A helper hides the trap (units,
+CRS, codes). In October, helpers raised accuracy in the same way.
+
+**Alternative rejected.** *Only better prompt rules:* tried for the place-name
+mistake; the model kept doing it (next entry).
+
+---
+
+## 2026-11-24 (overnight): Safety nets in code, where prompt rules were not enough
+
+**Decision.** Rules enforced in code instead of only in the prompt:
+- any QGIS tool with a distance parameter gets its degree inputs converted to metres
+  (UTM) first; coded options accept names (`"sum"`);
+- `find_by_name(layer, "<the place's own name>")` returns the whole layer
+  (the model filtered "schools in Sharjah" by name: 1 school instead of 34);
+- `rows()` returns all rows (default was 50, so sums silently covered 50 of 285 parks);
+- `points_in_polygons` refuses point layers with a hint (neighbourhoods are points);
+- `$area`, `$length`, `$perimeter` measured on the WGS84 ellipsoid in metres
+  (they came out in degrees: "longest park perimeter 0.0 km");
+- the model's code runs inside `outputs/` (it wrote files into the project folder);
+- the answer may be as long as the question needs (was 1-4 sentences).
+
+**Why.** Each was found by a failing test tonight; each made a wrong answer look right.
+
+---
+
+## 2026-11-24 (overnight): Fix a 47 GB memory bug; run heavy jobs as capped services
+
+**Decision.** Reading a detailed OSM file now keeps only the ~12 tag keys our layers
+use. Long jobs run with `systemd-run --user -p MemoryMax=...`, outside VS Code.
+
+**Why.** Preparing Berlin unpacked every OSM tag key (thousands) into a table
+column and reached 47 GB. The kernel's out-of-memory killer then killed the whole
+VS Code process group, including the session and all running jobs (journal,
+21:28 and 02:35). This was the cause of VS Code "crashing" during the night.
+
+---
+
 ## 2026-11-23 (overnight): Web chat page instead of the Gradio window
 
 **Decision.** A new chat page (`web/index.html`, `style.css`, `app.js`) served by

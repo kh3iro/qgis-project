@@ -55,7 +55,7 @@ the conversation and the variables its code created.
  1. LOOK    describe the place's layers, rasters and tables for the model
  2. ASK     instructions + helpers + data description + question -> the model
  3. RUN     the model's Python code runs in headless QGIS
-            (35 tested helpers + any of QGIS's 440 algorithms)
+            (44 tested helpers + any of QGIS's 440 algorithms)
  4. FIX     error / nothing printed / suspicious result -> back to the model (x3)
  5. EXPLAIN printed result -> one plain answer; every number must come from QGIS
             map drawn over OpenStreetMap; files saved
@@ -78,6 +78,10 @@ et al. 2023) with code as the action (CodeAct, Wang et al. 2024).
 | Helpers are restored before each run | The model overwriting `nearest` with a layer |
 | Invalid outlines repaired at download | QGIS refusing a self-crossing park polygon |
 | Code without fences, bare output names, empty parameters tolerated | Correct code never run or results lost |
+| Any QGIS tool with a distance setting gets degree data converted to metres | A heatmap radius of 500 *degrees* |
+| Options can be named (`"sum"`), not only coded (1) | "67 people" from the average instead of the sum |
+| `rows()` returns all rows; `total()` adds up a field | Sums silently over the first 50 of 285 parks |
+| `$area`, `$length`, `$perimeter` in metres on the real Earth | "Longest park perimeter: 0.0 km" |
 
 ---
 
