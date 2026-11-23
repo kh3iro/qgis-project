@@ -518,7 +518,7 @@ def _add_measure(layer, field_name, measure):
 
 
 def find_by_name(layer, text, field="name"):
-    """find_by_name(layer, text, field="name") -> layer. Features whose name contains `text` (not case-sensitive), e.g. find_by_name("sharjah_parks", "Al Majaz")."""
+    """find_by_name(layer, text, field="name") -> layer. Features whose name contains `text` (not case-sensitive), e.g. find_by_name("parks", "Central Park")."""
     layer = _layer(layer)
     _check_fields(layer, [field])
     safe = str(text).replace("'", "''")   # a quote inside a name must be doubled
@@ -562,7 +562,7 @@ def distance_m(layer_a, layer_b):
 
 
 def count_by(layer, field):
-    """count_by(layer, field) -> dict. How many features have each value of `field`, e.g. count_by("sharjah_hospitals", "type")."""
+    """count_by(layer, field) -> dict. How many features have each value of `field`, e.g. count_by("hospitals", "type")."""
     layer = _layer(layer)
     _check_fields(layer, [field])
     counts = {}
@@ -702,6 +702,16 @@ def run_algorithm(algorithm_id, params):
     prepared = {}
     for key, value in params.items():
         kind = definitions[key].type()
+        if isinstance(value, str) and value.strip() == "" and kind not in _OUTPUT_PARAMETER_TYPES:
+            # Found in testing (2026-11-23): the model passed FIELD_NAME "" to the
+            # contour tool, which then wrote no elevation values. An empty text
+            # means "not set": QGIS's default is used instead.
+            continue
+        if kind in _OUTPUT_PARAMETER_TYPES and isinstance(value, str) and \
+                value != "TEMPORARY_OUTPUT" and not os.path.dirname(value):
+            # A bare name like "contours_10m" is not a file path: QGIS would write
+            # it to an unknown place. Make a temporary result; save() names it.
+            continue
         if kind in _LAYER_PARAMETER_TYPES:
             prepared[key] = _as_layer_input(value)
         else:
@@ -737,7 +747,7 @@ def _as_layer_input(value):
         return [_as_layer_input(v) for v in value]          # multi-layer parameters
     if isinstance(value, str) and not os.path.exists(value):
         try:
-            # A name like "sharjah_parks": find its file in data/ or outputs/.
+            # A name like "parks": find its file in data/ or outputs/.
             # A file path works for vector AND raster layers.
             return resolve_layer_path(value)
         except ToolError:

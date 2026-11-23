@@ -109,6 +109,28 @@ class Agent:
             return False
         return True
 
+    def choose_place(self, name):
+        """Switch to a place chosen by the person (the chat page's place chip). Yields events."""
+        from . import places as places_module
+        started = time.time()
+        yield {"type": "step", "title": f"Finding {name} on the map", "status": "pending"}
+        try:
+            found = places_module.find_place(name)
+        except places_module.PlaceError as exc:
+            yield {"type": "answer", "text": str(exc)}
+            yield {"type": "done", "seconds": time.time() - started}
+            return
+        yield from self._prepare(found)
+        self.set_place(found)
+        yield {"type": "place", "name": found.name, "display": found.display_name,
+               "note": found.choice_note()}
+        layers = sorted(os.path.splitext(os.path.basename(p))[0] for p in _data_files()
+                        + _other_data_files(RASTER_EXTENSIONS))
+        yield {"type": "answer", "text": f"Ready: I will answer questions about "
+                                         f"{found.display_name}. Data available: "
+                                         f"{', '.join(layers)}."}
+        yield {"type": "done", "seconds": time.time() - started}
+
     def _prepare(self, place):
         """Download a place's layers if they are not saved yet, streaming the progress."""
         import queue

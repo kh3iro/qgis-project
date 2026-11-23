@@ -4,10 +4,10 @@ run_eval.py: measure how accurate the agent is.
 HOW TO RUN (git bash, from the project folder; Ollama running)
 --------------------------------------------------------------
     conda activate gis-llm
-    source fix_qgis_env.sh
-    python evaluation/run_eval.py                          # model from .env
-    python evaluation/run_eval.py --model qwen2.5-coder:7b # another model
-    python evaluation/run_eval.py --only far_expert,count_schools
+    python evaluation/run_eval.py --set places --mode full      # questions about the places
+    python evaluation/run_eval.py --set places --mode lookup
+    python evaluation/run_eval.py --set geobenchx --mode full   # the GeoBenchX subset
+    python evaluation/run_eval.py --set places --places cairo --only cairo_count_schools
 
 WHAT IT DOES
 ------------
@@ -125,8 +125,8 @@ def is_correct_v2(task, truth, record):
     if check == "name":
         options = task["accept"].get(str(truth), [str(truth)])
         return any(option.lower() in lowered for option in options)
-    if check == "missing":
-        return is_correct({"check": "missing"}, None, record)
+    if check in ("missing", "no_code"):
+        return is_correct({"check": check}, None, record)
     raise ValueError(f"Unknown check '{check}'")
 
 
@@ -135,13 +135,18 @@ def run_task(agent_class, task, model):
 
     # Every question starts clean: no results left over from earlier questions.
     for name in os.listdir(config.OUTPUTS_DIR) if os.path.isdir(config.OUTPUTS_DIR) else []:
-        if name.endswith((".gpkg", ".csv")):
+        if name.endswith((".gpkg", ".csv", ".tif")):
             try:
                 os.remove(os.path.join(config.OUTPUTS_DIR, name))
             except OSError:
                 pass
 
-    agent = agent_class(model=model)
+    from qgis_agent import places
+    place = None
+    if task.get("folder"):
+        with open(os.path.join(task["folder"], "place.json"), encoding="utf-8") as handle:
+            place = places.Place(**json.load(handle))
+    agent = agent_class(model=model, place=place)
     record = {"id": task["id"], "category": task["category"], "request": task["request"],
               "pair": task.get("pair"), "code": "", "output": "", "error": "",
               "answer": "", "code_runs": 0, "attempts": 0, "files": [],
@@ -183,12 +188,11 @@ def main():
     parser = argparse.ArgumentParser(description="Measure the agent's accuracy.")
     parser.add_argument("--model", default=config.MODEL)
     parser.add_argument("--only", default="", help="comma-separated task ids")
-    parser.add_argument("--heldout", action="store_true",
-                        help="run the held-out questions instead (see tasks.py)")
     parser.add_argument("--tag", default="", help="label added to the results file name")
-    parser.add_argument("--set", choices=["oct", "v2"], default="oct",
-                        help="oct = the October questions (tasks.py); v2 = the new set with "
-                             "double-checked answers (sharjah_v2.py)")
+    parser.add_argument("--set", choices=["places", "geobenchx"], default="places",
+                        help="places = questions about the downloaded evaluation places "
+                             "(places_bench.py); geobenchx = the published GeoBenchX subset")
+    parser.add_argument("--places", default="", help="comma-separated place keys, e.g. sharjah,cairo")
     parser.add_argument("--mode", choices=["full", "lookup"], default=config.PROMPT_MODE,
                         help="full = every QGIS algorithm in the prompt; lookup = the model "
                              "searches for algorithms itself (see config.PROMPT_MODE)")
@@ -202,50 +206,61 @@ def main():
     share = llm_client.gpu_share(arguments.model)
     print(f"Model on graphics card: {'unknown' if share is None else f'{share:.0%}'}")
 
-    from evaluation.tasks import HELDOUT_TASKS, TASKS
-    from qgis_agent.agent import Agent
+    from evaluation.verify_truth import check_all
+    from qgis_agent.agent import Agent, use_data_folder
 
-    tasks = HELDOUT_TASKS if arguments.heldout else TASKS
-    truths = {}
-    if arguments.set == "v2":
-        # The answer key is computed twice (QGIS + independent method); questions
-        # whose two answers disagree are left out (see verify_truth.py).
-        from evaluation.sharjah_v2 import TASKS as V2_TASKS
-        from evaluation.verify_truth import check_all
-        checked = check_all(V2_TASKS)
-        disputed = [t["id"] for t in V2_TASKS if checked[t["id"]]["status"] != "ok"]
-        if disputed:
-            print("Left out (answer key disputed):", ", ".join(disputed))
-        tasks = [t for t in V2_TASKS if t["id"] not in disputed]
-        truths = {t["id"]: checked[t["id"]]["truth"] for t in tasks}
+    # The evaluation fixes the place of each question set, so the agent does not
+    # look for places in the questions.
+    config.DETECT_PLACE = False
+    if arguments.set == "geobenchx":
+        from evaluation import geobenchx
+        geobenchx.use_data()
+        tasks = geobenchx.TASKS
+    else:
+        from evaluation import places_bench
+        keys = [k for k in arguments.places.split(",") if k] or None
+        tasks = places_bench.all_tasks(keys)
     if arguments.only:
         wanted = set(arguments.only.split(","))
-        tasks = [t for t in tasks + TASKS + HELDOUT_TASKS if t["id"] in wanted]
+        tasks = [t for t in tasks if t["id"] in wanted]
+
+    # The answer key is computed twice (QGIS + independent method); questions
+    # whose two answers disagree are left out (see verify_truth.py).
+    checked = check_all(tasks)
+    disputed = [t["id"] for t in tasks if checked[t["id"]]["status"] != "ok"]
+    if disputed:
+        print("Left out (answer key disputed or failed):", ", ".join(disputed))
+    tasks = [t for t in tasks if t["id"] not in disputed]
+    truths = {t["id"]: checked[t["id"]]["truth"] for t in tasks}
 
     print(f"Evaluating {arguments.model} ({arguments.mode} prompt) on {len(tasks)} tasks\n")
     records = []
     for number, task in enumerate(tasks, 1):
-        v2 = task["id"] in truths
-        truth = truths[task["id"]] if v2 else task["truth"]()
+        truth = truths[task["id"]]
+        if task.get("folder"):
+            use_data_folder(task["folder"])
         record = run_task(Agent, task, arguments.model)
         record["truth"] = truth
         record["mode"] = arguments.mode
         record["set"] = arguments.set
-        for key in ("level", "family", "needs"):
+        for key in ("level", "family", "needs", "place"):
             record[key] = task.get(key)
-        if v2:
+        if task["check"] == "custom":
+            try:
+                record["correct"] = (not record["crashed"]) and bool(task["checker"](record, truth))
+            except Exception as exc:
+                record["correct"], record["check_error"] = False, str(exc)[:200]
+            record["correct_lenient"] = record["correct"]
+        else:
             record["correct"] = (not record["crashed"]) and is_correct_v2(task, truth, record)
             lenient = dict(record, answer=f"{record['output']}\n{record['answer']}")
             record["correct_lenient"] = (not record["crashed"]) and is_correct_v2(task, truth,
                                                                                 lenient)
-        else:
-            record["correct"] = (not record["crashed"]) and is_correct(task, truth, record)
-            record["correct_lenient"] = (not record["crashed"]) and is_correct(
-                task, truth, record, strict=False)
         records.append(record)
         mark = "PASS" if record["correct"] else "FAIL"
-        print(f"[{number:2}/{len(tasks)}] {mark}  {task['id']:<24} "
-              f"attempts={record['attempts']} {record['seconds']:>5.0f}s  truth={truth}")
+        shown = f"{truth:.4g}" if isinstance(truth, float) else str(truth)[:40]
+        print(f"[{number:3}/{len(tasks)}] {mark}  {task['id']:<34} "
+              f"attempts={record['attempts']} {record['seconds']:>5.0f}s  truth={shown}", flush=True)
         if not record["correct"]:
             reason = record["crashed"] or record["error"].splitlines()[-1:] or ["wrong answer"]
             print(f"         answer: {record['answer'][:150]!r}  ({reason[0] if isinstance(reason, list) else reason})")
@@ -285,9 +300,13 @@ def summarise(records, model):
             if subset:
                 lines.append(f"| {needs} | {rate(subset)} |")
 
+    if any(r.get("place") for r in records):
+        lines += ["", "| Place | Correct |", "|---|---|"]
+        for place in sorted({r["place"] for r in records if r.get("place")}):
+            lines.append(f"| {place} | {rate([r for r in records if r.get('place') == place])} |")
     pairs = {}
     for r in records:
-        if r["pair"]:
+        if r.get("pair"):
             pairs.setdefault(r["pair"], {})["expert" if r["category"] == "expert wording" else "plain"] = r
     complete = {k: v for k, v in pairs.items() if "expert" in v and "plain" in v}
     if complete:

@@ -40,12 +40,13 @@ data is missing and what data is available.
 
 RULES FOR THE CODE
 - Use the helper functions below. They are already available: do not import them.
+- All the data is about ONE place (named in the data list). Use only that data.
 - All distances are in METRES (5 km = 5000). Use the distance helpers; never compute \
 distances from coordinates yourself.
 - Only use layer and field names that appear in the data list below. To find a place by \
 name, use find_by_name().
 - Helpers never change a layer; they RETURN a new one. Always keep the result: \
-parks = add_area_km2("sharjah_parks"), then use parks.
+parks = add_area_km2("parks"), then use parks.
 - To count things per category (e.g. hospitals vs clinics), use count_by(layer, field).
 - print() the facts the person asked for: counts, names, distances, areas. Print at most \
 20 names.
@@ -61,8 +62,8 @@ DATA AVAILABLE
 EXAMPLE 1
 Request: Which schools are more than 3 km from a hospital?
 ```python
-hospitals = filter_features("sharjah_hospitals", '"type" = \\'hospital\\'')
-far = farther_than("sharjah_schools", hospitals, 3000)
+hospitals = filter_features("hospitals", '"type" = \\'hospital\\'')
+far = farther_than("schools", hospitals, 3000)
 print(count(far), "schools are more than 3 km from a hospital:")
 for row in rows(far, ["name"], limit=20):
     print("-", row["name"])
@@ -70,23 +71,24 @@ save(far, "schools_far_from_hospitals")
 ```
 
 EXAMPLE 2
-Request: How far is Al Qassimi Hospital from Al Nahda Park?
+Request: How far is City Hospital from Central Park?
 ```python
-hospital = find_by_name("sharjah_hospitals", "Al Qassimi")
-park = find_by_name("sharjah_parks", "Al Nahda Park")
+hospital = find_by_name("hospitals", "City Hospital")
+park = find_by_name("parks", "Central Park")
 print("Distance:", distance_m(hospital, park), "metres")
-save(hospital, "al_qassimi_hospital")
-save(park, "al_nahda_park")
+save(hospital, "city_hospital")
+save(park, "central_park")
 ```
 
 EXAMPLE 3
-Request: Which areas have the most clinics?
+Request: Which neighbourhoods have the most clinics?
 ```python
-areas = service_areas("sharjah_districts")
-counted = points_in_polygons(areas, "sharjah_hospitals")
+clinics = filter_features("hospitals", '"type" = \\'clinic\\'')
+areas = service_areas("neighbourhoods")
+counted = points_in_polygons(areas, clinics)
 for row in top(counted, "count", 5):
     print(row["name"], int(row["count"]))
-save(counted, "clinics_per_area")
+save(counted, "clinics_per_neighbourhood")
 ```"""
 
 

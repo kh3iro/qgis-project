@@ -1,0 +1,46 @@
+[
+  {
+    "id": "count_schools",
+    "category": "counting",
+    "request": "How many schools are there?",
+    "pair": null,
+    "code": "print(count(\"sharjah_schools\"), \"schools in Sharjah\")",
+    "output": "128 schools in Sharjah",
+    "error": "",
+    "answer": "There are 128 schools in Sharjah. The data includes all schools as points in the Sharjah area. No other information was requested or provided.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [],
+    "saved_counts": [],
+    "seconds": 37.0,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 128,
+    "correct": true,
+    "correct_lenient": true
+  },
+  {
+    "id": "schools_near_hospital",
+    "category": "proximity",
+    "request": "How many schools are within 1 km of a hospital (not clinics)?",
+    "pair": null,
+    "code": "hospitals = filter_features(\"sharjah_hospitals\", '\"type\" = \\'hospital\\'')\nschools = load(\"sharjah_schools\")\nnearby_schools = within_distance(schools, hospitals, 1000)\nprint(count(nearby_schools), \"schools are within 1 km of a hospital\")\nsave(nearby_schools, \"schools_near_hospitals\")",
+    "output": "50 schools are within 1 km of a hospital",
+    "error": "",
+    "answer": "There are 50 schools located within 1 kilometer of a hospital in Sharjah. The hospitals included in this count are specifically the ones marked as 'hospital' type, excluding clinics. All these schools are within walking distance of a hospital facility. This means students at these schools would have quick access to medical care if needed.",
+    "code_runs": 1,
+    "attempts": 1,
+    "files": [
+      "outputs/schools_near_hospitals.gpkg"
+    ],
+    "saved_counts": [
+      50
+    ],
+    "seconds": 7.9,
+    "crashed": "",
+    "ran_ok": true,
+    "truth": 50,
+    "correct": true,
+    "correct_lenient": true
+  }
+]

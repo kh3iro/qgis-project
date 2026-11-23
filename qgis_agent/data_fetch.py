@@ -103,6 +103,8 @@ def _save_vector(place, name, frame, geometry, source, licence, description, rel
     path = os.path.join(place.folder, file_name)
     if os.path.exists(path):
         os.remove(path)            # GeoPackage would otherwise append
+    if geometry == "polygon" and len(frame):
+        frame = repair_polygons(frame)
     if len(frame):
         frame.to_file(path, layer=name, driver="GPKG")
         _record(place, name, file=file_name, kind="vector", geometry=geometry,
@@ -115,6 +117,30 @@ def _save_vector(place, name, frame, geometry, source, licence, description, rel
         _record(place, name, file="", kind="vector", geometry=geometry, count=0,
                 source=source, licence=licence, downloaded=time.strftime("%Y-%m-%d"),
                 description=description + " (None mapped in this area.)")
+
+
+def repair_polygons(frame):
+    """Make every outline a valid polygon (found 2026-11-23).
+
+    Some OpenStreetMap areas cross over themselves. QGIS tools then stop with
+    "Feature has invalid geometry", which would make the agent fail on a
+    perfectly reasonable question. shapely's make_valid() repairs the shape
+    without moving it; any stray lines or points it produces are dropped.
+    """
+    import shapely
+    repaired = []
+    for geometry in frame.geometry.values:
+        if geometry is None or geometry.is_empty:
+            repaired.append(None)
+            continue
+        fixed = shapely.make_valid(geometry) if not geometry.is_valid else geometry
+        if fixed.geom_type == "GeometryCollection":
+            parts = [g for g in shapely.get_parts(fixed) if g.geom_type in ("Polygon", "MultiPolygon")]
+            fixed = shapely.union_all(parts) if parts else None
+        repaired.append(fixed)
+    frame = frame.copy()
+    frame["geometry"] = repaired
+    return frame[frame.geometry.notna() & ~frame.geometry.is_empty]
 
 
 def _text(value):

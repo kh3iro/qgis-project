@@ -80,6 +80,11 @@ class CodeRunner:
         helpers.SAVED_RESULTS.clear()
         helpers.SAVED_FILES.clear()
         printed = io.StringIO()
+        # Put the helpers back before every run. Found in testing (2026-11-23):
+        # the model wrote `nearest = nearest(schools, hospitals)`, which replaced
+        # the helper with a layer, so every later attempt failed with
+        # "'QgsVectorLayer' object is not callable". Its own variables are kept.
+        self.workspace.update(helpers.namespace())
 
         try:
             # compile() first, so syntax errors are caught and labelled too.

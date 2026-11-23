@@ -1,8 +1,0 @@
-{
-  "_about": "One plain sentence per layer, shown to the model with the data briefing. Data from OpenStreetMap (c) OpenStreetMap contributors, ODbL. Downloaded with scripts/download_osm_data.py for the Sharjah city area.",
-  "sharjah_hospitals": "Hospitals AND clinics in the Sharjah area. The field 'type' is 'hospital' or 'clinic'; filter on it when the person means only one kind.",
-  "sharjah_schools": "Schools in the Sharjah area (points).",
-  "sharjah_districts": "Named districts and neighbourhoods as POINTS (one point per district, no boundaries). For anything per district or per area, first make areas with service_areas(\"sharjah_districts\"). To find which district a place is in, use nearest(place, \"sharjah_districts\").",
-  "sharjah_parks": "Public parks in the Sharjah area, with their outlines (polygons).",
-  "sharjah_main_roads": "Main roads (motorway, trunk, primary) in the Sharjah area; one feature per named road. The field 'type' is the road class."
-}

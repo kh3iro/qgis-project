@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>QGIS Agent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M16 6c-4 0-7 3-7 7 0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 10a3 3 0 110-6 3 3 0 010 6z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Sidebar: new chat, conversation list, system info -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2.5c-3.6 0-6.5 2.9-6.5 6.5 0 4.8 6.5 12.5 6.5 12.5s6.5-7.7 6.5-12.5c0-3.6-2.9-6.5-6.5-6.5zm0 9.2a2.7 2.7 0 110-5.4 2.7 2.7 0 010 5.4z"/></svg>
+        </span>
+        <span class="brand-name">QGIS Agent</span>
+      </div>
+      <button class="icon-btn only-mobile" id="closeSidebar" title="Close menu" aria-label="Close menu">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <button class="new-chat" id="newChat">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      New chat
+    </button>
+
+    <div class="history-label">Conversations</div>
+    <nav class="history" id="history"></nav>
+
+    <div class="sidebar-bottom">
+      <div class="setting">
+        <label for="modeSelect">How the model learns QGIS tools</label>
+        <select id="modeSelect">
+          <option value="lookup">Looks tools up when needed</option>
+          <option value="full">All 440 tools in the prompt</option>
+        </select>
+      </div>
+      <div class="system" id="systemInfo">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Connecting…</span>
+      </div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- Main column -->
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="openSidebar" title="Menu" aria-label="Open menu">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <button class="place-chip" id="placeChip" title="Change the place">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-7-7.6-7-12a7 7 0 1114 0c0 4.4-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        <span id="placeName">No place yet</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg>
+      </button>
+      <div class="topbar-actions">
+        <button class="ghost-btn" id="openQgis" title="Open every result of this chat in QGIS Desktop">
+          <svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg>
+          <span>Open in QGIS</span>
+        </button>
+        <button class="icon-btn" id="themeToggle" title="Light / dark" aria-label="Switch theme">
+          <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="thread" id="thread">
+      <div class="welcome" id="welcome">
+        <h1>Ask anything about a place.</h1>
+        <p>Type a question in plain words. The agent writes QGIS code, runs it on real map data,
+          checks the result and answers with a map. Name any city to start.</p>
+        <div class="examples" id="examples"></div>
+      </div>
+    </section>
+
+    <footer class="composer-wrap">
+      <form class="composer" id="composer">
+        <textarea id="input" rows="1" placeholder="Ask about hospitals, parks, roads, population, elevation…" autocomplete="off"></textarea>
+        <button type="submit" class="send" id="send" title="Send" aria-label="Send">
+          <svg class="send-icon" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+          <svg class="stop-icon" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+        </button>
+      </form>
+      <div class="disclaimer">Answers come from OpenStreetMap and other open data, computed in QGIS. Data can be incomplete; check important results.</div>
+    </footer>
+  </main>
+</div>
+
+<!-- Place picker -->
+<dialog class="modal" id="placeDialog">
+  <form method="dialog" id="placeForm">
+    <h2>Which place?</h2>
+    <p>A city, district or region anywhere in the world. Its map data is downloaded the first time (a few minutes), then reused.</p>
+    <input id="placeInput" placeholder="e.g. Sharjah, Cairo, Berlin" autocomplete="off">
+    <div class="modal-actions">
+      <button value="cancel" class="ghost-btn">Cancel</button>
+      <button value="ok" class="primary-btn" id="placeOk">Use this place</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Map viewer -->
+<div class="lightbox" id="lightbox" hidden><img id="lightboxImg" alt="Map"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

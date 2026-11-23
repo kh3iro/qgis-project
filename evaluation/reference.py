@@ -3,93 +3,92 @@ reference.py: a SECOND, independent way to compute the correct answers.
 
 WHY THIS EXISTS
 ---------------
-The answer key in tasks.py is computed with our own helpers (helpers.py), the
-same functions the model calls. If a helper had a bug, the model and the answer
-key would be wrong TOGETHER and still "agree". To close that gap, every answer
-in the new question set (sharjah_v2.py) is computed twice:
+If the answer key were computed with our own helpers (helpers.py), the same
+functions the model calls, a bug in a helper would make the model and the
+answer key wrong TOGETHER, and they would still "agree". So every answer in the
+question sets is computed twice:
 
     1. with QGIS (helpers.py or QGIS processing algorithms), and
     2. here, with geopandas + shapely (vectors) and numpy (rasters),
 
 which share NO analysis code with QGIS. (Both read files through GDAL; that is
-the only common part.) A question only counts if the two answers agree; if they
-do not, it is reported as "disputed" and left out of the score.
+the only common part.) A question only counts if the two answers agree; if not,
+it is reported as "disputed" and left out of the score.
 
 CONVENTIONS (the same ones the questions state or imply)
 -------------------------------------------------------
-- Distances and areas: in metres, in UTM zone 40N (EPSG:32640), the metre-based
-  map projection for the UAE. The helpers use the same projection.
+- Distances and areas: in metres, in the UTM zone of the place (the metre-based
+  map projection for that part of the world). The helpers do the same.
 - "Within X m": the shortest distance is X m or less.
 - Rasters: a cell belongs to an area if its CENTRE is inside the area (the rule
   QGIS's zonal statistics uses).
 """
 
+import json
+import math
 import os
 
 import geopandas as gpd
 import numpy as np
 import shapely
-from osgeo import gdal
+from osgeo import gdal, osr
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(ROOT, "data")
-UTM = 32640
 
-_cache = {}
+class PlaceData:
+    """The data of one place folder, read with geopandas / numpy (no QGIS)."""
+
+    def __init__(self, folder):
+        self.folder = folder
+        with open(os.path.join(folder, "place.json"), encoding="utf-8") as handle:
+            self.info = json.load(handle)
+        middle_lon = (self.info["west"] + self.info["east"]) / 2
+        middle_lat = (self.info["south"] + self.info["north"]) / 2
+        zone = int(math.floor((middle_lon + 180) / 6)) + 1
+        self.utm = (32600 if middle_lat >= 0 else 32700) + zone
+        self._cache = {}
+
+    def has(self, name):
+        return os.path.exists(os.path.join(self.folder, f"{name}.gpkg")) or \
+            os.path.exists(os.path.join(self.folder, f"{name}.tif"))
+
+    def vec(self, name):
+        """A layer as a GeoDataFrame in the place's UTM zone (metres)."""
+        if name not in self._cache:
+            path = os.path.join(self.folder, f"{name}.gpkg")
+            if name == "boundary":
+                path = os.path.join(self.folder, "boundary.geojson")
+            self._cache[name] = gpd.read_file(path).to_crs(self.utm)
+        return self._cache[name].copy()
+
+    def raster(self, name):
+        key = ("raster", name)
+        if key not in self._cache:
+            self._cache[key] = Raster(os.path.join(self.folder, f"{name}.tif"))
+        return self._cache[key]
 
 
 # ---------------------------------------------------------------------------
-# Vectors
+# Vector operations
 # ---------------------------------------------------------------------------
-def vec(name):
-    """A data/ layer as a GeoDataFrame in UTM 40N (metres). Cached."""
-    key = ("v", name)
-    if key not in _cache:
-        frame = gpd.read_file(os.path.join(DATA, f"{name}.geojson")).to_crs(UTM)
-        _cache[key] = frame
-    return _cache[key].copy()
-
-
-def hospitals_only():
-    h = vec("sharjah_hospitals")
-    return h[h["type"] == "hospital"]
-
-
-def clinics_only():
-    h = vec("sharjah_hospitals")
-    return h[h["type"] == "clinic"]
-
-
-def by_name(name, text):
-    """Features whose name contains text (case-insensitive), like find_by_name()."""
-    frame = vec(name)
-    return frame[frame["name"].astype(str).str.lower().str.contains(text.lower(), regex=False)]
-
-
 def union(frame):
     return shapely.union_all(frame.geometry.values)
 
 
 def within(frame, other, metres):
     """Rows of frame whose shortest distance to any feature of other is <= metres."""
-    target = union(other)
-    return frame[frame.geometry.distance(target) <= metres]
+    return frame[frame.geometry.distance(union(other)) <= metres]
 
 
 def farther(frame, other, metres):
-    target = union(other)
-    return frame[frame.geometry.distance(target) > metres]
+    return frame[frame.geometry.distance(union(other)) > metres]
 
 
 def nearest_distance(frame, other):
-    """For each row of frame, the distance to its nearest feature of other (metres)."""
-    target = union(other)
-    return frame.geometry.distance(target)
+    return frame.geometry.distance(union(other))
 
 
 def nearest_name(geometry, other):
-    distances = other.geometry.distance(geometry)
-    return other.loc[distances.idxmin(), "name"]
+    return other.loc[other.geometry.distance(geometry).idxmin(), "name"]
 
 
 def voronoi_areas(points):
@@ -98,24 +97,36 @@ def voronoi_areas(points):
     Clipped to the points' bounding box enlarged by 5% on each side (the same
     extent rule as QGIS's Voronoi tool with BUFFER=5, used by service_areas()).
     """
+    points = points.drop_duplicates("geometry")
     xmin, ymin, xmax, ymax = points.total_bounds
     dx, dy = (xmax - xmin) * 0.05, (ymax - ymin) * 0.05
     box = shapely.box(xmin - dx, ymin - dy, xmax + dx, ymax + dy)
     cells = shapely.voronoi_polygons(shapely.MultiPoint(list(points.geometry.values)),
                                      extend_to=box)
     cells = [shapely.intersection(cell, box) for cell in shapely.get_parts(cells)]
-    # Give each cell the attributes of the point inside it.
     frame = gpd.GeoDataFrame(geometry=cells, crs=points.crs)
-    joined = gpd.sjoin(frame, points, predicate="contains", how="left")
+    joined = gpd.sjoin(frame, points[["name", "geometry"]], predicate="contains", how="left")
     return joined.drop(columns=["index_right"])
 
 
 def top_two(series):
-    """(name of the largest value, how much bigger it is than the runner-up, as a ratio)."""
+    """(index of the largest value, how far ahead it is of the runner-up, as a ratio)."""
     ordered = series.sort_values(ascending=False)
+    if len(ordered) < 2:
+        return ordered.index[0], 1.0
     first, second = ordered.iloc[0], ordered.iloc[1]
     margin = (first - second) / abs(first) if first else 0.0
     return ordered.index[0], margin
+
+
+def unique_named(frame):
+    """Rows with a non-empty name that no other row shares (safe to ask about by name)."""
+    names = frame["name"].fillna("").astype(str).str.strip()
+    counts = names.value_counts()
+    keep = (names != "") & names.map(lambda n: counts.get(n, 0) == 1)
+    # A name must also not be part of another name (find_by_name matches parts).
+    keep &= names.map(lambda n: sum(n.lower() in other.lower() for other in counts.index) == 1)
+    return frame[keep]
 
 
 # ---------------------------------------------------------------------------
@@ -124,15 +135,15 @@ def top_two(series):
 class Raster:
     """A raster read with GDAL into numpy: values, cell centres, CRS."""
 
-    def __init__(self, name):
-        dataset = gdal.Open(os.path.join(DATA, f"{name}.tif"))
+    def __init__(self, path):
+        dataset = gdal.Open(path)
         band = dataset.GetRasterBand(1)
         self.values = band.ReadAsArray().astype("float64")
         self.nodata = band.GetNoDataValue()
-        self.valid = np.ones(self.values.shape, bool) if self.nodata is None \
-            else self.values != self.nodata
+        self.valid = np.isfinite(self.values)
+        if self.nodata is not None:
+            self.valid &= self.values != self.nodata
         self.x0, self.dx, _, self.y0, _, self.dy = dataset.GetGeoTransform()
-        from osgeo import osr
         reference = osr.SpatialReference(wkt=dataset.GetProjection())
         reference.AutoIdentifyEPSG()
         self.epsg = int(reference.GetAuthorityCode(None))
@@ -143,8 +154,8 @@ class Raster:
     def cell_area_m2(self):
         return abs(self.dx * self.dy)
 
-    def to_own_crs(self, frame):
-        return frame.to_crs(self.epsg)
+    def total(self):
+        return float(self.values[self.valid].sum())
 
     def mask(self, geometry):
         """Boolean grid: cells whose centre is inside geometry (in the raster's CRS)."""
@@ -155,9 +166,11 @@ class Raster:
         if len(cols) == 0 or len(rows) == 0:
             return result
         gx, gy = np.meshgrid(self.xs[cols], self.ys[rows])
-        inside = shapely.contains_xy(geometry, gx, gy)
-        result[np.ix_(rows, cols)] = inside
+        result[np.ix_(rows, cols)] = shapely.contains_xy(geometry, gx, gy)
         return result & self.valid
+
+    def in_own_crs(self, geometry, crs):
+        return gpd.GeoSeries([geometry], crs=crs).to_crs(self.epsg).iloc[0]
 
     def zonal(self, geometry, statistic="sum"):
         cells = self.values[self.mask(geometry)]
@@ -166,16 +179,15 @@ class Raster:
         return float(getattr(np, statistic)(cells))
 
     def sample(self, x, y):
-        """The value of the cell containing the point (x, y) in the raster's CRS."""
         col = int(np.floor((x - self.x0) / self.dx))
         row = int(np.floor((y - self.y0) / self.dy))
-        if 0 <= row < self.values.shape[0] and 0 <= col < self.values.shape[1]:
-            value = self.values[row, col]
-            return None if (self.nodata is not None and value == self.nodata) else float(value)
+        if 0 <= row < self.values.shape[0] and 0 <= col < self.values.shape[1] \
+                and self.valid[row, col]:
+            return float(self.values[row, col])
         return None
 
     def sample_points(self, frame):
-        frame = self.to_own_crs(frame)
+        frame = frame.to_crs(self.epsg)
         return [self.sample(p.x, p.y) for p in frame.geometry]
 
     def slope_degrees(self):
@@ -188,13 +200,5 @@ class Raster:
         dzdx = ((c + 2 * f + i) - (a + 2 * d + g)) / (8 * abs(self.dx))
         dzdy = ((g + 2 * h + i) - (a + 2 * b + c)) / (8 * abs(self.dy))
         slope = np.degrees(np.arctan(np.hypot(dzdx, dzdy)))
-        # QGIS leaves the outermost ring of cells empty (no full 3x3 window there).
         slope[0, :] = slope[-1, :] = slope[:, 0] = slope[:, -1] = np.nan
         return slope
-
-
-def raster(name):
-    key = ("r", name)
-    if key not in _cache:
-        _cache[key] = Raster(name)
-    return _cache[key]

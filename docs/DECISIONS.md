@@ -8,6 +8,255 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+> The entries from here down to "OpenStreetMap downloads: hybrid" were **made
+> overnight on 2026-11-23/24, while Kheiro was asleep**, after Kheiro asked to
+> "get things done with everything" before the presentation. Each is to be
+> reviewed with Kheiro; any of them can be reversed.
+
+## 2026-11-23 (overnight): Web chat page instead of the Gradio window
+
+**Decision.** A new chat page (`web/index.html`, `style.css`, `app.js`) served by
+`webapp.py` (FastAPI, already a dependency). ChatGPT-like layout: conversation
+list, centred thread, collapsible "how I worked it out" panel per answer (steps,
+code, output, download progress), map with zoom, download links, a place chip to
+switch places, light/dark theme. No internet resources, so a demo cannot break
+on bad Wi-Fi.
+
+**Why.** Kheiro asked for a professional, ChatGPT-like design. Gradio's chat looks
+like a generic demo and is hard to restyle.
+
+**Alternatives rejected.** *Restyle Gradio with CSS:* limited control over the
+layout and streaming panels. *A JavaScript framework (React etc.):* a build step
+and new dependencies for no real gain at this size.
+
+---
+
+## 2026-11-23 (overnight): Repair invalid polygons when data is downloaded
+
+**Decision.** `data_fetch.repair_polygons()` makes every downloaded outline valid
+(shapely `make_valid`) before saving. Older downloads: `scripts/repair_place_polygons.py`.
+
+**Why.** Found by the answer-key check: one Sharjah park crossed over itself, and
+QGIS stopped with "Feature has invalid geometry". The agent would fail on a
+reasonable question because of a data error the person cannot see.
+
+**Alternative rejected.** *Tell QGIS to skip invalid features:* the park would
+silently disappear from every answer.
+
+---
+
+## 2026-11-23 (overnight): Evaluation rebuilt on fresh data, with a double-computed answer key
+
+**Decision.**
+1. **Question set "places" (v3)**: about 35 question templates asked about three
+   frozen downloads: Sharjah emirate, Cairo, Berlin (different regions, sizes and
+   mapping detail). Names in questions are chosen automatically from each
+   place's data. Families: counting, measuring, distance, nearest, zones,
+   geometry, rasters, **visual tasks** (heatmap, contours, slope map, coloured
+   areas, polygons from a raster, a filtered map), refusals, a general question.
+   Levels 1-3 by number of operations. `needs` = helper / algorithm / none.
+2. **Every correct answer is computed twice**, with QGIS and independently with
+   geopandas/shapely/numpy (`evaluation/reference.py`), which share no analysis
+   code. Only questions where both agree are scored; the rest are listed as
+   "disputed" (`evaluation/verify_truth.py`, `results/truth_check.md`).
+3. **Visual tasks are scored exactly** by inspecting what the agent saved (e.g.
+   "a raster was saved and it covers at least 90% of the clinics"; "a line layer
+   with contour levels every 10 m").
+4. **GeoBenchX subset** (published benchmark, its own data): 7 exact questions and
+   26 "must refuse" questions (see the next entry).
+
+**Why.** Kheiro asked for a 100%-trustworthy way to test, with variety (not only
+numbers), across different tools and difficulty. Computing the truth with our own
+helpers only would hide bugs shared by the model's tools and the answer key. The
+check paid off immediately: it found two badly-posed questions and a data error.
+
+**Alternatives rejected.** *Hand-checked answers in QGIS Desktop:* slow and error-prone
+at 100+ questions (still useful for spot checks). *LLM-as-judge (as in
+GeoBenchX):* costs money (paid APIs) and is not exact. *Only a published
+benchmark:* none offers exact, free, automatic scoring for our setup (next entry).
+
+**Sources.** GeoBenchX (Krechetova & Kochedykov 2025, https://arxiv.org/abs/2503.18129);
+GeoAnalystBench (https://github.com/GeoDS/GeoAnalystBench) scores workflow
+validity and code similarity, not final answers; GIS Copilot's three difficulty
+levels (https://arxiv.org/abs/2411.03205).
+
+---
+
+## 2026-11-23 (overnight): Use a subset of GeoBenchX, with corrected answers
+
+**Decision.** From GeoBenchX's 202 tasks keep: 7 with one exact answer (question
+text unchanged, answers computed twice by us), and 26 "unsolvable" tasks whose
+data clearly does not exist (the agent must say so).
+
+**Why, and what we found.**
+- GeoBenchX's "correct results" are reference *solutions* (step lists, mostly
+  ending in a map) scored by three paid LLM judges, not single answers.
+- **Its buffer tool measures metres in Web Mercator (EPSG:3857)**, which stretches
+  distances by 1/cos(latitude). Their "within 5 km" in Bangladesh is really about
+  4.6 km; the published method gives 38.0% of Bangladesh's population within
+  5 km of a railway, the geographically correct value is 39.97% (Peru 57.42% vs
+  57.07%; Angola 42.29% vs 43.02%). Continental-scale distance questions are left
+  out for this reason.
+- **Many "unsolvable" tasks are solvable** with the data provided by an agent with
+  all of QGIS (e.g. "areas in the USA with population density over 1000 and snow
+  over 15 inches": both datasets exist). Only clearly data-less ones were kept.
+
+**Alternative rejected.** *Use their tasks and reference results as they are:*
+some reference answers are geographically wrong, and most are maps that need an
+LLM judge.
+
+---
+
+## 2026-11-23 (overnight): Remove the old Sharjah data; data now comes per place
+
+**Decision.** The fixed Sharjah files in `data/` (from October), their question
+set (`evaluation/tasks.py`) and download script were removed (they remain in git
+history; old results are in `evaluation/results/archive_sharjah/`). The agent now
+finds the place in the question and uses `data/places/<place>/<date>/`.
+
+**Why.** Kheiro's request: "new start, new tests, new data".
+
+---
+
+## 2026-11-23 (overnight): The agent finds the place in each question
+
+**Decision.** Before answering, one short extra model call asks "which place is
+this about?" (`prompts.PLACE_PROMPT`). The name is looked up (Nominatim, cached);
+the first time a place is used its data is downloaded, with progress shown in
+the chat. A place inside the current place (a district of the same city) does
+not trigger a new download. No place named and none chosen yet: the agent asks.
+The chat page also has a place chip to switch explicitly.
+
+**Why.** A non-expert should just type "hospitals in Cairo".
+
+**Alternatives rejected.** *Only a place box in the interface:* extra step for the
+person, and follow-up questions naming another city would silently use the wrong
+data. *Regular expressions to find place names:* cannot tell "Al Nahda Park" (a
+feature) from "Al Nahda" (a district).
+
+---
+
+## 2026-11-23 (overnight): Answer step must use only numbers the code printed
+
+**Decision.** After the model writes the final sentence, every number in it must
+be traceable to the code's output or the question (allowing rounding, unit
+changes, and a sum / difference / percentage of two printed numbers). Otherwise
+it is asked once to correct itself; if it still invents a number, the person gets
+an honest "the calculation did not produce this" plus the printed output.
+
+**Why.** Seen in testing: the code printed the wrong field, and the model answered
+"24.99 m" (the raster's average from the data description) as if it were the
+result. A non-expert cannot detect that.
+
+---
+
+## 2026-11-23 (overnight): Rasters and tables in the agent
+
+**Decision.** The agent now reads rasters (`.tif`) and tables (`.csv`): they are
+described in the data briefing; `load()` opens rasters; new helpers
+`describe_raster()` and `read_table()`; `clip()` and `reproject()` accept rasters;
+`save()` saves rasters (GeoTIFF) and the map draws them (colour ramp, 2-98% stretch).
+
+**Why.** Elevation, population and land cover are needed for many QGIS tools and
+for questions like "how many people live near a hospital"; the model also
+naturally called `clip()` on rasters and failed.
+
+---
+
+## 2026-11-23 (overnight): Experiment: full prompt vs "lookup" prompt
+
+**Decision.** `PROMPT_MODE` = `full` (all 440 algorithms in the prompt, ~83k
+tokens) or `lookup` (short prompt ~2k tokens + data; the model searches with
+`find_algorithms()` / `algorithm_help()` in a separate look-up step and sees the
+result before writing the real code). Both are evaluated on the same questions.
+In lookup mode, a failed algorithm call reminds the model to look it up instead
+of guessing another id (seen in testing: it guessed `native:rastercalculator`
+three times).
+
+**Why.** Kheiro's proposal. Established alternatives for many tools: put them all
+in context, or retrieve them on demand (tool-retrieval, e.g. Gorilla, Patil et
+al. 2023, https://arxiv.org/abs/2305.15334; ToolLLM, Qin et al. 2023,
+https://arxiv.org/abs/2307.16789); long contexts are also used less well in the
+middle (Liu et al., "Lost in the Middle", TACL 2024, https://arxiv.org/abs/2307.03172).
+
+**Note.** The full prompt was the mentor's request (2026-11-03). The default stays
+as configured until the results are discussed with the mentor.
+
+---
+
+## 2026-11-23 (overnight): Model on the VM: qwen3-coder:30b
+
+**Decision.** `MODEL=qwen3-coder:30b` (in `.env`, git-ignored).
+
+**Why.** The full prompt needs a 128k context; Ollama lists every `qwen2.5-coder`
+size with only a 32K context. qwen3-coder:30b has a 256K context, is the same
+Qwen coder family, and is a mixture-of-experts model (30B parameters stored,
+about 3B used per token), so it is fast. Measured: 31.9 GB of GPU memory, 100% on
+the GPU, 37 s for the first question (loading + reading the prompt) and 4-10 s
+after that.
+
+**Alternatives.** *gpt-oss:20b* (128K, ~17 GB): a good second model for a later
+comparison; it "thinks" before answering (slower). *devstral:24b* (128K): ~35 GB
+at 128k by our estimate, too tight next to another user's 9.5 GB job.
+*qwen3:4b-instruct* (256K): its context memory alone is ~19 GB, so little saving.
+
+**Sources.** https://ollama.com/library/qwen3-coder ; model configurations on
+huggingface.co (Qwen/Qwen3-Coder-30B-A3B-Instruct, openai/gpt-oss-20b,
+mistralai/Devstral-Small-2507).
+
+---
+
+## 2026-11-23 (overnight): Geofabrik tools: osmium-tool and pyosmium
+
+**Decision.** Installed `osmium-tool` and `pyosmium` from conda-forge (dry run
+first: only 3 new packages, GDAL/QGIS unchanged; tests 42/42 after). osmium cuts
+the place out of the Geofabrik region file (as Geofabrik itself documents,
+https://download.geofabrik.de/technical.html); OSMnx 2.2's `graph_from_pbf`
+(needs pyosmium) builds the road network; GDAL's OSM driver reads the features.
+Rule: bounding box up to 1,000 km2 -> Overpass, bigger -> Geofabrik, and Geofabrik
+whenever Overpass fails.
+
+**Measured.** Whole Sharjah emirate (27,700 km2 box, failed with Overpass on
+2026-11-21): GCC States file 258 MB (5 min at ~0.9 MB/s), cut 13 s, 19 layers in
+1 s, 58,263 road segments in 22 s. Ajman with Overpass on the same evening: no
+reply in 25 minutes.
+
+---
+
+## 2026-11-23: OpenStreetMap downloads: hybrid of Overpass and Geofabrik
+
+**Decision.** Small places are downloaded through the Overpass API (as now);
+big places through a Geofabrik regional extract, cut to the place on our own
+machine. If Overpass fails for a small place, the Geofabrik path is used
+instead. The choice is made from the area's size before downloading, not by
+waiting for a timeout. Both paths must produce exactly the same layers (names,
+geometry types, file format), and the manifest records which path was used.
+Details (size threshold, how the extract is cut, how the road network is built)
+are still to be researched.
+
+**Why.** Overpass timed out on the whole Sharjah emirate (2026-11-21), while
+it worked on Al Nahda. OpenStreetMap's own wiki gives the same split: Overpass
+for small amounts of data, regional extracts such as Geofabrik for bigger areas
+(https://wiki.openstreetmap.org/wiki/Downloading_data). Geofabrik's GCC States
+file was 246 MB and updated the same morning when checked
+(https://download.geofabrik.de/asia.html, 2026-11-23). Kheiro chose the hybrid
+so both paths can be tested.
+
+**Testing required.** Not only Al Nahda: a range of places of different sizes
+and regions, and the same place downloaded both ways with the counts compared.
+
+**Alternatives rejected.**
+- *Overpass only:* depends on free public servers that time out on big areas.
+- *Geofabrik only:* reliable, but slower for small places (whole region file
+  first). This was the first recommendation; Kheiro preferred the hybrid.
+- *Planet.osm (the whole world in one file):* about 100 GB compressed and 2 TB
+  uncompressed (OSM wiki, 2025), more than the VM's 85 GB of free disk; updated
+  weekly, not daily; importing takes hours to days. Geofabrik's files are
+  daily cuts of this same planet file, so nothing is lost by using them.
+- *Main OSM API:* made for editing; the wiki says not to use it for bulk downloads.
+
+---
+
 ## 2026-11-23: Run the project on the university VM, in its own conda environment
 
 **Decision.** The project now runs on a university VM (Ubuntu 24.04, NVIDIA
