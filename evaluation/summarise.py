@@ -153,6 +153,20 @@ def main():
                 groups[str(r.get(key) or "geobenchx")].append(r["correct"])
             summary["by"][key][mode] = {g: [sum(v), len(v)] for g, v in groups.items()}
     summary["seconds"] = {m: sum(r["seconds"] for r in rs) / max(len(rs), 1) for m, rs in by_mode.items()}
+    summary["attempts"] = {}
+    for mode, rs in by_mode.items():
+        table = {}
+        for level in (1, 2, 3):
+            group = [r for r in rs if r.get("level") == level]
+            table[str(level)] = [len(group)] + [
+                sum(1 for r in group if r["correct"] and max(r.get("attempts") or 1, 1) == k)
+                for k in (1, 2, 3, 4)] + [sum(1 for r in group if not r["correct"])]
+        caps = {str(c): round(100 * sum(1 for r in rs if r["correct"] and
+                                        max(r.get("attempts") or 1, 1) <= c) / max(len(rs), 1))
+                for c in (1, 2, 3, 4)}
+        summary["attempts"][mode] = {"by_level": table, "caps": caps,
+                                     "still_erroring": sum(1 for r in rs if not r["correct"] and
+                                                           r.get("error") and (r.get("attempts") or 0) >= 4)}
     with open(os.path.join(RESULTS, "summary.json"), "w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=1)
     print("\n".join(lines))
