@@ -284,6 +284,11 @@ def place_pbf(place, progress=print):
 _OSM_TAG = __import__("re").compile(r'"((?:[^"\\]|\\.)*)"=>"((?:[^"\\]|\\.)*)"')
 
 
+# The OSM tag keys our layers are built from (see OSM_LAYERS), plus names.
+_WANTED_TAGS = {"amenity", "shop", "tourism", "highway", "place", "leisure", "natural",
+                "landuse", "religion", "name", "name:en", "water"}
+
+
 def _features_from_pbf(path, outline):
     """Every tagged point and area in an OSM file, as one GeoDataFrame with a column per tag.
 
@@ -302,8 +307,13 @@ def _features_from_pbf(path, outline):
             continue
         extra = frame.pop("other_tags") if "other_tags" in frame.columns else None
         if extra is not None:
-            unpacked = pd.DataFrame([dict(_OSM_TAG.findall(t)) if isinstance(t, str) else {}
-                                     for t in extra], index=frame.index)
+            # Keep ONLY the tag keys the layers use. Found 2026-11-24: unpacking
+            # every key of a detailed city (Berlin: thousands of distinct keys x
+            # hundreds of thousands of features) used 47 GB of memory and the
+            # system killed it, taking VS Code with it.
+            unpacked = pd.DataFrame([{k: v for k, v in _OSM_TAG.findall(t) if k in _WANTED_TAGS}
+                                     if isinstance(t, str) else {} for t in extra],
+                                    index=frame.index)
             unpacked = unpacked[[c for c in unpacked.columns if c not in frame.columns]]
             frame = pd.concat([frame, unpacked], axis=1)
         if element:
