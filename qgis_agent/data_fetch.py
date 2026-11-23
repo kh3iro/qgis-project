@@ -795,19 +795,20 @@ WORLDCOVER_URL = ("/vsicurl/https://esa-worldcover.s3.eu-central-1.amazonaws.com
 POPULATION_WHAT = (
     "Population: the estimated number of people living in each cell (about 100 m), "
     "for the year 2025 (a model from census data and satellite images, not a count). "
-    "To get the people inside areas, SUM the cells with zonal statistics "
-    "(native:zonalstatisticsfb, statistic Sum). Kept in degrees (EPSG:4326) on purpose: "
+    "People inside areas: zonal_statistics(areas, \"population\", (\"sum\",)); total: "
+    "raster_stats(\"population\")[\"sum\"]. Kept in degrees (EPSG:4326) on purpose: "
     "resampling would change the totals.")
 ELEVATION_WHAT = (
     "Elevation: height of the ground surface above sea level, in metres, one value per "
     "pixel (includes buildings and trees in cities). Already in metres (UTM), so it is "
-    "ready for slope, aspect, hillshade and viewshed (native:slope, native:hillshade...).")
+    "ready for slope, aspect, hillshade and viewshed (QGIS algorithms; find them with "
+    "find_algorithms). Value at places: raster_values_at(points, \"elevation\").")
 LANDCOVER_WHAT = (
     "Land cover in 2021: one class code per pixel. Codes: 10 trees, 20 shrubland, "
     "30 grassland, 40 cropland, 50 built-up, 60 bare / sparse vegetation, 70 snow and ice, "
     "80 water, 90 herbaceous wetland, 95 mangroves, 100 moss and lichen. "
-    "To get the area of a class, count its pixels (native:rasterlayeruniquevaluesreport) "
-    "and multiply by the pixel area.")
+    "Area of a class: count its cells (e.g. zonal_statistics or the QGIS 'raster layer "
+    "unique values report') and multiply by the cell area.")
 
 
 def _tiles(place, step):

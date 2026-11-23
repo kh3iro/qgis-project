@@ -76,9 +76,10 @@ CONTEXT_TOKENS = int(os.environ.get("CONTEXT_TOKENS", "131072"))
 # tests and demos). Retries after an error use more randomness (see agent.py).
 TEMPERATURE = float(os.environ.get("TEMPERATURE", "0"))
 
-# The longest reply the model may write, in tokens (1024 = about 750 words).
+# The longest reply the model may write, in tokens (2048 = about 1500 words;
+# raised from 1024 on 2026-11-24 so full answers and longer code fit).
 # Code and answers here are much shorter; this stops a stuck model early.
-MAX_REPLY_TOKENS = int(os.environ.get("MAX_REPLY_TOKENS", "1024"))
+MAX_REPLY_TOKENS = int(os.environ.get("MAX_REPLY_TOKENS", "2048"))
 
 # How the model learns about the 440 QGIS algorithms (an experiment, 2026-11-23):
 #   "full"   every algorithm's full help is in the system prompt (~95k tokens).

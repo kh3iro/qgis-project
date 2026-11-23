@@ -336,7 +336,11 @@ class Agent:
         # Self-check: every number in the answer must come from what the code
         # printed (or from the question itself). One retry, then an honest
         # message instead of a possibly invented number.
-        made_up = _ungrounded_numbers(answer, result.output + "\n" + evidence, request)
+        # Whole numbers up to 100 from the data description (e.g. "30 m cells",
+        # land-cover code 50) are facts too; decimals from it (e.g. a raster's
+        # mean) are not accepted, as that was the invented-number case.
+        known = request + " " + " ".join(re.findall(r"\b\d{1,2}\b|\b100\b", messages[0]["content"]))
+        made_up = _ungrounded_numbers(answer, result.output + "\n" + evidence, known)
         if made_up:
             yield {"type": "step", "title": "Checking the answer against the results",
                    "status": "pending"}
@@ -344,10 +348,11 @@ class Agent:
                          {"role": "user", "content": prompts.UNGROUNDED_ANSWER_PROMPT.format(
                              numbers=", ".join(made_up))}]
             answer = yield from self._ask(messages, label="answer")
-            if _ungrounded_numbers(answer, result.output + "\n" + evidence, request):
-                answer = ("I could not get a reliable answer: the calculation ran, but its "
-                          "result does not contain what you asked for. This is what it "
-                          f"printed:\n\n{result.output[:800]}")
+            if _ungrounded_numbers(answer, result.output + "\n" + evidence, known):
+                # Still not traceable: show the person exactly what QGIS computed,
+                # rather than an answer that may contain an invented number.
+                answer = ("Here is what the calculation found:\n\n"
+                          + (result.output.strip()[:1500] or "(nothing was printed)"))
                 yield {"type": "answer", "text": answer}
 
         # 6. REMEMBER

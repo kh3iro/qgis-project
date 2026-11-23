@@ -338,7 +338,7 @@ def rows(layer, fields=None, limit=50):
     features = []
     for feature in layer.getFeatures():
         features.append(feature)
-        if len(features) >= limit:
+        if limit is not None and len(features) >= limit:     # limit=None: every row
             break
     return _make_rows(layer, features, names)
 
@@ -584,6 +584,12 @@ def top(layer, field, n=5, largest=True):
 def points_in_polygons(polygons, points, field="count"):
     """points_in_polygons(polygons, points, field="count") -> layer. Copy of the polygons with a field counting the points inside each."""
     polygons, points = _layer(polygons), _layer(points)
+    if polygons.geometryType() != 2:
+        # Found in testing: "neighbourhoods" are POINTS, so counting pharmacies
+        # inside them gave 0 everywhere, and the model reported it as a result.
+        raise ValueError(f"'{polygons.name()}' contains points or lines, not areas, so nothing can "
+                         f"be inside it. To count per neighbourhood (or any points), first make "
+                         f"areas: service_areas(\"{polygons.name()}\"), or use an admin_areas layer.")
     return _named(_run("native:countpointsinpolygon", {
         "POLYGONS": polygons, "POINTS": points, "WEIGHT": None, "CLASSFIELD": None,
         "FIELD": field}), f"{polygons.name()}_{field}")
@@ -699,9 +705,21 @@ def run_algorithm(algorithm_id, params):
         raise ValueError(f"{algorithm_id} has no parameter {', '.join(unknown)}. "
                          f"Its parameters are: {', '.join(definitions)}.")
 
+    # Found in testing (2026-11-24): the model asked for a heatmap with RADIUS
+    # 500 on data stored in degrees, so QGIS drew a 500-DEGREE radius. QGIS
+    # measures distances in the layer's units. So when a tool has a distance
+    # parameter, inputs in degrees are first converted to metres (the local UTM
+    # zone), and so is a grid's CRS. Then 500 means 500 metres.
+    has_distance = any(d.type() == "distance" for d in definitions.values())
+    params = dict(params)
+    if has_distance:
+        params = _inputs_in_metres(params, definitions)
+
     prepared = {}
     for key, value in params.items():
         kind = definitions[key].type()
+        if kind == "enum":
+            value = _enum_value(definitions[key], value)
         if isinstance(value, str) and value.strip() == "" and kind not in _OUTPUT_PARAMETER_TYPES:
             # Found in testing (2026-11-23): the model passed FIELD_NAME "" to the
             # contour tool, which then wrote no elevation values. An empty text
@@ -741,6 +759,76 @@ def run_algorithm(algorithm_id, params):
     return layers[0] if len(layers) == 1 else result
 
 
+def _enum_value(definition, value):
+    """Accept option NAMES for a coded option: "sum" -> 1 for zonal statistics' STATISTICS.
+
+    Found in testing (2026-11-24): the model wrote STATISTICS 2 with the comment
+    "# Sum", but 2 means Mean, and answered "67 people" instead of ~840,000.
+    """
+    options = [str(o).lower() for o in definition.options()]
+
+    def one(item):
+        if isinstance(item, str):
+            text = item.strip().lower()
+            if text.isdigit():
+                return int(text)
+            for index, option in enumerate(options):
+                if text == option:
+                    return index
+            for index, option in enumerate(options):
+                if text in option or option in text:
+                    return index
+            raise ValueError(f"'{item}' is not an option of {definition.name()}. Options: "
+                             + ", ".join(f"{i}={o}" for i, o in enumerate(definition.options())))
+        return item
+    if isinstance(value, (list, tuple)):
+        return [one(item) for item in value]
+    return one(value)
+
+
+def _place_metric_crs():
+    """The metre-based CRS (UTM zone) of the current place, or None."""
+    import json
+    path = os.path.join(config.DATA_DIR, "place.json")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as handle:
+        info = json.load(handle)
+    lon = (info["west"] + info["east"]) / 2
+    lat = (info["south"] + info["north"]) / 2
+    zone = int((lon + 180) // 6) + 1
+    return f"EPSG:{(32600 if lat >= 0 else 32700) + zone}"
+
+
+def _inputs_in_metres(params, definitions):
+    """Reproject vector inputs given in degrees (and a geographic CRS setting) to metres."""
+    metric = None
+    for key, value in list(params.items()):
+        kind = definitions[key].type()
+        if kind in ("source", "vector", "featuresource"):
+            try:
+                layer = _layer(value) if not isinstance(value, (list, tuple)) else None
+            except (TypeError, FileNotFoundError, ValueError):
+                layer = None
+            if isinstance(layer, QgsVectorLayer) and layer.crs().isGeographic():
+                projected, _ = _in_metres(layer)
+                metric = metric or projected.crs().authid()
+                params[key] = projected
+    for key, definition in definitions.items():
+        if definition.type() == "crs":
+            value = params.get(key)
+            target = metric or _place_metric_crs()
+            if value is None:
+                geographic = True
+            elif isinstance(value, QgsCoordinateReferenceSystem):
+                geographic = value.isGeographic()
+            else:
+                geographic = QgsCoordinateReferenceSystem(str(value)).isGeographic()
+            if target and geographic:
+                params[key] = target
+    return params
+
+
 def _as_layer_input(value):
     """A layer parameter's value: layer names and rows become layers or file paths."""
     if isinstance(value, (list, tuple)) and not (value and isinstance(value[0], Row)):
@@ -759,6 +847,84 @@ def _as_layer_input(value):
     if isinstance(value, (Row, Rows)) or (isinstance(value, list) and value):
         return _layer(value)
     return value
+
+
+# ---------------------------------------------------------------------------
+# Raster and grid helpers (added 2026-11-24 after the demo questions failed on
+# exactly these: wrong statistic code, heatmap radius in degrees)
+# ---------------------------------------------------------------------------
+_STATISTIC_NAMES = ["count", "sum", "mean", "median", "stdev", "min", "max", "range",
+                    "minority", "majority", "variety", "variance"]
+
+
+def zonal_statistics(polygons, raster, stats=("sum", "mean")):
+    """zonal_statistics(polygons, raster, stats=("sum","mean")) -> layer. Copy of the polygons with the raster's statistics inside each, in fields named like "population_sum", "elevation_mean". stats: count, sum, mean, median, min, max, majority..."""
+    polygons = _layer(polygons)
+    if polygons.geometryType() != 2:
+        raise ValueError(f"'{polygons.name()}' is not an area layer. Make areas first, e.g. "
+                         f"buffer_metres(layer, 1000) or service_areas(points).")
+    raster_layer = _as_raster(raster)
+    if raster_layer is None:
+        raise ValueError(f"'{raster}' is not a raster. Rasters here: "
+                         + ", ".join(n for n in _available_names() if _find_file(n, RASTER_EXTENSIONS)))
+    stats = [stats] if isinstance(stats, str) else list(stats)
+    codes = [_STATISTIC_NAMES.index(str(s).lower()) for s in stats]
+    prefix = re.sub(r"[^A-Za-z0-9]", "_", raster_layer.name())[:20] + "_"
+    out = _run("native:zonalstatisticsfb", {"INPUT": polygons, "INPUT_RASTER": raster_layer,
+                                            "RASTER_BAND": 1, "COLUMN_PREFIX": prefix,
+                                            "STATISTICS": codes})
+    return _named(out, f"{polygons.name()}_{prefix}stats")
+
+
+def raster_values_at(points, raster, field="value"):
+    """raster_values_at(points, raster, field="value") -> layer. Copy of the points with the raster value under each one (e.g. elevation at each school) in `field`."""
+    points = _layer(points)
+    raster_layer = _as_raster(raster)
+    if raster_layer is None:
+        raise ValueError(f"'{raster}' is not a raster.")
+    out = _run("native:rastersampling", {"INPUT": points, "RASTERCOPY": raster_layer,
+                                         "COLUMN_PREFIX": field})
+    # QGIS names the field <prefix>1 (band 1); rename it to exactly `field`.
+    index = out.fields().indexOf(field + "1")
+    if index >= 0:
+        out.startEditing()
+        out.renameAttribute(index, field)
+        out.commitChanges()
+    return _named(out, f"{points.name()}_{field}")
+
+
+def raster_stats(raster):
+    """raster_stats(raster) -> dict. Statistics of a whole raster: {"min","max","mean","sum","count"} (e.g. total population = raster_stats("population")["sum"])."""
+    raster_layer = _as_raster(raster)
+    if raster_layer is None:
+        raise ValueError(f"'{raster}' is not a raster.")
+    result = qgis_engine.run_step("native:rasterlayerstatistics", {"INPUT": raster_layer, "BAND": 1})
+    return {"min": result["MIN"], "max": result["MAX"], "mean": result["MEAN"],
+            "sum": result["SUM"], "count": result.get("VALID_COUNT", result.get("COUNT"))}
+
+
+def heatmap(points, radius_m=1000, pixel_m=50):
+    """heatmap(points, radius_m=1000, pixel_m=50) -> raster. Where the points are concentrated (kernel density), with the radius and pixel size in METRES. save() it to show it."""
+    points = _layer(points)
+    projected, _ = _in_metres(points)
+    out = qgis_engine.run_step("qgis:heatmapkerneldensityestimation", {
+        "INPUT": projected, "RADIUS": float(radius_m), "PIXEL_SIZE": float(pixel_m),
+        "KERNEL": 0, "OUTPUT_VALUE": 0, "OUTPUT": "TEMPORARY_OUTPUT"})["OUTPUT"]
+    return QgsRasterLayer(out, f"{points.name()}_heatmap")
+
+
+def grid(size_m, shape="hexagon", extent=None):
+    """grid(size_m, shape="hexagon", extent=None) -> layer. A grid of cells size_m METRES wide ("square" or "hexagon") covering `extent` (a layer; default: the whole place). Count things per cell with points_in_polygons(grid, points)."""
+    extent_layer = _layer(extent) if extent is not None else _layer("boundary")
+    projected, _ = _in_metres(extent_layer)
+    kind = {"square": 2, "rectangle": 2, "diamond": 3, "hexagon": 4}.get(str(shape).lower(), 4)
+    cells = _run("native:creategrid", {"TYPE": kind, "EXTENT": projected.extent(),
+                                       "HSPACING": float(size_m), "VSPACING": float(size_m),
+                                       "HOVERLAY": 0.0, "VOVERLAY": 0.0, "CRS": projected.crs()})
+    # Keep only the cells that touch the area itself, not its whole rectangle.
+    inside = _run("native:extractbylocation", {"INPUT": cells, "INTERSECT": projected,
+                                               "PREDICATE": [0]})
+    return _named(inside, f"grid_{int(size_m)}m_{shape}")
 
 
 def reproject(layer, crs):
@@ -840,6 +1006,8 @@ HELPER_GROUPS = {
                            points_in_polygons, clip, intersection, difference, dissolve],
     "Create shapes and measures": [centroids, convex_hull, service_areas, add_area_km2,
                                    add_length_km, add_field, reproject],
+    "Rasters and grids (elevation, population, land cover...)": [
+        raster_stats, raster_values_at, zonal_statistics, heatmap, grid],
     "Any other QGIS algorithm (440 available)": [find_algorithms, algorithm_help, run_algorithm],
     "Results": [save, export_csv],
 }

@@ -15,8 +15,10 @@ DESIGN
 - TWO ANSWERS: every correct answer is computed twice, with QGIS and with
   geopandas/numpy (reference.py). Only questions where both agree are scored.
 - LEVELS: 1 = one operation, 2 = two or three, 3 = four or more.
-- NEEDS: "helper" (the 33 helpers are enough), "algorithm" (a QGIS algorithm
-  beyond them is needed), "none" (no computation).
+- NEEDS: "helper" (the 40 helpers are enough), "algorithm" (a QGIS algorithm
+  beyond them is needed), "none" (no computation). Updated 2026-11-24 when the
+  raster helpers (zonal_statistics, raster_values_at, raster_stats, heatmap,
+  grid) were added.
 
 CHECKS
 ------
@@ -264,7 +266,7 @@ def tasks_for(key):
       lambda: _q_values(_h().add_area_km2(_h().convex_hull("hospitals")), "area_km2")[0],
       lambda: R.union(data.vec("hospitals")).convex_hull.area / 1e6, tol=0.03,
       requires=["hospitals"])
-    T("total_population", 1, "raster", "algorithm",
+    T("total_population", 1, "raster", "helper",
       f"How many people live in {name} according to the population data?", "number",
       lambda: _q_stats("population")["SUM"], lambda: data.raster("population").total(),
       tol=0.02, requires=["population"])
@@ -335,12 +337,12 @@ def tasks_for(key):
                                            data.vec("schools").geometry.y.mean()),
                              data.vec("neighbourhoods")),
       requires=["schools", "neighbourhoods"])
-    T("highest_school_elev", 2, "raster", "algorithm",
+    T("highest_school_elev", 2, "raster", "helper",
       f"What is the highest ground elevation at any school in {name}, in metres?", "number",
       lambda: max(v for v in _q_values(*_q_sample("schools", "elevation")) if v is not None),
       lambda: max(v for v in data.raster("elevation").sample_points(data.vec("schools"))
                   if v is not None), tol=0.03, requires=["schools", "elevation"])
-    T("avg_elev_hospitals", 2, "raster", "algorithm",
+    T("avg_elev_hospitals", 2, "raster", "helper",
       f"What is the average ground elevation of the hospitals (not clinics) in {name}, "
       f"in metres?", "number",
       lambda: float(np.mean([v for v in _q_values(*_q_sample(_q_hospitals(), "elevation"))
@@ -349,7 +351,7 @@ def tasks_for(key):
                                 data.raster("elevation").sample_points(hosp())])),
       tol=0.03, requires=["hospitals", "elevation"])
     if P1:
-        T("landcover_in_park", 2, "raster", "algorithm",
+        T("landcover_in_park", 2, "raster", "helper",
           f"What is the most common type of land cover inside {P1}?", "name",
           lambda: LAND_COVER[int(_q_values(*_q_zonal(_q_utm(_h().find_by_name("parks", P1)),
                                                      "land_cover", 9))[0])],
@@ -357,7 +359,7 @@ def tasks_for(key):
               data.raster("land_cover").mask(data.raster("land_cover").in_own_crs(
                   parks.iloc[0].geometry, data.utm))].astype(int)).argmax())],
           accept={k: [k] + v for k, v in LAND_COVER_WORDS.items()}, requires=["land_cover"])
-        T("park_highest_elev", 2, "raster", "algorithm",
+        T("park_highest_elev", 2, "raster", "helper",
           f"Which park in {name} has the highest average ground elevation?", "name",
           lambda: _q_name_of_max(*_q_zonal(_q_utm("parks"), "elevation", 2)),
           lambda: R.top_two(pd.Series([data.raster("elevation").zonal(
@@ -366,7 +368,7 @@ def tasks_for(key):
           requires=["elevation"])
 
     # ======================= LEVEL 3 =====================================
-    T("pct_pop_near_health", 3, "raster", "algorithm",
+    T("pct_pop_near_health", 3, "raster", "helper",
       f"What percentage of the people in {name} live within 1 km of a hospital or clinic?",
       "number",
       lambda: 100 * _q_values(*_q_zonal(_h().buffer_metres("hospitals", 1000, dissolve=True),
@@ -374,7 +376,7 @@ def tasks_for(key):
       lambda: 100 * data.raster("population").zonal(data.raster("population").in_own_crs(
           R.union(data.vec("hospitals")).buffer(1000, 64), data.utm), "sum")
       / data.raster("population").total(), tol=0.05, requires=["hospitals", "population"])
-    T("people_far_hospital", 3, "raster", "algorithm",
+    T("people_far_hospital", 3, "raster", "helper",
       f"How many people in {name} live more than 5 km from every hospital (not clinic)?",
       "number",
       lambda: _q_stats("population")["SUM"] - _q_values(*_q_zonal(
@@ -382,7 +384,7 @@ def tasks_for(key):
       lambda: data.raster("population").total() - data.raster("population").zonal(
           data.raster("population").in_own_crs(R.union(hosp()).buffer(5000, 64), data.utm),
           "sum"), tol=0.05, requires=["hospitals", "population"])
-    T("schools_dense_far", 3, "raster", "algorithm",
+    T("schools_dense_far", 3, "raster", "helper",
       f"How many schools in {name} are more than 1 km from any hospital or clinic AND stand "
       f"in a population cell with more than 100 people?", "count",
       lambda: sum(1 for v in _q_values(*_q_sample(_h().farther_than("schools", "hospitals", 1000),
@@ -406,7 +408,7 @@ def tasks_for(key):
           lambda: len(R.within(data.vec("schools"), data.vec("parks"), 500)),
           checker=_check_saved_count, requires=["schools"])
     clinics = lambda: data.vec("hospitals")[data.vec("hospitals")["type"] == "clinic"]
-    T("heatmap_clinics", 2, "visual", "algorithm",
+    T("heatmap_clinics", 2, "visual", "helper",
       f"Make a heatmap of the clinics in {name}.", "custom",
       lambda: _h().count(_h().filter_features("hospitals", '"type" = \'clinic\'')),
       lambda: len(clinics()),

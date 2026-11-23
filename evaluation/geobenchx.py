@@ -246,8 +246,10 @@ def _q_angola_pct():
 # The questions (texts exactly as in GeoBenchX)
 # ---------------------------------------------------------------------------
 def T(id, family, request, check, qgis, ref, tol=0.0, accept=None, level=2):
-    return {"id": id, "level": level, "family": family, "needs": "algorithm" if family == "raster"
-            else ("none" if check == "missing" else "helper"), "request": request,
+    # All exact questions can be done with the helpers (raster_values_at,
+    # zonal_statistics, buffer_metres, select_by_location) since 2026-11-24.
+    return {"id": id, "level": level, "family": family,
+            "needs": "none" if check == "missing" else "helper", "request": request,
             "check": check, "qgis": qgis, "ref": ref, "tol": tol, "units": (1,),
             "accept": accept or {}, "category": f"geobenchx {family}"}
 

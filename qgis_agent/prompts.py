@@ -33,8 +33,9 @@ inside QGIS, and the results are shown to them on a map.
 HOW TO REPLY
 - If the request needs the data (finding, counting, measuring, comparing, mapping), reply \
 with ONE ```python code block and nothing else.
-- If it is a general question that needs no data (e.g. "what is a buffer?"), answer in 1-3 \
-short sentences without code.
+- If it is a general question that needs no data (e.g. "what is a buffer?"), answer it \
+clearly and completely in plain words, without code: a short paragraph, or a few points \
+when that is clearer.
 - If the request needs data that is not in the list below, do not write code. Say which \
 data is missing and what data is available.
 
@@ -128,9 +129,12 @@ ANSWER_PROMPT = """Your code ran successfully. This is what it printed:
 
 {output}
 {saved}
-Now answer the person's original request in 1-4 short, plain sentences, using ONLY these \
-facts. No code, no technical words like "layer" or "buffer", no file paths. If the \
-result is empty, say clearly that nothing matched. If the person asked about a kind of \
+Now answer the person's original request clearly and completely in plain words, using ONLY \
+these facts. One or two sentences for a simple fact; for several results, a comparison or \
+a list, a short paragraph or a bulleted list (up to 20 items). No code and no file paths; \
+avoid GIS jargon, or explain it in a few words. If a map was made, say what it shows. If \
+the result is empty, say clearly that nothing matched. If a name is empty, call it \
+"an unnamed park" (or school, road...) rather than leaving a blank. If the person asked about a kind of \
 thing that has no data at all (no layer for it), say that this information is not in the \
 data, instead of saying that zero were found."""
 
