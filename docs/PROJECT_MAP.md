@@ -97,7 +97,7 @@ Two things to notice:
 | `evaluation/run_eval.py`, `summarise.py` | Run the test; re-score all saved runs into one table. |
 | `evaluation/results/` | Every saved run (JSON + Markdown) and `SUMMARY.md`. |
 | `outputs/` | Everything the agent produces (git-ignored). |
-| `fix_qgis_env.sh` | Fixes QGIS paths on Windows; must be sourced before running anything. |
+| `fix_qgis_env.sh` | Fixes QGIS paths on Windows; must be sourced before running anything there. Not needed on the Linux VM. |
 
 ---
 
@@ -137,7 +137,9 @@ config.py is read by almost every module.
    about 95k tokens and needs a 128k context (`CONTEXT_TOKENS=131072`), but the
    default model is still `qwen2.5-coder:3b`, and the laptop (4 GB GPU, 8 GB
    RAM) cannot hold that much context. The plan is to run on a VM with a bigger
-   model; no VM is available yet.
+   model. Since 2026-11-23 the university VM (L40S GPU, 46 GB, shared with
+   other projects) has the `gis-llm` environment and passes the tests; the
+   bigger model is not chosen or downloaded yet.
 2. **The accuracy numbers are from before the full prompt.** They were measured
    with only the 33 helpers in the prompt. They have not been re-measured.
 3. **No automatic tests for the agent itself.** `tests/test_tools.py` covers the

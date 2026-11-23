@@ -357,10 +357,29 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     glossary + supervisor Q&A + plan. **Stopped here:** Phase 1 plan was shown and
     Kheiro chose option A (short 2-3 page map, detail in the walkthrough), but
     said NOT to start yet. Next session: confirm with Kheiro, then begin Phase 1.
+  - **2026-11-21:** World-data work (see docs/DECISIONS.md): `places.py` (place
+    lookup, now committed) and `data_fetch.py` (one fixed downloader per open
+    source). Tested on Al Nahda; on the whole emirate OSM's Overpass servers
+    timed out. **Pending decision: switch OSM downloads to Geofabrik.** Neither
+    module is wired into the agent yet.
+  - **2026-11-23: Moved to the university VM** (see "Running on the VM" below).
+    `gis-llm` env created, tests 42/42. Next: Geofabrik decision, then choose the
+    bigger model for the 128k-context prompt.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 
-## Environment setup (read this before running anything)
+## Running on the VM (Linux, since 2026-11-23)
+
+- University VM: Ubuntu 24.04, NVIDIA L40S (46 GB), 78 GB RAM. **Shared** with
+  other projects (other conda envs, another user's GPU job using ~9.5 GB): only
+  add things, never change or remove what others installed.
+- Project folder: `~/Desktop/Kheiro QGIS/qgis-project` (git clone of the GitHub repo).
+- To run anything: `conda activate gis-llm` then `python <script>`. No
+  `fix_qgis_env.sh` needed on Linux. "PDAL Error ... libhdf5_cpp" lines at QGIS
+  start-up are harmless (unused point-cloud readers).
+- Ollama runs as a system service; models so far: only `llama3.2:3b` (not ours).
+
+## Environment setup on the Windows laptop (read this before running anything there)
 
 - Editor: VS Code with the git bash terminal (MINGW64).
 - OS: Windows 11.

@@ -8,6 +8,40 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+## 2026-11-23: Run the project on the university VM, in its own conda environment
+
+**Decision.** The project now runs on a university VM (Ubuntu 24.04, NVIDIA
+L40S with 46 GB GPU memory, 78 GB RAM, 7 CPU cores). It gets its own new conda
+environment, `gis-llm`, created from conda-forge with Python 3.12 and QGIS 3.44
+pinned to the laptop's version. geopandas, networkx and overturemaps were
+installed in the same command as QGIS, so conda chose versions that fit
+together from the start. osmnx 2.2.0 was then installed with `pip --no-deps`,
+as on the laptop (see 2026-11-21).
+
+**Why.** The full prompt (about 95k tokens) needs a 128k context and a bigger
+model than the laptop can hold. The VM is shared with other projects, so a
+separate environment keeps our packages away from theirs, and it can be deleted
+without affecting anyone.
+
+**Results (checked 2026-11-23).** QGIS 3.44.14 starts headless with 440
+algorithms; tests 42/42; QGIS, osmnx 2.2.0, geopandas 1.2.0, GDAL 3.13.3 and all
+project modules load in one process. Versions differ from the laptop only in the
+last number (laptop: GDAL 3.13.1).
+
+**Differences from the laptop.**
+- `fix_qgis_env.sh` is **not needed** on Linux: the QGIS conda activation hook
+  works here (the bug it fixed was Windows-specific). `conda activate gis-llm` is enough.
+- QGIS prints "PDAL Error ... libhdf5_cpp" lines at start. They come from two
+  point-cloud file readers we do not use (no point clouds, see 2026-11-21) and are harmless.
+- Another user's program holds about 9.5 GB of the GPU, so roughly 36 GB is free for our model.
+
+**Alternatives rejected.**
+- *Install into an existing environment on the VM:* could break other people's projects.
+- *Install packages one by one after QGIS (as on the laptop):* works, but each later
+  install risks changing what QGIS depends on; one solve is safer.
+
+---
+
 ## 2026-11-21: When a place name is ambiguous, use the bigger, general place and say so
 
 **Decision.** Nominatim lists matches most important first. The lookup takes
