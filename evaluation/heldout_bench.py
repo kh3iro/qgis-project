@@ -190,7 +190,10 @@ def tasks_for(key):
     if len(hospitals) and len(schools) and data.has("roads"):
         H1 = hospitals.sort_values("name").iloc[0]
         far = schools.assign(d=schools.distance(H1.geometry)).sort_values("d")
-        far = far[far["d"] > 2000]
+        # At least 5 km apart (amended 03:50, before any model run): on shorter
+        # routes, where each method attaches the places to the road network
+        # (nearest road end vs nearest point on a road) changes the length by ~7%.
+        far = far[far["d"] > 5000]
         if len(far):
             S1 = far.iloc[0]
             T("h_route_km", 3, "routing", "helper",
