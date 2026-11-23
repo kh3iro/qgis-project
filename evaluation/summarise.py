@@ -106,6 +106,39 @@ def main():
               f"({'a real difference at the 5% level' if p < 0.05 else 'not a significant difference at the 5% level'})",
               f"- Look-ups used in lookup mode: {sum(1 for r in by_mode['lookup'] if r.get('lookups'))} questions"]
 
+    # GIS Copilot-style table (Akinboyewa et al. 2024, Table 1): successes by the
+    # attempt on which the code first worked, failures, by level. Our agent fixes
+    # its own code automatically: attempt 1 = first code, 2-4 = after 1-3 fixes.
+    for mode in ("lookup", "full"):
+        rs = by_mode.get(mode, [])
+        if not rs:
+            continue
+        lines += ["", f"## Successes by attempt, {mode} prompt (as in GIS Copilot's Table 1)", "",
+                  "| Level | Questions | 1st attempt | 2nd | 3rd | 4th | Failed | Success rate |",
+                  "|---|---|---|---|---|---|---|---|"]
+        for level in (1, 2, 3):
+            group = [r for r in rs if r.get("level") == level]
+            if not group:
+                continue
+            by_attempt = [sum(1 for r in group if r["correct"] and max(r.get("attempts") or 1, 1) == k)
+                          for k in (1, 2, 3, 4)]
+            failed = sum(1 for r in group if not r["correct"])
+            lines.append(f"| {level} | {len(group)} | " + " | ".join(map(str, by_attempt))
+                         + f" | {failed} | {100 * (len(group) - failed) / len(group):.0f}% |")
+        # What accuracy WOULD be with a smaller cap on attempts (exact: the run up to
+        # attempt k is identical whatever the cap).
+        total = len(rs)
+        caps = []
+        for cap in (1, 2, 3, 4):
+            ok = sum(1 for r in rs if r["correct"] and max(r.get("attempts") or 1, 1) <= cap)
+            caps.append(f"{cap}: {100 * ok / total:.0f}%")
+        still_erroring = sum(1 for r in rs if not r["correct"] and r.get("error")
+                             and (r.get("attempts") or 0) >= 4)
+        lines += ["", f"Accuracy if the number of attempts were capped at  " + " · ".join(caps),
+                  f"Wrong answers that still ended in an error after all 4 attempts "
+                  f"(the only ones more attempts could rescue): {still_erroring} of "
+                  f"{sum(1 for r in rs if not r['correct'])}"]
+
     with open(os.path.join(RESULTS, "SUMMARY.md"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
     summary = {"modes": {m: {"correct": sum(r["correct"] for r in rs), "total": len(rs)}

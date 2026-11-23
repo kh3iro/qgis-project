@@ -46,8 +46,14 @@ focus on non-experts and on checking results.
 
 **GIS Copilot: Towards an Autonomous GIS Agent for Spatial Analysis** (Akinboyewa
 et al., 2024). https://arxiv.org/abs/2411.03205
-An LLM agent inside QGIS, tested on more than 100 tasks at three difficulty
-levels. We borrowed the idea of levels (1, 2, 3) for our question set.
+An LLM agent inside QGIS (OpenAI GPT), tested on 110 tasks: 60 basic, 30
+intermediate, 20 advanced (Section 4.4, Table 1). Success is counted at the 1st,
+2nd or 3rd attempt; "tasks that remained unsuccessful after three attempts were
+categorized as failures". The paper does not say whether an attempt is an
+automatic self-debugging round or a human re-run, gives no reason for 3, and does
+not test other numbers; its text (95%, 80%) and Table 1 (92%, 83%) disagree for
+basic and intermediate. We borrowed the three levels, report the same
+by-attempt table, and also measure what accuracy each cap on attempts would give.
 
 **An Autonomous GIS Agent Framework for Geospatial Data Retrieval (LLM-Find)**
 (2024). https://arxiv.org/abs/2407.21024
