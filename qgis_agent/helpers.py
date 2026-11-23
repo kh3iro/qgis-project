@@ -46,13 +46,49 @@ from qgis.core import (
     QgsField,
     QgsGeometry,
     QgsProject,
+    QgsRasterLayer,
     QgsVectorFileWriter,
     QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QMetaType
 
-from . import config, qgis_engine
+from . import config, qgis_engine, qgis_tools
 from .qgis_tools import resolve_layer_path, ToolError
+
+# Besides vector layers (qgis_tools.READABLE_EXTENSIONS), the data folder may
+# hold rasters (grids of values: elevation, population, land cover) and tables
+# (CSV files without geometry). Added 2026-11-23 for elevation/population data
+# and the GeoBenchX benchmark.
+RASTER_EXTENSIONS = (".tif", ".tiff")
+TABLE_EXTENSIONS = (".csv",)
+
+
+def _find_file(name, extensions):
+    """The path of data/<name>.<ext> or outputs/<name>.<ext> for one of the extensions, or None.
+
+    Reads the folders from qgis_tools at call time, so the evaluation can point
+    them at another data set. Paths outside those folders are never returned.
+    """
+    name = os.path.basename(str(name).strip().replace("\\", "/"))
+    stem, extension = os.path.splitext(name)
+    for folder in (qgis_tools.DATA_DIR, qgis_tools.OUTPUTS_DIR):
+        options = [name] if extension.lower() in extensions else [stem + e for e in extensions]
+        for option in options:
+            path = os.path.join(folder, option)
+            if os.path.isfile(path):
+                return path
+    return None
+
+
+def _available_names():
+    """Every layer, raster and table name in the data folder (for error messages)."""
+    names = []
+    folder = qgis_tools.DATA_DIR
+    extensions = qgis_tools.READABLE_EXTENSIONS + RASTER_EXTENSIONS + TABLE_EXTENSIONS
+    for filename in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        if filename.lower().endswith(extensions) and filename != "descriptions.json":
+            names.append(os.path.splitext(filename)[0])
+    return names
 
 
 # Results saved during the current run of the AI's code. The code runner reads
@@ -78,6 +114,13 @@ class Row(dict):
     """
     source = None
     feature_id = None
+
+    def __missing__(self, key):
+        # Found in testing (2026-11-23): the model guessed a field name from
+        # another GIS program ("RASTERVALU") and got a bare KeyError it could
+        # not learn from. Now the error lists the real field names.
+        raise KeyError(f"{key!r} is not a field here. The fields are: "
+                       f"{', '.join(map(str, self.keys()))}")
 
 
 class Rows(list):
@@ -202,13 +245,23 @@ def _relation_code(relation, table):
 # The helpers the model can use
 # ---------------------------------------------------------------------------
 def load(name):
-    """load(name) -> layer. Open a layer by name, e.g. load("uae_cities")."""
+    """load(name) -> layer. Open a layer or raster by name, e.g. load("uae_cities")."""
     try:
         path = resolve_layer_path(name)
     except ToolError as exc:
+        raster = _find_file(name, RASTER_EXTENSIONS)
+        if raster:
+            layer = QgsRasterLayer(raster, os.path.splitext(os.path.basename(raster))[0])
+            if not layer.isValid():
+                raise FileNotFoundError(f"'{name}' exists but could not be opened as a raster.")
+            return layer
+        if _find_file(name, TABLE_EXTENSIONS):
+            raise FileNotFoundError(f"'{name}' is a table, not a map layer. "
+                                    f"Use read_table('{name}') to open it.") from None
         # Turn the Month 1 error into a normal Python error with the same
         # helpful text ("No layer named X. Available layers: ...").
-        raise FileNotFoundError(str(exc)) from None
+        raise FileNotFoundError(f"No layer named '{name}'. Available: "
+                                f"{', '.join(_available_names())}.") from None
     stem = os.path.splitext(os.path.basename(path))[0]
     layer = QgsVectorLayer(path, stem, "ogr")
     if not layer.isValid():
@@ -217,12 +270,51 @@ def load(name):
 
 
 def describe(layer):
-    """describe(layer) -> text. Feature count, geometry type, CRS and field names."""
+    """describe(layer) -> text. Feature count, geometry type, CRS and field names (or raster size and values)."""
+    if isinstance(layer, QgsRasterLayer) or (isinstance(layer, str)
+                                             and _find_file(layer, RASTER_EXTENSIONS)):
+        return describe_raster(layer)
     layer = _layer(layer)
     geometry = {0: "point", 1: "line", 2: "polygon"}.get(layer.geometryType(), "other")
     fields = ", ".join(field.name() for field in layer.fields())
     return (f"{layer.name()}: {layer.featureCount()} {geometry} feature(s), "
             f"CRS {layer.crs().authid()}, fields: {fields}")
+
+
+def describe_raster(raster):
+    """describe_raster(raster) -> text. Size, cell size, CRS and the range of values of a raster (grid)."""
+    from qgis.core import Qgis
+    if not isinstance(raster, QgsRasterLayer):
+        raster = load(raster)
+    import warnings
+    with warnings.catch_warnings():    # QGIS 3.44 marks this deprecated but has no replacement
+        warnings.simplefilter("ignore", DeprecationWarning)
+        stats = raster.dataProvider().bandStatistics(1, Qgis.RasterBandStatistic.All)
+    units = "degrees" if raster.crs().isGeographic() else "metres"
+    nodata = raster.dataProvider().sourceNoDataValue(1) \
+        if raster.dataProvider().sourceHasNoDataValue(1) else None
+    return (f"{raster.name()}: raster {raster.width()} x {raster.height()} cells, "
+            f"cell size {raster.rasterUnitsPerPixelX():.6g} {units}, CRS {raster.crs().authid()}, "
+            f"{raster.bandCount()} band(s); band 1 values {stats.minimumValue:.6g} to "
+            f"{stats.maximumValue:.6g}, mean {stats.mean:.6g}"
+            + (f", no-data value {nodata:g}" if nodata is not None else ""))
+
+
+def read_table(name):
+    """read_table(name) -> pandas DataFrame. Open a CSV table (no geometry) by name, e.g. read_table("population_by_country")."""
+    import csv
+    import pandas as pd
+    path = _find_file(name, TABLE_EXTENSIONS)
+    if path is None:
+        raise FileNotFoundError(f"No table named '{name}'. Available: "
+                                f"{', '.join(_available_names())}.")
+    # Some downloaded tables (e.g. World Bank) start with a few lines of notes
+    # before the real header. The header is the first line with the most columns.
+    with open(path, encoding="utf-8-sig", errors="replace") as handle:
+        first = [row for _, row in zip(range(12), csv.reader(handle))]
+    widest = max((len(row) for row in first), default=0)
+    header = next((i for i, row in enumerate(first) if len(row) == widest), 0)
+    return pd.read_csv(path, skiprows=header, encoding="utf-8-sig")
 
 
 def count(layer):
@@ -604,9 +696,11 @@ def run_algorithm(algorithm_id, params):
     main = result.get("OUTPUT")
     if isinstance(main, str) and os.path.exists(main):
         opened = QgsVectorLayer(main, algorithm.displayName(), "ogr")
+        if not opened.isValid() and main.lower().endswith(RASTER_EXTENSIONS):
+            opened = QgsRasterLayer(main, algorithm.displayName())   # a raster result
         if opened.isValid():
             main = opened
-    if isinstance(main, QgsVectorLayer):
+    if isinstance(main, (QgsVectorLayer, QgsRasterLayer)):
         return main
     layers = [v for v in result.values() if isinstance(v, QgsVectorLayer)]
     # Otherwise (a raster, a table, several outputs) return everything it made.
@@ -622,8 +716,12 @@ def _as_layer_input(value):
             # A name like "sharjah_parks": find its file in data/ or outputs/.
             # A file path works for vector AND raster layers.
             return resolve_layer_path(value)
-        except ToolError as exc:
-            raise FileNotFoundError(str(exc)) from None
+        except ToolError:
+            raster = _find_file(value, RASTER_EXTENSIONS)     # e.g. "elevation"
+            if raster:
+                return raster
+            raise FileNotFoundError(f"No layer named '{value}'. Available: "
+                                    f"{', '.join(_available_names())}.") from None
     if isinstance(value, (Row, Rows)) or (isinstance(value, list) and value):
         return _layer(value)
     return value
@@ -684,7 +782,8 @@ def save(layer, name):
 
 # The helpers shown to the model, grouped so it can find the right one.
 HELPER_GROUPS = {
-    "Open and inspect": [load, describe, count, rows, count_by, top, find_by_name],
+    "Open and inspect": [load, describe, count, rows, count_by, top, find_by_name,
+                         describe_raster, read_table],
     "Distance and nearness (all in METRES)": [buffer_metres, within_distance, farther_than,
                                               nearest, distance_m],
     "Select and combine": [filter_features, select_by_location, join_by_location, merge_layers,

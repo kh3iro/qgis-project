@@ -31,3 +31,6 @@ Thumbs.db
 
 # Data downloaded on demand for each place (can be large; re-downloadable).
 data/places/
+
+# Benchmark data downloaded from elsewhere (large; see scripts/prepare_geobenchx.py)
+evaluation/external/

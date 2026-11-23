@@ -28,6 +28,7 @@ in QGIS", the answer word by word, the map). The chat window shows each one
 immediately, which is what makes it feel alive. The terminal version prints them.
 """
 
+import ast
 import glob
 import json
 import os
@@ -36,6 +37,7 @@ import time
 
 from . import config, llm_client, map_render, prompts
 from .code_runner import CodeRunner
+from .helpers import RASTER_EXTENSIONS, TABLE_EXTENSIONS
 from .qgis_tools import READABLE_EXTENSIONS
 
 # Finds a ```python ... ``` block (or a bare ``` ... ``` block) in the reply.
@@ -128,16 +130,39 @@ class Agent:
 
         # 3. RUN + 4. FIX
         result = None
-        for attempt in range(1, config.MAX_FIX_ATTEMPTS + 2):
+        lookups = 0
+        attempt = 0
+        while attempt <= config.MAX_FIX_ATTEMPTS:
+            attempt += 1
             yield {"type": "code", "code": code, "attempt": attempt}
             yield {"type": "step", "title": "Running in QGIS", "status": "pending"}
             result = self.runner.run(code)
             yield {"type": "run", "ok": result.ok, "output": result.output,
                    "error": result.error, "attempt": attempt}
 
+            # LOOK-UP STEP: the code only searched the QGIS algorithms (lookup
+            # mode, see config.PROMPT_MODE). Its output is for the MODEL, not the
+            # person: show it what it found, and let it write the real code.
+            # A look-up does not use up one of the fix attempts.
+            if result.ok and _is_lookup(code) and lookups < config.MAX_LOOKUP_STEPS:
+                lookups += 1
+                attempt -= 1
+                messages += [{"role": "assistant", "content": f"```python\n{code}\n```"},
+                             {"role": "user", "content": prompts.LOOKUP_RESULT_PROMPT.format(
+                                 output=(result.output or "(nothing printed)")[:6000])}]
+                yield {"type": "step", "title": "Looking up a QGIS tool", "status": "pending"}
+                reply = yield from self._ask(messages, label="draft")
+                new_code = _extract_code(reply)
+                if new_code is None:
+                    break
+                code = new_code
+                continue
+
             problem, is_warning = None, False
             if not result.ok:
                 problem = prompts.FIX_PROMPT.format(error=result.error)
+                if config.PROMPT_MODE == "lookup":
+                    problem += prompts.LOOKUP_FIX_HINT
             elif not result.output and not result.saved:
                 problem = prompts.EMPTY_OUTPUT_PROMPT
             elif "WARNING:" in result.output and attempt == 1:
@@ -205,6 +230,23 @@ class Agent:
         yield {"type": "step", "title": "Writing the answer", "status": "pending"}
         answer = yield from self._ask(messages, label="answer")
 
+        # Self-check: every number in the answer must come from what the code
+        # printed (or from the question itself). One retry, then an honest
+        # message instead of a possibly invented number.
+        made_up = _ungrounded_numbers(answer, result.output + "\n" + evidence, request)
+        if made_up:
+            yield {"type": "step", "title": "Checking the answer against the results",
+                   "status": "pending"}
+            messages += [{"role": "assistant", "content": answer},
+                         {"role": "user", "content": prompts.UNGROUNDED_ANSWER_PROMPT.format(
+                             numbers=", ".join(made_up))}]
+            answer = yield from self._ask(messages, label="answer")
+            if _ungrounded_numbers(answer, result.output + "\n" + evidence, request):
+                answer = ("I could not get a reliable answer: the calculation ran, but its "
+                          "result does not contain what you asked for. This is what it "
+                          f"printed:\n\n{result.output[:800]}")
+                yield {"type": "answer", "text": answer}
+
         # 6. REMEMBER
         self._remember(request, answer.strip(), code=code,
                        saved=[item["name"] for item in result.saved])
@@ -241,6 +283,8 @@ class Agent:
     def _data_briefing(self):
         """Describe every input layer, plus results saved in this conversation."""
         lines = [_describe_file(path) for path in _data_files()]
+        lines += [_describe_raster_file(path) for path in _other_data_files(RASTER_EXTENSIONS)]
+        lines += [_describe_table_file(path) for path in _other_data_files(TABLE_EXTENSIONS)]
         if self.created:
             lines.append("Results you saved earlier in this conversation (load them by name):")
             lines += [_describe_file(path) for path in self.created if os.path.exists(path)]
@@ -294,15 +338,85 @@ def _mentions_data(request):
     return any(word in lowered for word in _DATA_WORDS)
 
 
+_NUMBER = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
+
+
+def _numbers(text):
+    values = []
+    for match in _NUMBER.findall(text or ""):
+        try:
+            values.append(float(match.replace(",", "")))
+        except ValueError:
+            pass
+    return values
+
+
+def _ungrounded_numbers(answer, output, request):
+    """Numbers in the answer that cannot be traced to the code's output or the question.
+
+    A number counts as traced if it is within 1% (or 0.5 when small) of a number in
+    the output or question, also after a unit change (x or / 1000, 100, 1e6,
+    e.g. metres to km, km2 to hectares), or of a simple combination of two printed
+    numbers (difference, sum, percentage a/b), which the model may work out while
+    writing the answer. Small whole numbers up to 10 and years are allowed.
+    """
+    printed = _numbers(output)[:60]
+    sources = printed + _numbers(request)
+    for i, a in enumerate(printed):
+        for b in printed[i + 1:]:
+            sources += [a - b, b - a, a + b]
+            if b:
+                sources.append(100 * a / b)
+            if a:
+                sources.append(100 * b / a)
+    factors = (1, 1000, 0.001, 100, 0.01, 1e6, 1e-6)
+    missing = []
+    for value in _numbers(answer):
+        if float(value).is_integer() and (abs(value) <= 10 or 1900 <= value <= 2100):
+            continue
+        traced = any(abs(value - source * factor) <= max(0.01 * abs(source * factor), 0.5)
+                     for source in sources for factor in factors)
+        if not traced:
+            missing.append(f"{value:g}")
+    return missing
+
+
+def _is_lookup(code):
+    """True if the code only looks up QGIS algorithms, so its output is for the model.
+
+    It calls find_algorithms() or algorithm_help(), and does not run anything
+    or save a result.
+    """
+    looks_up = "find_algorithms(" in code or "algorithm_help(" in code
+    acts = "run_algorithm(" in code or "save(" in code
+    return looks_up and not acts
+
+
 def _same_code(a, b):
     """True if two pieces of code are the same apart from spacing."""
     return "".join(a.split()) == "".join(b.split())
 
 
 def _extract_code(reply):
-    """The code inside the first ```python block, or None if there is none."""
+    """The code inside the first ```python block, or None if there is none.
+
+    Found in testing (2026-11-23, qwen3-coder): the model sometimes writes
+    correct code WITHOUT the ``` fences, and it was then shown to the person as
+    text instead of being run. So a reply that is entirely valid Python and
+    calls print() or save() also counts as code. Plain sentences are not valid
+    Python, so they are never mistaken for code.
+    """
     match = CODE_BLOCK.search(reply or "")
-    return match.group(1).strip() if match else None
+    if match:
+        return match.group(1).strip()
+    text = (reply or "").strip()
+    if "print(" in text or "save(" in text:
+        try:
+            ast.parse(text)
+            return text
+        except SyntaxError:
+            pass
+    return None
 
 
 def _data_files():
@@ -312,6 +426,51 @@ def _data_files():
         files += glob.glob(os.path.join(config.DATA_DIR, f"*{extension}"))
     # descriptions.json is the catalogue of layers, not a layer itself.
     return sorted(f for f in files if os.path.basename(f) != "descriptions.json")
+
+
+def _other_data_files(extensions):
+    """Raster or table files in data/ (kept apart from _data_files(), which the map
+    drawing and the QGIS project use for vector layers only)."""
+    files = []
+    for extension in extensions:
+        files += glob.glob(os.path.join(config.DATA_DIR, f"*{extension}"))
+    return sorted(files)
+
+
+def _describe_raster_file(path):
+    """One line about a raster: size, cell size, CRS, value range, and its meaning.
+
+    e.g.  - elevation: raster (grid) 900 x 700 cells, cell size 30 metres, ...
+    """
+    from .helpers import describe_raster
+    name = os.path.splitext(os.path.basename(path))[0]
+    try:
+        text = describe_raster(name)
+    except Exception:
+        return f"- {name}: raster (could not be read)"
+    text = text.split(": ", 1)[1].replace("raster ", "raster (grid of values) ", 1)
+    description = _descriptions().get(name, "")
+    return f"- {name}: {text}. {description} Open with load(\"{name}\")."
+
+
+def _describe_table_file(path, max_columns=12):
+    """One line about a CSV table: its columns, a few example values and its meaning."""
+    from .helpers import read_table
+    name = os.path.splitext(os.path.basename(path))[0]
+    try:
+        table = read_table(name)
+    except Exception:
+        return f"- {name}: table (could not be read)"
+    columns = [str(c) for c in table.columns if not str(c).startswith("Unnamed")]
+    shown = columns[:max_columns]
+    if len(columns) > max_columns:
+        shown += [f"... ({len(columns) - max_columns} more, up to {columns[-1]})"]
+    first = table.iloc[0] if len(table) else {}
+    examples = ", ".join(f"{c}={str(first[c])[:25]}" for c in columns[:3] if c in first)
+    description = _descriptions().get(name, "")
+    return (f"- {name}: table (no geometry), {len(table)} rows. {description} "
+            f"Open with read_table(\"{name}\").\n  Columns: {', '.join(shown)}"
+            + (f"\n  First row: {examples}" if examples else ""))
 
 
 def _describe_file(path, max_fields=12, examples=3):

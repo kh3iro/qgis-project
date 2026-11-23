@@ -78,6 +78,18 @@ TEMPERATURE = float(os.environ.get("TEMPERATURE", "0"))
 # Code and answers here are much shorter; this stops a stuck model early.
 MAX_REPLY_TOKENS = int(os.environ.get("MAX_REPLY_TOKENS", "1024"))
 
+# How the model learns about the 440 QGIS algorithms (an experiment, 2026-11-23):
+#   "full"   every algorithm's full help is in the system prompt (~95k tokens).
+#   "lookup" a short prompt; the model searches for an algorithm when it needs
+#            one, with find_algorithms() / algorithm_help(), and sees the result
+#            before writing its real code.
+# Both are compared in evaluation/ (see docs/DECISIONS.md).
+PROMPT_MODE = os.environ.get("PROMPT_MODE", "full").strip().lower()
+
+# In "lookup" mode, how many look-up steps the model may take before it must
+# write the real code (each step = one search or help request, then its result).
+MAX_LOOKUP_STEPS = int(os.environ.get("MAX_LOOKUP_STEPS", "3"))
+
 # ---------------------------------------------------------------------------
 # The agent's behaviour
 # ---------------------------------------------------------------------------

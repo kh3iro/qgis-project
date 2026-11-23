@@ -129,6 +129,16 @@ facts. No code, no technical words like "layer" or "buffer", no file paths. If t
 result is empty, say clearly that nothing matched."""
 
 
+# Sent when the answer contains a number that is not in what the code printed.
+# Found in testing (2026-11-23): the code printed the wrong field, and the model
+# answered with a number copied from the data description (the raster's mean)
+# as if it were the result. A non-expert cannot detect that.
+UNGROUNDED_ANSWER_PROMPT = """Your answer contains numbers that are NOT in what the code \
+printed: {numbers}. Answer again using ONLY numbers that appear in the printed output \
+(rounding is fine). If the printed output does not contain the answer, say plainly that the \
+calculation did not produce it."""
+
+
 TOOL_REFERENCE_HEADER = """
 
 ALL QGIS PROCESSING ALGORITHMS
@@ -156,6 +166,50 @@ def tool_reference():
         return TOOL_REFERENCE_HEADER.format() + handle.read()
 
 
-def build_system_prompt(data_briefing):
-    """The full system prompt: rules, helpers, data briefing, examples, every QGIS tool."""
-    return SYSTEM_PROMPT.format(helpers=helper_reference(), data=data_briefing) + tool_reference()
+LOOKUP_REFERENCE = """
+
+MORE QGIS TOOLS (LOOK THEM UP WHEN YOU NEED THEM)
+Besides the helpers above, QGIS has 440 processing algorithms (raster, terrain, \
+interpolation, networks, geometry, conversion, statistics...). Their details are NOT \
+listed here. When no helper fits, look the algorithm up FIRST:
+1. Reply with ONE short ```python block that only prints a search, e.g. \
+print(find_algorithms("slope")) or print(algorithm_help("native:slope")).
+2. You will be shown what it printed.
+3. Then write the real code, using run_algorithm("algorithm_id", {{"PARAMETER": value}}) \
+with the exact parameter names from algorithm_help. OUTPUT is filled in for you.
+Search with one plain English keyword (e.g. "buffer", "slope", "zonal", "heatmap"). \
+If a helper fits, use the helper and do not look anything up.
+"""
+
+# Added to the fix message in "lookup" mode. Found in testing (2026-11-23): the
+# model guessed algorithm ids that do not exist ("native:rastercalculator") and
+# kept guessing after each error instead of searching.
+LOOKUP_FIX_HINT = """
+
+If the error says an algorithm or parameter does not exist, do NOT guess another id. Reply \
+with a short look-up first, e.g. print(find_algorithms("sample")) and \
+print(algorithm_help("native:rastersampling")), then write the code with the exact id and \
+parameter names you were shown."""
+
+LOOKUP_RESULT_PROMPT = """Your look-up printed:
+
+{output}
+
+Now write the complete code that answers the original request, in ONE ```python block. \
+If you still need another algorithm's parameters, you may print one more look-up instead."""
+
+
+def build_system_prompt(data_briefing, mode=None):
+    """The system prompt: rules, helpers, data briefing, examples, and the QGIS tools.
+
+    mode "full" (default) appends every QGIS algorithm's full help (~95k tokens);
+    mode "lookup" appends only a short note telling the model how to search for
+    algorithms itself (the prompt is then ~5k tokens). See config.PROMPT_MODE.
+    """
+    mode = mode or config.PROMPT_MODE
+    core = SYSTEM_PROMPT.format(helpers=helper_reference(), data=data_briefing)
+    if mode == "lookup":
+        return core + LOOKUP_REFERENCE.format()
+    if mode != "full":
+        raise ValueError(f"PROMPT_MODE must be 'full' or 'lookup', not '{mode}'")
+    return core + tool_reference()
