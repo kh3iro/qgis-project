@@ -120,6 +120,16 @@ def start_qgis():
     if len(registry.algorithms()) == 0:
         raise RuntimeError("Processing initialized but zero algorithms registered.")
 
+    # Measure on the real Earth, in metres. Every processing tool takes its
+    # ellipsoid and units from the project. Without this, expressions such as
+    # $area and $perimeter on data stored in degrees came out in degrees (found
+    # 2026-11-24: "the longest park perimeter is 0.0 km").
+    from qgis.core import Qgis, QgsProject
+    project = QgsProject.instance()
+    project.setEllipsoid("EPSG:7030")            # WGS 84 ellipsoid
+    project.setDistanceUnits(Qgis.DistanceUnit.Meters)
+    project.setAreaUnits(Qgis.AreaUnit.SquareMeters)
+
     _started = True
     return _qgs
 

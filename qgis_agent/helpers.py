@@ -628,12 +628,27 @@ def convex_hull(layer):
 
 
 def add_field(layer, name, expression):
-    """add_field(layer, name, expression) -> layer. Copy with a new field calculated by a QGIS expression, e.g. add_field(roads, "is_big", '"type" = \\'motorway\\'')."""
+    """add_field(layer, name, expression) -> layer. Copy with a new field calculated by a QGIS expression, e.g. add_field(parks, "perimeter_m", "$perimeter") ($area in m2, $length/$perimeter in metres)."""
     layer = _layer(layer)
-    return _named(_run("native:fieldcalculator", {
-        "INPUT": layer, "FIELD_NAME": name, "FIELD_TYPE": 2,   # 2 = text; QGIS converts
-        "FIELD_LENGTH": 0, "FIELD_PRECISION": 0, "FORMULA": expression}),
-        f"{layer.name()}_{name}")
+    # A number field first (0 = decimal number), so sizes, counts and distances
+    # sort and add up as numbers; if the expression gives text (every value
+    # empty as a number), make a text field instead. Found 2026-11-24: always
+    # using text made numeric results sort and sum wrongly.
+    # $area / $length / $perimeter are in square metres / metres on the real
+    # Earth (set in qgis_engine.start_qgis).
+    from qgis.core import QgsProcessingException
+    for field_type in (0, 2):
+        try:
+            out = _run("native:fieldcalculator", {
+                "INPUT": layer, "FIELD_NAME": name, "FIELD_TYPE": field_type,
+                "FIELD_LENGTH": 0, "FIELD_PRECISION": 0, "FORMULA": expression})
+        except QgsProcessingException:
+            if field_type == 2:
+                raise
+            continue                      # text values: try a text field
+        values = [f[name] for f in out.getFeatures(QgsFeatureRequest().setLimit(50))]
+        if field_type == 2 or any(v is not None and v == v for v in values) or not values:
+            return _named(out, f"{layer.name()}_{name}")
 
 
 def export_csv(layer, name):
@@ -927,6 +942,102 @@ def grid(size_m, shape="hexagon", extent=None):
     return _named(inside, f"grid_{int(size_m)}m_{shape}")
 
 
+def raster_classes(raster):
+    """raster_classes(raster) -> dict. For a class raster (e.g. land cover): {class value: {"cells", "km2", "percent"}} over the whole raster."""
+    import csv
+    import tempfile
+    raster_layer = _as_raster(raster)
+    if raster_layer is None:
+        raise ValueError(f"'{raster}' is not a raster.")
+    path = tempfile.mktemp(suffix=".csv")
+    qgis_engine.run_step("native:rasterlayeruniquevaluesreport",
+                         {"INPUT": raster_layer, "BAND": 1, "OUTPUT_TABLE": path})
+    with open(path, encoding="utf-8") as handle:
+        table = list(csv.DictReader(handle))
+    total = sum(float(r["count"]) for r in table) or 1
+    cell_km2 = None
+    if not raster_layer.crs().isGeographic():
+        cell_km2 = raster_layer.rasterUnitsPerPixelX() * raster_layer.rasterUnitsPerPixelY() / 1e6
+    result = {}
+    for r in table:
+        value = float(r["value"])
+        value = int(value) if value.is_integer() else value
+        cells = int(float(r["count"]))
+        km2 = round(cells * cell_km2, 4) if cell_km2 else round(float(r.get("m2") or 0) / 1e6, 4)
+        result[value] = {"cells": cells, "km2": km2, "percent": round(100 * cells / total, 2)}
+    return result
+
+
+_ROADS_IN_METRES = {}
+
+
+def _roads_in_metres(roads):
+    """The road network in metres (UTM), computed once per file and reused (big networks are slow)."""
+    layer = _layer(roads)
+    key = layer.source()
+    if key not in _ROADS_IN_METRES:
+        projected, _ = _in_metres(layer)
+        _ROADS_IN_METRES[key] = projected
+    return _ROADS_IN_METRES[key]
+
+
+def _point_text(layer, crs):
+    """One point of a layer (its first feature, a point inside it) as 'x,y [CRS]' for QGIS."""
+    from qgis.core import QgsCoordinateTransform
+    layer = _layer(layer)
+    feature = next(layer.getFeatures(), None)
+    if feature is None:
+        raise ValueError(f"'{layer.name()}' is empty, so there is no place to start or end at.")
+    point = feature.geometry().pointOnSurface().asPoint()
+    point = QgsCoordinateTransform(layer.crs(), crs, QgsProject.instance()).transform(point)
+    return f"{point.x()},{point.y()} [{crs.authid()}]"
+
+
+def route(start, end, fastest=False, roads="roads"):
+    """route(start, end, fastest=False) -> layer. The shortest (or fastest) drive along the roads from `start` to `end` (layers, e.g. from find_by_name; their first feature is used). Fields: length_km, minutes."""
+    network = _roads_in_metres(roads)
+    crs = network.crs()
+    out = _run("native:shortestpathpointtopoint", {
+        "INPUT": network, "STRATEGY": 1 if fastest else 0,
+        "DIRECTION_FIELD": "oneway", "VALUE_FORWARD": "yes", "VALUE_BACKWARD": "",
+        "VALUE_BOTH": "no", "DEFAULT_DIRECTION": 2, "SPEED_FIELD": "speed_kmh",
+        "DEFAULT_SPEED": 50, "TOLERANCE": 0, "START_POINT": _point_text(start, crs),
+        "END_POINT": _point_text(end, crs)})
+    out = _add_measure(out, "length_km", lambda m, g: m.measureLength(g) / 1000)
+    # Driving time from the same path's segments would need the network again;
+    # estimate it from the length and the road speeds along it.
+    fast = _run("native:shortestpathpointtopoint", {
+        "INPUT": network, "STRATEGY": 1, "DIRECTION_FIELD": "oneway", "VALUE_FORWARD": "yes",
+        "VALUE_BACKWARD": "", "VALUE_BOTH": "no", "DEFAULT_DIRECTION": 2,
+        "SPEED_FIELD": "speed_kmh", "DEFAULT_SPEED": 50, "TOLERANCE": 0,
+        "START_POINT": _point_text(start, crs), "END_POINT": _point_text(end, crs)})
+    hours = next(fast.getFeatures())["cost"]
+    out.startEditing()
+    out.addAttribute(QgsField("minutes", QMetaType.Type.Double))
+    out.updateFields()
+    index = out.fields().indexOf("minutes")
+    for feature in out.getFeatures():
+        out.changeAttributeValue(feature.id(), index, round(hours * 60, 1))
+    out.commitChanges()
+    return _named(out, "route")
+
+
+def reachable_area(points, minutes, roads="roads"):
+    """reachable_area(points, minutes) -> layer. The area that can be reached by car within `minutes` from any of the points (e.g. fire stations), as one polygon with area_km2."""
+    network = _roads_in_metres(roads)
+    starts = _layer(points)
+    lines = _run("native:serviceareafromlayer", {
+        "INPUT": network, "STRATEGY": 1, "DIRECTION_FIELD": "oneway", "VALUE_FORWARD": "yes",
+        "VALUE_BACKWARD": "", "VALUE_BOTH": "no", "DEFAULT_DIRECTION": 2,
+        "SPEED_FIELD": "speed_kmh", "DEFAULT_SPEED": 50, "TOLERANCE": 0,
+        "START_POINTS": starts, "TRAVEL_COST2": float(minutes) / 60.0, "INCLUDE_BOUNDS": False})
+    # The reachable roads, widened by 150 m, are the reachable area.
+    area = _run("native:buffer", {"INPUT": lines, "DISTANCE": 150, "SEGMENTS": 5,
+                                  "DISSOLVE": True})
+    return _named(_add_measure(area, "area_km2", lambda m, g: m.measureArea(g) / 1e6),
+                  f"reachable_{minutes:g}_min")
+
+
 def reproject(layer, crs):
     """reproject(layer, crs) -> layer. Convert a layer or raster to another CRS, e.g. "EPSG:32640" (UTM 40N, metres)."""
     raster = _as_raster(layer)
@@ -1007,7 +1118,8 @@ HELPER_GROUPS = {
     "Create shapes and measures": [centroids, convex_hull, service_areas, add_area_km2,
                                    add_length_km, add_field, reproject],
     "Rasters and grids (elevation, population, land cover...)": [
-        raster_stats, raster_values_at, zonal_statistics, heatmap, grid],
+        raster_stats, raster_classes, raster_values_at, zonal_statistics, heatmap, grid],
+    "Driving on the road network": [route, reachable_area],
     "Any other QGIS algorithm (440 available)": [find_algorithms, algorithm_help, run_algorithm],
     "Results": [save, export_csv],
 }
