@@ -52,20 +52,28 @@ And several of its "unsolvable" tasks are solvable with the data it provides,
 given a full GIS. We corrected the first and excluded the second.
 
 ### "So how accurate is it?"
-On the fair test (307 new questions about 17 areas never used during development,
-run once on the frozen system): **79%** of final answers correct (95% confidence
-interval 74-83%). On a published benchmark (GeoBenchX subset): 70%. Counting and
-measuring questions were all correct; overlays, distances and raster questions are
-the weakest (about 50-60%). Accuracy falls with the number of steps (85% / 74% / 62%
-for levels 1 / 2 / 3), as in GIS Copilot.
+Two independent tests, each run once on a frozen system:
+- **Held-out 2** (the final system): 10 cities drawn at random from the public
+  GeoNames list (India, China, Spain, Iran, Mexico, Chile, Greece), 20 question
+  types never used before, locked in git before the run: **89%** of 168 final
+  answers correct (95% CI 84-93%).
+- **Held-out 1** (before the last fixes): 17 areas, 307 questions: 80% (75-84%).
+- Published benchmark (GeoBenchX subset): 73%.
+Strong: counting, measuring, maps, "data not available". Weakest: questions that
+need the NAME of the nearest feature (it sometimes reads the wrong column) and
+"within X metres" counts. Accuracy falls with the number of steps, as in GIS Copilot.
 
-### "Did you improve it after the test? What is it now?"
-Yes, a few fixes after reading the answers, and the same 307 questions were run
-again: 83% (78-87%). But that number is not independent any more, because the
-fixes were made after seeing the results. One fix even put the word "noise" into
-the prompt, and one test question is about noise data; without it the re-run is
-82% vs 80%. So the number I quote is the first, independent 79%. A fair new
-measurement would need a fresh set of areas and questions.
+### "Are those numbers exactly as measured?"
+The answers are. The scoring was corrected once: reading held-out 2, I found two
+gaps in my own checker ("There are no pharmacies more than 2 km away" was marked
+wrong because it repeats the "2"; refusals worded "does not contain" were not
+recognised). The fix was applied to all tests at once, every change was wrong to
+right, and each one was read by hand. With the old checker: 85% / 79% / 70%.
+
+### "Did you improve it after the first test?"
+Yes, a few fixes after reading its answers. Re-running the same 307 questions gave
+85%, but that is not independent, so I built held-out 2: new random places and new
+questions, never seen during the fixes. That is the number for the final system.
 
 ### "Why does accuracy differ between places?"
 Each area has only 13-20 questions, so each area's score has a wide uncertainty
@@ -75,22 +83,22 @@ confidence interval.
 
 ### "How do you know the answer key is right if you wrote it?"
 Every answer is computed twice by unrelated software (QGIS, and geopandas/numpy);
-only answers where both agree are used (13 held-out questions were dropped for
-disagreeing). The computations are deterministic and can be re-run by anyone. And
+only answers where both agree are used (13 held-out and 4 held-out-2 questions
+were dropped for disagreeing). The computations are deterministic and can be re-run by anyone. And
 a random sample (evaluation/results/heldout_spot_checks.md) can be re-done by hand
 in QGIS Desktop, step by step.
 
 ### "Why 3 attempts?"
 The agent fixes its own code automatically, up to 3 times. From the same runs:
-with 1 / 2 / 3 / 4 tries, held-out accuracy would be 72% / 78% / 78% / 79%. Only 1
-of 66 wrong answers was still crashing at the end; the rest ran but reasoned
+with 1 / 2 / 3 / 4 tries, held-out accuracy would be 74% / 79% / 79% / 80%
+(held-out 2: 85% / 89% / 89% / 89%). Only 1 wrong answer was still crashing at the end; the rest ran but reasoned
 wrongly, which more tries cannot fix. So more attempts would not help.
 
 ### "What is the full prompt vs lookup comparison?"
 Two ways to teach the model QGIS's 440 algorithms: put all their documentation
-in every prompt (~83k tokens), or give a short prompt and let the model search
-for an algorithm when it needs one. Same model, same questions. Held-out: 79% vs
-76% (not significant, p = 0.29); GeoBenchX: 70% vs 39% (significant, p = 0.013);
+in every prompt (~97k tokens), or give a short prompt (~7k) and let the model search
+for an algorithm when it needs one. Same model, same questions. Held-out: 80% vs
+78% (not significant, p = 0.42); GeoBenchX: 73% vs 42% (significant, p = 0.006);
 lookup is 2.5x faster. So lookup is the default: at least as accurate, much cheaper.
 
 ### "Why can it now work for any place?"

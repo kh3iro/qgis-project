@@ -8,6 +8,38 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+## 2026-11-24: Held-out 2 result, and a checker fix applied to every test (07:20)
+
+**Result.** 168 scored questions (4 left out: the two answer computations
+disagreed, 3 of them routes). Run once at 07:07-07:16 on commit b9740ac.
+With the checker as it was: 142/168 (85%). With the corrected checker: 150/168
+(**89%**, 95% CI 84-93%).
+
+**The checker fix.** Reading the 26 wrong answers showed 8 that were right:
+- a count of zero said as "There are no pharmacies ... more than 2 km from ..."
+  was rejected because the answer repeats the "2" from the question (the rule
+  accepted "no" only in answers with no number at all);
+- refusals worded "does not contain information" were not in the phrase list.
+Both rules were fixed in `run_eval.py` (zero: a clear phrase in the FIRST sentence;
+refusal: "does not contain"), and ALL saved runs were scored again with
+`evaluation/rescore.py`. Every change was wrong to right, and each was read by hand.
+New numbers: held-out 80% / 78% (was 79 / 76), GeoBenchX 73% / 42% (was 70 / 39),
+development 88% / 79%. The decision for lookup does not change.
+
+**Why this is allowed, and how it is reported.** The model's answers are not
+touched; only the scoring of saved answers, the same way for every test. Both
+numbers are reported (README, slides, supervisor Q&A).
+
+**Remaining real failures (held-out 2, 18).** "Which fuel station is closest to
+hospital X" (6: mostly the hospital's own name read instead of "nearest_name");
+counted another traffic type when no traffic lights were mapped (3); overcounted
+people near hospitals (3); filtered shops by three types when the question's
+wording left department stores ambiguous (4, a weakness of the question); rail
+length (1); a route between two places it could not find by name (1). Next improvement: make the
+nearest-name trap impossible (e.g. closest() returning the name directly).
+
+---
+
 ## 2026-11-24: A second independent test on the fixed system ("held-out 2"), written before running
 
 **Decision.** New places AND new questions (`evaluation/fresh_bench.py`),
@@ -149,8 +181,9 @@ answer keys computed twice; exact McNemar test on paired questions):
 | Development: 112 (tuned on, optimistic) | 88% (80-92) | 78% (69-84) | 0.007 |
 
 Lookup is never less accurate, significantly better on two of the three sets,
-and 2.4-2.7x faster (held-out 3 s vs 8 s per question) with a ~2,000-token
-prompt instead of ~83,000. On the held-out set the difference is not
+and 2.4-2.7x faster (held-out 3 s vs 8 s per question) with a much shorter
+prompt (measured later with the 26-layer data list: ~7,000 tokens instead of
+~97,000; the earlier "~2,000 vs ~83,000" counted the rules without the data list). On the held-out set the difference is not
 significant, so the claim is "at least as accurate and much cheaper".
 
 **Why it matters.** The full prompt was the mentor's request (2026-11-03); this

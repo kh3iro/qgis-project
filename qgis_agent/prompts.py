@@ -232,9 +232,9 @@ If you still need another algorithm's parameters, you may print one more look-up
 def build_system_prompt(data_briefing, mode=None):
     """The system prompt: rules, helpers, data briefing, examples, and the QGIS tools.
 
-    mode "full" (default) appends every QGIS algorithm's full help (~95k tokens);
+    mode "full" appends every QGIS algorithm's full help (~95k tokens);
     mode "lookup" appends only a short note telling the model how to search for
-    algorithms itself (the prompt is then ~5k tokens). See config.PROMPT_MODE.
+    algorithms itself (the prompt is then ~7k tokens with the data list). See config.PROMPT_MODE.
     """
     mode = mode or config.PROMPT_MODE
     core = SYSTEM_PROMPT.format(helpers=helper_reference(), data=data_briefing)

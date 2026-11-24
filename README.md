@@ -98,9 +98,10 @@ et al. 2023) with code as the action (CodeAct, Wang et al. 2024).
 
 QGIS has 440 processing algorithms. The model can learn about them in two ways:
 
-- **full**: every algorithm's documentation is in every prompt (~83,000 tokens;
-  needs a 128k-token model);
-- **lookup**: a short prompt (~2,000 tokens); the model searches when it needs an
+- **full**: every algorithm's documentation is in every prompt (~97,000 tokens
+  with the data list, measured 2026-11-24; needs a 128k-token model);
+- **lookup**: a short prompt (~7,000 tokens with the data list of 26 layers);
+  the model searches when it needs an
   algorithm (`find_algorithms("slope")`, `algorithm_help("native:slope")`), sees
   the answer, then writes the real code.
 
@@ -177,18 +178,29 @@ same questions in both modes (below 0.05 = a real difference).
 
 | Test | Questions | Look-up prompt | Full prompt | p | Seconds per question (look-up / full) |
 |---|---|---|---|---|---|
-| **Held-out**: 17 new areas (towns, emirates, islands, capitals, neighbourhoods, small countries), new questions, frozen system, run once | 307 | **79%** (74-83) | 76% (70-80) | 0.29 | 3 / 8 |
-| **External**: GeoBenchX subset (published benchmark, its own data) | 33 | **70%** (53-83) | 39% (25-56) | 0.013 | 23 / 55 |
-| Development: Sharjah, Cairo, Berlin (improved while testing: optimistic) | 112 | 88% (80-92) | 78% (69-84) | 0.007 | 4 / 10 |
+| **Held-out 2**: 10 cities drawn at random (GeoNames, seed fixed in advance) + 20 new question types, final system, run once | 168 | **89%** (84-93) | not run | - | 3 / - |
+| **Held-out**: 17 new areas (towns, emirates, islands, capitals, neighbourhoods, small countries), new questions, frozen system, run once | 307 | **80%** (75-84) | 78% (73-82) | 0.42 | 3 / 8 |
+| **External**: GeoBenchX subset (published benchmark, its own data) | 33 | **73%** (56-85) | 42% (27-59) | 0.006 | 23 / 55 |
+| Development: Sharjah, Cairo, Berlin (improved while testing: optimistic) | 112 | 88% (81-93) | 79% (71-86) | 0.013 | 4 / 10 |
 
-Held-out, look-up prompt, by level: level 1 (one step) 85%, level 2 74%, level 3
-62%. By kind of question: counting 33/33, measuring 41/41, general 17/17,
-routing 9/11, refusals 42/51, map tasks 34/45, proximity 19/29, rasters 30/50,
-distances 9/15, overlays 7/15.
+All runs are scored with the same checker. Two gaps in it were found while reading
+held-out 2 (a zero stated as "There are no ..." in an answer that also repeats a
+number from the question; refusals worded "does not contain") and fixed for every
+run at once (`evaluation/rescore.py`; only wrong-to-right changes, each one read).
+With the checker as it was: held-out 2 85%, held-out 79% / 76%, GeoBenchX 70% / 39%.
+
+Held-out 2 by kind of question: maps 16/16, overlays 10/10, missing data 30/30,
+general 10/10, measuring 16/17, rasters 25/28, counting 24/27, proximity 10/14,
+nearest-name distances 9/15. By level: 91/95, 49/62, 10/11.
+
+Held-out (first), look-up prompt, by level: 85%, 77%, 65%. By kind of question:
+counting 33/33, measuring 41/41, general 17/17, routing 9/11, refusals 42/51, map
+tasks 34/45, proximity 22/29, rasters 30/50, distances 9/15, overlays 8/15.
 
 Successes by attempt (as in GIS Copilot's Table 1): with 1 / 2 / 3 / 4 tries the
-held-out accuracy would be 72% / 78% / 78% / 79%; only 1 of 66 wrong answers
-still ended in an error, so more tries would not help.
+held-out accuracy would be 74% / 79% / 79% / 80% (held-out 2: 85% / 89% / 89% /
+89%); only 1 of the wrong answers still ended in an error, so more tries would not
+help.
 
 The answer key is computed twice (QGIS and geopandas/numpy); 13 held-out
 questions where the two disagreed were left out. A random sample with steps to

@@ -395,8 +395,19 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     Held-out re-run "afterfixes" is reported separately (not independent).
     `scripts/demo_check.py` = start-screen examples + new-layer questions.
     Open: country tier via cloud-native files (researched, not built);
-    `loginctl enable-linger` suggested to Kheiro (not done, awaiting yes).
+    `loginctl enable-linger` explained (OS setting; Kheiro said only if it is a
+    VS Code/Claude setting, so NOT turned on).
     QGIS Desktop on the VM: `conda activate gis-llm` then `qgis &`.
+    Later that morning: place_centre()/closest() helpers, place prompt fix,
+    Overpass request splitting, typical road speeds. **One-click start**:
+    `start_agent.sh` (app menu "Start QGIS Agent", desktop icon, `qgis-agent` alias).
+    **Held-out 2** (`evaluation/fresh_bench.py`, `scripts/run_fresh.sh`): 10 random
+    GeoNames cities (seed 20261124) x 20 new templates, locked in git (533fb28)
+    before running; OSM from Geofabrik (Overpass was down). Known issue:
+    geoBoundaries via GDAL /vsicurl fails since this morning (GitHub redirect).
+    Laptop access: the page listens on 127.0.0.1 of the VM only; use it through
+    Remote Desktop (no SSH on the VM). Deployment for others would need IT, HTTPS
+    and logins (the page runs model-written code).
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 

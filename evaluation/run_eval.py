@@ -97,7 +97,9 @@ def is_correct(task, truth, record, strict=True):
         says_missing = any(phrase in record["answer"].lower() for phrase in (
             "not available", "no data", "don't have", "do not have", "not in the",
             "isn't", "is not", "no information", "not included", "missing", "no mosque",
-            "not part of", "doesn't include", "does not include", "cannot"))
+            "not part of", "doesn't include", "does not include", "cannot",
+            # added 2026-11-24 after held-out 2 (a scoring gap, see DECISIONS.md):
+            "does not contain", "doesn't contain", "do not contain", "not contain"))
         return says_missing and not record["saved_counts"]
     raise ValueError(f"Unknown check '{check}'")
 
@@ -106,6 +108,12 @@ def is_correct(task, truth, record, strict=True):
 # Running one task
 # ---------------------------------------------------------------------------
 ZERO_WORDS = ("no ", "none", "zero", "not any", "isn't any", "aren't any", "there are no")
+# Phrases that state a count of zero even when the answer also repeats a number
+# from the question ("There are no pharmacies more than 2 km from..."). Added
+# 2026-11-24 after held-out 2: the old rule accepted "no" only in answers with no
+# number at all, so correct answers were marked wrong (a scoring gap).
+ZERO_PHRASES = ("there are no ", "there is no ", "there were no ", "none of ", "zero ",
+                "not a single ", "no such ")
 
 
 def is_correct_v2(task, truth, record):
@@ -117,6 +125,9 @@ def is_correct_v2(task, truth, record):
         found = numbers_in(text)
         if truth == 0 and not found:
             return any(word in lowered for word in ZERO_WORDS)
+        first_sentence = lowered.split(". ")[0]
+        if truth == 0 and any(phrase in first_sentence for phrase in ZERO_PHRASES):
+            return True
         return any(abs(value - truth) < 0.5 for value in found)
     if check == "number":
         scale = max(abs(truth), 1e-9)
