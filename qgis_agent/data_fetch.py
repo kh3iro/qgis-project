@@ -521,6 +521,47 @@ def _osm_name(row):
     return ""
 
 
+def _overpass_features(ox, outline, tags):
+    """One Overpass request for these tags; split in two if the server says it is too big.
+
+    Found 2026-11-24: with the standard layers added, the single request for all
+    point layers was refused ("413 Request Entity Too Large"), and every small
+    place fell back to downloading a whole Geofabrik region.
+    """
+    import geopandas as gpd
+    import pandas as pd
+    try:
+        return ox.features.features_from_polygon(outline, tags).reset_index()
+    except Exception as exc:
+        too_big = "413" in str(exc) or "Too Large" in str(exc)
+        if not too_big:
+            raise
+        items = list(tags.items())
+        if len(items) == 1 and isinstance(items[0][1], list) and len(items[0][1]) > 1:
+            key, values = items[0]
+            halves = [{key: values[:len(values) // 2]}, {key: values[len(values) // 2:]}]
+        elif len(items) > 1:
+            halves = [dict(items[:len(items) // 2]), dict(items[len(items) // 2:])]
+        else:
+            raise
+        frames = []
+        for half in halves:
+            try:
+                frames.append(_overpass_features(ox, outline, half))
+            except Exception as inner:
+                if "No matching features" not in str(inner) and \
+                        "InsufficientResponseError" not in type(inner).__name__:
+                    raise
+        if not frames:
+            return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+        frame = pd.concat(frames, ignore_index=True)
+        # a feature matching tags in both halves comes back twice
+        keys = [c for c in ("element", "id") if c in frame.columns]
+        if keys:
+            frame = frame.drop_duplicates(subset=keys)
+        return gpd.GeoDataFrame(frame, geometry="geometry", crs="EPSG:4326")
+
+
 def fetch_osm_features(place, progress=print):
     """Step 3: every OSM_LAYERS layer for the place, in two Overpass requests.
 
@@ -563,7 +604,7 @@ def fetch_osm_features(place, progress=print):
         else:
             progress(f"  OpenStreetMap (Overpass): downloading {', '.join(group)} ...")
             try:
-                frame = ox.features.features_from_polygon(outline, tags).reset_index()
+                frame = _overpass_features(ox, outline, tags)
             except Exception as exc:                       # e.g. nothing at all found
                 if "No matching features" in str(exc) or "InsufficientResponseError" in type(exc).__name__:
                     frame = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")

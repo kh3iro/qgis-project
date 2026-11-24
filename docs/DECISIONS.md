@@ -8,6 +8,36 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+## 2026-11-24: A second independent test on the fixed system ("held-out 2"), written before running
+
+**Decision.** New places AND new questions (`evaluation/fresh_bench.py`),
+committed before the model sees them, system frozen at that commit, run once,
+lookup mode (the default). Reported as its own group, next to the first held-out
+result (which stays as measured).
+
+**Why.** Kheiro's question: the 83% re-run is not independent, because the fixes were
+made after reading the first held-out results. Only unseen places and questions
+measure the fixed system fairly.
+
+**Places drawn at random, not chosen.** GeoNames cities15000 (public list),
+populated places with 100,000-1,000,000 people, minus every city used before:
+5,712 candidates. 14 drawn with seed 20261124; kept in draw order the first 10
+that a place search finds at the GeoNames point: Durgapur (India), Yintai (China),
+Badalona (Spain), Yanzhou (China), Amol (Iran), Apodaca (Mexico), Temuco (Chile),
+Peristeri (Greece), Pilibhit (India), Dezful (Iran). Excluded by the rule: Abu Tij
+(matched a drainage canal), Smolyanskyi (not found). A random draw avoids the
+criticism of the first test ("you chose the areas").
+
+**Questions.** 20 new templates over every family; five use the new standard
+layers; the missing-data questions avoid the words used as examples in the
+prompt. Answers computed twice; disagreements excluded (as before).
+
+**Data.** OpenStreetMap from Geofabrik's daily files for all ten (`OSM_SOURCE=geofabrik`):
+the public Overpass server was not answering this morning, and one dated
+snapshot is more reproducible anyway.
+
+---
+
 ## 2026-11-24: Fixes from the second robustness check and the demo check (morning)
 
 **Decision.** Two new helpers and one prompt rule, each from a real wrong answer:

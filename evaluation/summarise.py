@@ -28,7 +28,8 @@ from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(ROOT, "evaluation", "results")
-GROUPS = {"places": "development", "geobenchx": "external", "heldout": "held-out"}
+GROUPS = {"places": "development", "geobenchx": "external", "heldout": "held-out",
+          "fresh": "held-out 2"}
 
 
 def latest_runs(tag=""):
@@ -175,7 +176,7 @@ def main():
                  "disputed questions excluded. Development = places tuned on; external = "
                  "GeoBenchX; held-out = new areas and questions, run once on the frozen system.", ""]
     summary = {}
-    for group in ("held-out", "external", "development"):
+    for group in ("held-out 2", "held-out", "external", "development"):
         by_mode = defaultdict(list)
         for (g, place, mode), rs in runs.items():
             if g == group:

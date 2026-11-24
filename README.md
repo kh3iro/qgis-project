@@ -14,6 +14,15 @@ Prof. Qassim Nasir and Dr. Manar. Mentor: Mohammed Eljack.
 
 ## Quick start (on the university VM)
 
+One click: **"Start QGIS Agent"** in Ubuntu's app menu (Show Apps, or search
+"QGIS Agent"), or the icon of the same name on the VM desktop (the first time,
+right-click it > Allow Launching). In a terminal: `qgis-agent`. All three run
+`start_agent.sh`, which activates the environment, checks the model server,
+starts the chat page and opens it in the browser (or just opens the page if it is
+already running). Close the terminal window it opens to stop the agent.
+
+By hand:
+
 ```bash
 cd ~/Desktop/"Kheiro QGIS"/qgis-project
 conda activate gis-llm
