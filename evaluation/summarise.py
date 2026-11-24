@@ -202,7 +202,13 @@ def main():
                       f"- After fixes: {rate(after)}",
                       f"- First run, same questions: {rate([f for f, _ in pairs])}",
                       f"- Right only before: {b}; right only after: {c}; exact McNemar "
-                      f"p = {mcnemar(b, c):.4f}", ""]
+                      f"p = {mcnemar(b, c):.4f}"]
+        # The fixed prompt names "noise" as an example of missing data, and the
+        # held-out set has a "noise data" refusal question: leave it out too.
+        clean = [(f, a) for f, a in pairs if "_h_no_noise" not in a["id"]]
+        all_lines += [f"- Without the noise question (its word was put in the prompt's examples "
+                      f"after the first run): after {rate([a for _, a in clean])}, before "
+                      f"{rate([f for f, _ in clean])}", ""]
         summary["held-out after fixes"] = {
             "correct": sum(r["correct"] for r in after), "total": len(after),
             "ci": wilson(sum(r["correct"] for r in after), len(after)),

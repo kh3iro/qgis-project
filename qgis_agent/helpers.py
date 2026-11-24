@@ -355,7 +355,7 @@ def rows(layer, fields=None, limit=None):
 
 
 def buffer_metres(layer, metres, dissolve=True):
-    """buffer_metres(layer, metres, dissolve=True) -> layer. Zone of a distance in METRES around the features, merged into one area (dissolve=False: one zone per feature, which can overlap)."""
+    """buffer_metres(layer, metres, dissolve=True) -> layer. Zone of a distance in METRES around the features, merged into one area. Keep the default for totals (area, people, counts): dissolve=False makes one zone per feature, the zones overlap, and sums over them count the same place twice."""
     # Default changed to merged on 2026-11-24: with one zone per road, the model
     # added up 4,290 overlapping zones and reported a buffer larger than the
     # whole emirate.
