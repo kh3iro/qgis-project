@@ -452,7 +452,7 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     CONTEXT_TOKENS 32768 -> model needs ~22 GB GPU (24 GB card). Slides (23):
     `presentation/` in this repo (built by ~/qgis-slides-work/finalize.sh on the
     VM). Q&A to rehearse: docs/SUPERVISOR_QA.md. Commits re-labelled from the
-    VM's shared identity "HomaizaSaud" to Kheireddine; repo has local user config.
+    VM's shared identity "HomaizaSaud" to "Kheireddine (VM)"; repo has local user config.
     Push to GitHub needs Kheiro's login on the VM (no credentials stored there).
     Next ideas: make the nearest-name trap impossible (closest() returning names);
     dissolve-before-total together with the answer keys; country tier; fix

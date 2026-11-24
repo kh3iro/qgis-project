@@ -34,9 +34,9 @@ with 32k (see results/demo_check_* and robustness_* of 2026-11-24).
 
 The VM's shared git identity ("HomaizaSaud", another user of the shared VM) had
 been used for 44 commits made here. Before the first push they were re-labelled
-to Kheireddine (content and dates unchanged; backup branch
-`backup-before-author-fix`), and the project now sets its own `user.name` /
-`user.email`. GitHub had one commit from the laptop (2026-11-22, OSM download
+"Kheireddine (VM)" (Kheiro's choice, to tell VM work from laptop work; content and
+dates unchanged; backup branches `backup-before-author-fix`, `backup-before-vm-label`),
+and the project now sets its own `user.name` / `user.email` on the VM. GitHub had one commit from the laptop (2026-11-22, OSM download
 research notes) that the VM did not have: merged, nothing rewritten on GitHub.
 
 ---
