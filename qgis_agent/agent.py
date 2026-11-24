@@ -355,8 +355,17 @@ class Agent:
             if _ungrounded_numbers(answer, result.output + "\n" + evidence, known):
                 # Still not traceable: show the person exactly what QGIS computed,
                 # rather than an answer that may contain an invented number.
-                answer = ("Here is what the calculation found:\n\n"
-                          + (result.output.strip()[:1500] or "(nothing was printed)"))
+                if result.output.strip():
+                    answer = ("Here is what the calculation found:\n\n"
+                              + result.output.strip()[:1500])
+                elif saved_paths:
+                    # Found 2026-11-24: a slope map was made, but the answer read
+                    # "(nothing was printed)". The map itself is the result.
+                    answer = ("The map below shows the result; it is also saved as a file you "
+                              "can download or open in QGIS. Ask about a specific value (for "
+                              "example the highest or average) to get a number.")
+                else:
+                    answer = "The calculation ran but did not produce a result to report."
                 yield {"type": "answer", "text": answer}
 
         # 6. REMEMBER

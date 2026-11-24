@@ -354,8 +354,11 @@ def rows(layer, fields=None, limit=None):
     return _make_rows(layer, features, names)
 
 
-def buffer_metres(layer, metres, dissolve=False):
-    """buffer_metres(layer, metres, dissolve=False) -> layer. Zone of a distance in METRES around each feature."""
+def buffer_metres(layer, metres, dissolve=True):
+    """buffer_metres(layer, metres, dissolve=True) -> layer. Zone of a distance in METRES around the features, merged into one area (dissolve=False: one zone per feature, which can overlap)."""
+    # Default changed to merged on 2026-11-24: with one zone per road, the model
+    # added up 4,290 overlapping zones and reported a buffer larger than the
+    # whole emirate.
     layer = _layer(layer)
     projected, original_crs = _in_metres(layer)
     buffered = _run("native:buffer", {

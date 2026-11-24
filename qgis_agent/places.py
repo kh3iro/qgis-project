@@ -56,7 +56,14 @@ USER_AGENT = os.getenv("QGIS_AGENT_USER_AGENT", "qgis-agent-prototype/0.2")
 # country or large region: too much to download, so we ask for a smaller area.
 # 3 degrees (about 330 km) lets a whole emirate or province through: when a
 # name is ambiguous, Kheiro chose the bigger, more general place (2026-11-21).
-MAX_SPAN_DEGREES = 3.0
+MAX_SPAN_DEGREES = 3.0     # no longer used for the decision (kept for older code)
+
+# The largest place prepared in full detail, as the area of its bounding box in
+# km2. Measured on 2026-11-24 on this VM: the whole United Arab Emirates (box
+# 206,000 km2) took 313 s the first time (34 s map features, 172 s road network
+# of 405,736 segments, 106 s rasters) within a 30 GB memory cap. Larger places
+# (e.g. Saudi Arabia, Egypt, Germany, the USA) are refused with a suggestion.
+FULL_DETAIL_MAX_KM2 = float(os.getenv("FULL_DETAIL_MAX_KM2", "250000"))
 
 
 class PlaceError(Exception):
@@ -197,16 +204,18 @@ def find_place(query, refresh=False):
     #   3. otherwise the first match, which is then only a point (its "outline"
     #      is the rectangle Nominatim gives around it).
     def span_ok(result):
+        import math
         s, n, w, e = (float(v) for v in result["boundingbox"])
-        return n - s <= MAX_SPAN_DEGREES and e - w <= MAX_SPAN_DEGREES
+        km2 = (n - s) * 111.32 * (e - w) * 111.32 * math.cos(math.radians((n + s) / 2))
+        return km2 <= FULL_DETAIL_MAX_KM2
 
     def has_shape(result):
         return result.get("geojson", {}).get("type") in OUTLINE_TYPES
 
     if not span_ok(results[0]):
-        raise PlaceError(f"'{results[0].get('display_name', query)}' is a very large area "
-                         f"(a country or a large region). Please name a city, emirate or "
-                         f"province inside it.")
+        raise PlaceError(f"'{results[0].get('display_name', query)}' is larger than the areas "
+                         f"this system prepares in full detail (about the size of the UAE). "
+                         f"Please name a region, emirate, province or city inside it.")
     found = next((r for r in results if has_shape(r) and span_ok(r)), results[0])
     south, north, west, east = (float(v) for v in found["boundingbox"])
     display = found.get("display_name", query)
