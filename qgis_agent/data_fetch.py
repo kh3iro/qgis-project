@@ -693,7 +693,15 @@ def fetch_road_network(place, progress=print):
         graph = ox.truncate.truncate_graph_polygon(graph, _outline(place), truncate_by_edge=True)
     # Speeds: the posted limit where mapped, otherwise the average for that
     # road type in this place (OSMnx's standard method), then travel times.
-    graph = ox.routing.add_edge_speeds(graph)
+    # Typical speeds (km/h) per road type, used where no speed limit is mapped.
+    # Found 2026-11-24: Durgapur (India) has NO speed limits in OpenStreetMap at
+    # all, and OSMnx then refuses to guess; with these it fills the gaps (it
+    # still uses the mapped limits wherever they exist).
+    typical = {"motorway": 100, "motorway_link": 60, "trunk": 80, "trunk_link": 50,
+               "primary": 60, "primary_link": 40, "secondary": 50, "secondary_link": 40,
+               "tertiary": 40, "tertiary_link": 30, "unclassified": 30, "residential": 30,
+               "living_street": 10, "service": 20, "road": 30}
+    graph = ox.routing.add_edge_speeds(graph, hwy_speeds=typical, fallback=30)
     graph = ox.routing.add_edge_travel_times(graph)
     edges = ox.convert.graph_to_gdfs(graph, nodes=False).reset_index()
 
