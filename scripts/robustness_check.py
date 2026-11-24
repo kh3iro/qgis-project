@@ -105,9 +105,12 @@ def run(mode):
     write(rows, mode, time.time() - started_all)
 
 
+REPORT_NAME = "robustness"     # demo_check.py reuses this script with its own name
+
+
 def write(rows, mode, seconds):
     stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H%M")
-    path = os.path.join(ROOT, "evaluation", "results", f"robustness_{mode}_{stamp}.md")
+    path = os.path.join(ROOT, "evaluation", "results", f"{REPORT_NAME}_{mode}_{stamp}.md")
     ok = sum(r["status"] == "ok" for r in rows)
     lines = [f"# Robustness check ({config.MODEL}, {mode} prompt)", "",
              f"{ok} of {len(rows)} requests answered without failing; total {seconds / 60:.0f} min; "

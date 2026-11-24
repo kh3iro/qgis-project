@@ -801,6 +801,16 @@ def run_algorithm(algorithm_id, params):
         else:
             prepared[key] = value
 
+    for key in _CELL_SIZE_KEYS:
+        if isinstance(prepared.get(key), (int, float)):
+            extent_layer = next((v for v in prepared.values()
+                                 if isinstance(v, (QgsVectorLayer, QgsRasterLayer))), None)
+            if extent_layer is None:
+                extent_layer = next((_try_layer(v) for v in prepared.values()
+                                     if isinstance(v, str) and os.path.exists(v)), None)
+            if extent_layer is not None:
+                _check_cells(extent_layer, prepared[key], key)
+
     # Every output the caller did not set goes to a temporary result.
     for name, definition in definitions.items():
         if definition.type() in _OUTPUT_PARAMETER_TYPES and name not in prepared:
@@ -823,6 +833,44 @@ def run_algorithm(algorithm_id, params):
     layers = [v for v in result.values() if isinstance(v, QgsVectorLayer)]
     # Otherwise (a raster, a table, several outputs) return everything it made.
     return layers[0] if len(layers) == 1 else result
+
+
+# Parameters that set a pixel or cell size (in the layer's units).
+_CELL_SIZE_KEYS = ("PIXEL_SIZE", "CELL_SIZE", "CELLSIZE", "HSPACING", "VSPACING",
+                   "TARGET_RESOLUTION", "RESOLUTION", "SPACING")
+MAX_CELLS = 100_000_000     # 10,000 x 10,000 pixels (~400 MB): far beyond any map we draw
+
+
+def _try_layer(path):
+    try:
+        layer = _layer(path)
+        return layer if layer is not None and layer.isValid() else None
+    except Exception:
+        return None
+
+
+def _check_cells(layer, size, what="PIXEL_SIZE"):
+    """Refuse a pixel or cell size that would make an enormous raster or grid.
+
+    Found in testing (2026-11-24): the model gave a heatmap PIXEL_SIZE of a
+    fraction of a degree to a layer already converted to metres, so QGIS started
+    writing a 3 GB raster of millimetre pixels and the question never finished.
+    """
+    from qgis.core import QgsUnitTypes
+    size = float(size)
+    extent = layer.extent()
+    width, height = extent.width(), extent.height()
+    unit = QgsUnitTypes.toString(layer.crs().mapUnits())
+    if size <= 0:
+        raise ValueError(f"{what} must be more than 0 ({unit}).")
+    cells = (width / size + 1) * (height / size + 1)
+    if cells > MAX_CELLS:
+        suggestion = max(width, height) / 500
+        raise ValueError(
+            f"{what} {size:g} would make about {cells:,.0f} cells over an area of "
+            f"{width:,.0f} x {height:,.0f} {unit}, far too many. The size is in {unit}"
+            f"{' (the layer was converted to metres)' if unit == 'meters' else ''}: "
+            f"use about {suggestion:,.0f} or more.")
 
 
 def _enum_value(definition, value):
@@ -979,6 +1027,7 @@ def heatmap(points, radius_m=1000, pixel_m=50):
     """heatmap(points, radius_m=1000, pixel_m=50) -> raster. Where the points are concentrated (kernel density), with the radius and pixel size in METRES. save() it to show it."""
     points = _layer(points)
     projected, _ = _in_metres(points)
+    _check_cells(projected, pixel_m, "pixel_m")
     out = qgis_engine.run_step("qgis:heatmapkerneldensityestimation", {
         "INPUT": projected, "RADIUS": float(radius_m), "PIXEL_SIZE": float(pixel_m),
         "KERNEL": 0, "OUTPUT_VALUE": 0, "OUTPUT": "TEMPORARY_OUTPUT"})["OUTPUT"]
@@ -989,6 +1038,7 @@ def grid(size_m, shape="hexagon", extent=None):
     """grid(size_m, shape="hexagon", extent=None) -> layer. A grid of cells size_m METRES wide ("square" or "hexagon") covering `extent` (a layer; default: the whole place). Count things per cell with points_in_polygons(grid, points)."""
     extent_layer = _layer(extent) if extent is not None else _layer("boundary")
     projected, _ = _in_metres(extent_layer)
+    _check_cells(projected, size_m, "size_m")
     kind = {"square": 2, "rectangle": 2, "diamond": 3, "hexagon": 4}.get(str(shape).lower(), 4)
     cells = _run("native:creategrid", {"TYPE": kind, "EXTENT": projected.extent(),
                                        "HSPACING": float(size_m), "VSPACING": float(size_m),
