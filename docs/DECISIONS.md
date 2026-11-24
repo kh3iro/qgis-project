@@ -8,6 +8,68 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+## 2026-11-24: Layers defined by the Geofabrik standard; 8 layers added (morning, to review with Kheiro)
+
+**Decision.** Every OpenStreetMap layer is now defined as a set of classes of
+Geofabrik's "OpenStreetMap Data in Layered GIS Format" (2026-04-02, the 0.8
+structure), with the class kept in the field `type`. Our 18 task-named layers
+stay unchanged. The standard layers we lacked were added: settlements, transport,
+traffic, natural, railways and waterways (lines), protected_areas, plus
+`other_pois` for the remaining point-of-interest classes (libraries, post
+offices, cinemas, stadiums, doctors...). Full mapping and differences:
+`docs/DATA_LAYERS.md`.
+
+**Why.** Kheiro asked that the layers follow a standard rather than our own
+choice. Geofabrik's is the most used published OSM-to-GIS mapping, and it comes
+from the same company whose extracts we download. The robustness check also
+showed real requests that the old layers could not answer, for example "how many
+traffic lights are there in Berlin?".
+
+**Alternatives rejected.**
+- *Use Geofabrik's layers exactly (pois, pofw, ...):* broad layers hide what is
+  inside them, and the model would have to guess. Renaming the 18 layers would
+  also invalidate the answer keys computed on them.
+- *Leave the 18 layers as they were:* not defensible as a standard, and common
+  questions (railways, rivers, airports, libraries) would be refused.
+
+**Not evaluated yet.** The held-out results were measured before these layers
+existed (the new layers do not change any answer key).
+
+---
+
+## 2026-11-24: Full detail up to 250,000 km2 (the UAE), measured (morning)
+
+**Decision.** A place is prepared in full detail if its bounding box is at most
+250,000 km2 (`FULL_DETAIL_MAX_KM2`). This replaces the earlier rule of
+"at most 3 degrees wide".
+
+**Why.** It is based on a measurement, not a guess: preparing the whole UAE took
+313 s (OSM features 34 s, 405,736 road segments 172 s, rasters 106 s) and fitted
+in memory. So the UAE, Jordan and every emirate work. Oman, Saudi Arabia, Egypt,
+Germany and the USA are refused with a clear message. The 3-degree rule was
+arbitrary and wrongly refused the UAE.
+
+**Alternatives considered.** A country tier with coarser data from cloud-native
+files (Layercake, Overture) was researched and tested (UAE health facilities in
+10 s), but not built in time. It remains the way to support big countries.
+
+---
+
+## 2026-11-24: Fixes from the robustness check, and a labelled re-run (morning)
+
+**Decision.** Four fixes after reading the 34 free-form answers: buffers merge by
+default (overlapping zones had summed to more than the emirate's area); a clear
+reply when a map was made but nothing was printed; a firmer rule against
+counting a stand-in when the asked-for data does not exist; general questions
+answered in general terms. The held-out questions were then re-run on the fixed
+system with the label "afterfixes".
+
+**Why the label.** The fixes were made after seeing the held-out results, so
+the re-run is no longer an independent test. The first run (79%) stays the main
+result; `summarise.py` reports the re-run separately, paired with the first.
+
+---
+
 ## 2026-11-24: Default prompt mode is "lookup" (to discuss with the mentor)
 
 **Decision.** `PROMPT_MODE=lookup` by default; the full prompt stays available.

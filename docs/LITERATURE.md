@@ -104,6 +104,12 @@ areas, planet file for everything. The basis of our hybrid rule.
 https://download.geofabrik.de/technical.html). Daily regional OSM files, an index
 of regions with outlines, and the recommendation to cut with osmium.
 
+**Reichert & Ramm, "OpenStreetMap Data in Layered GIS Format", Geofabrik, 2026-04-02**:
+https://download.geofabrik.de/osm-data-in-gis-formats-free.pdf
+The published mapping from OSM tags to GIS layers and classes (places, pois,
+transport, traffic, roads, railways, waterways, landuse, water...). Our 26 OSM
+layers are defined by its classes; differences in `docs/DATA_LAYERS.md`.
+
 **Overpass API usage and limits**: https://dev.overpass-api.de/overpass-doc/en/preface/commons.html
 The public servers ask for modest use and may refuse long or large queries.
 

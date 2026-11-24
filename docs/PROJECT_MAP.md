@@ -73,7 +73,7 @@ code prints. QGIS does every calculation.
 | `qgis_agent/code_runner.py` | Runs the model's code with `exec()` in a workspace kept per conversation. |
 | `qgis_agent/helpers.py` | 44 tested shortcuts (distances, zones, rasters, heatmap, grid, routing, `save`...) and the gateway to all 440 QGIS algorithms. |
 | `qgis_agent/places.py` | Place name -> outline (Nominatim), ambiguity rule, dated folder per place. |
-| `qgis_agent/data_fetch.py` | Downloads a place's layers; Overpass/Geofabrik hybrid for OpenStreetMap; repairs invalid shapes. |
+| `qgis_agent/data_fetch.py` | Downloads a place's layers (26 OpenStreetMap layers defined by the Geofabrik standard, see `docs/DATA_LAYERS.md`, plus rasters, Overture, boundaries); Overpass/Geofabrik hybrid; repairs invalid shapes. |
 | `qgis_agent/map_render.py` | Draws results (vectors and rasters) as a PNG over OpenStreetMap. |
 | `qgis_agent/qgis_project.py` | "Open in QGIS Desktop". |
 | `qgis_agent/config.py` | Every setting, read from `.env` (model, prompt mode, context, place...). |

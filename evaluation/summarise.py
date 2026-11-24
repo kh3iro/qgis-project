@@ -31,12 +31,18 @@ RESULTS = os.path.join(ROOT, "evaluation", "results")
 GROUPS = {"places": "development", "geobenchx": "external", "heldout": "held-out"}
 
 
-def latest_runs():
-    """{(group, place, mode): records} using the newest file of each kind."""
+def latest_runs(tag=""):
+    """{(group, place, mode): records} using the newest file of each kind.
+
+    Runs with a tag (e.g. "afterfixes": the held-out questions re-run after fixes
+    made on seeing the first results) are kept apart, so they never replace the
+    main, independent results; latest_runs("afterfixes") returns only those."""
     runs = {}
     files = sorted(glob.glob(os.path.join(RESULTS, "*.json")), key=os.path.getmtime)
     for path in files:
         if "smoke" in path or os.path.basename(path).startswith("summary"):
+            continue
+        if ("_afterfixes" in os.path.basename(path)) != (tag == "afterfixes"):
             continue
         try:
             records = json.load(open(path, encoding="utf-8"))
@@ -179,6 +185,28 @@ def main():
         lines, data = report(group, by_mode, runs)
         all_lines += lines + [""]
         summary[group] = data
+    # The held-out questions re-run after the fixes (NOT independent: the fixes
+    # were made after seeing the first results). Reported apart, paired with the
+    # first run on the same questions.
+    after = [r for (g, _, m), rs in latest_runs("afterfixes").items()
+             if g == "held-out" and m == "lookup" for r in rs]
+    first = {r["id"]: r for (g, _, m), rs in runs.items()
+             if g == "held-out" and m == "lookup" for r in rs}
+    if after:
+        pairs = [(first[r["id"]], r) for r in after if r["id"] in first]
+        b = sum(1 for f, a in pairs if f["correct"] and not a["correct"])
+        c = sum(1 for f, a in pairs if a["correct"] and not f["correct"])
+        all_lines += ["# Held-out questions re-run after the fixes (lookup)", "",
+                      "Not an independent test: the fixes were made after seeing the first "
+                      "held-out results. The first run above stays the main result.", "",
+                      f"- After fixes: {rate(after)}",
+                      f"- First run, same questions: {rate([f for f, _ in pairs])}",
+                      f"- Right only before: {b}; right only after: {c}; exact McNemar "
+                      f"p = {mcnemar(b, c):.4f}", ""]
+        summary["held-out after fixes"] = {
+            "correct": sum(r["correct"] for r in after), "total": len(after),
+            "ci": wilson(sum(r["correct"] for r in after), len(after)),
+            "paired": {"n": len(pairs), "only_before": b, "only_after": c, "p": mcnemar(b, c)}}
     with open(os.path.join(RESULTS, "SUMMARY.md"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(all_lines) + "\n")
     with open(os.path.join(RESULTS, "summary.json"), "w", encoding="utf-8") as handle:

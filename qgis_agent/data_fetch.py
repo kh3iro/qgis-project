@@ -291,7 +291,10 @@ _OSM_TAG = __import__("re").compile(r'"((?:[^"\\]|\\.)*)"=>"((?:[^"\\]|\\.)*)"')
 
 # The OSM tag keys our layers are built from (see OSM_LAYERS), plus names.
 _WANTED_TAGS = {"amenity", "shop", "tourism", "highway", "place", "leisure", "natural",
-                "landuse", "religion", "name", "name:en", "water"}
+                "landuse", "religion", "name", "name:en", "water",
+                # for the standard layers added 2026-11-24 (see docs/DATA_LAYERS.md)
+                "railway", "waterway", "aeroway", "aerialway", "boundary", "protect_class",
+                "population", "public_transport", "bridge", "tunnel", "historic"}
 
 
 def _features_from_pbf(path, outline):
@@ -306,7 +309,7 @@ def _features_from_pbf(path, outline):
     import pyogrio
 
     frames = []
-    for layer, element in (("points", "node"), ("multipolygons", None)):
+    for layer, element in (("points", "node"), ("multipolygons", None), ("lines", "way")):
         frame = pyogrio.read_dataframe(path, layer=layer)
         if not len(frame):
             continue
@@ -321,6 +324,7 @@ def _features_from_pbf(path, outline):
                                     index=frame.index)
             unpacked = unpacked[[c for c in unpacked.columns if c not in frame.columns]]
             frame = pd.concat([frame, unpacked], axis=1)
+        frame["from_lines"] = layer == "lines"     # only the line layers use these rows
         if element:
             frame["element"], frame["id"] = element, frame["osm_id"]
         else:
@@ -387,7 +391,95 @@ OSM_LAYERS = {
     "land_use": {"tags": {"landuse": True}, "as": "polygon", "type": "landuse",
                  "what": "Land use areas (polygons). Field 'type' is the use, e.g. "
                          "'residential', 'industrial', 'commercial', 'farmland', 'cemetery'."},
+
+    # --- Standard layers added 2026-11-24, following Geofabrik's "OpenStreetMap Data
+    # in Layered GIS Format" (free shapefiles, 2026-04-02; the 0.8 structure). Each
+    # keeps the standard's classes (fclass) in the field 'type' ("matched" = the
+    # value of whichever tag selected the feature). Mapping: docs/DATA_LAYERS.md.
+    "settlements": {"tags": {"place": ["city", "town", "village", "hamlet",
+                                       "isolated_dwelling", "locality", "island"]},
+                    "as": "point", "type": "matched", "fields": {"population": "population"},
+                    "what": "Cities, towns, villages, hamlets and islands as POINTS (Geofabrik "
+                            "'places'). Field 'type' is the kind; 'population' is often empty "
+                            "(0). Districts are in the neighbourhoods layer."},
+    "transport": {"tags": {"railway": ["station", "halt", "tram_stop", "subway_entrance"],
+                           "amenity": ["bus_station", "taxi", "ferry_terminal"],
+                           "aeroway": ["aerodrome", "airfield", "helipad"],
+                           "aerialway": ["station"]},
+                  "as": "point", "type": "matched",
+                  "what": "Transport stations as points (Geofabrik 'transport'): field 'type' "
+                          "is 'station' or 'halt' (railway/metro), 'tram_stop', "
+                          "'subway_entrance', 'bus_station', 'taxi', 'ferry_terminal', "
+                          "'aerodrome' (airport), 'airfield', 'helipad'. Bus stops are in "
+                          "the bus_stops layer."},
+    "traffic": {"tags": {"highway": ["traffic_signals", "stop", "crossing", "mini_roundabout",
+                                     "motorway_junction", "speed_camera", "street_lamp",
+                                     "turning_circle", "services"],
+                         "amenity": ["parking"]},
+                "as": "point", "type": "matched",
+                "what": "Traffic features as points (Geofabrik 'traffic'): field 'type' is "
+                        "'traffic_signals' (traffic lights), 'stop', 'crossing', "
+                        "'mini_roundabout', 'motorway_junction', 'speed_camera', "
+                        "'street_lamp', 'turning_circle', 'services', 'parking'. Petrol "
+                        "stations are in fuel_stations."},
+    "natural": {"tags": {"natural": ["peak", "spring", "cliff", "volcano", "glacier",
+                                     "cave_entrance", "beach"]},
+                "as": "point", "type": "matched",
+                "what": "Natural features as points (Geofabrik 'natural', without single "
+                        "trees): field 'type' is 'peak', 'spring', 'cliff', 'volcano', "
+                        "'glacier', 'cave_entrance' or 'beach'."},
+    "other_pois": {"tags": {
+        "amenity": ["post_office", "library", "townhall", "courthouse", "prison", "embassy",
+                    "community_centre", "nursing_home", "arts_centre", "marketplace",
+                    "kindergarten", "doctors", "dentist", "veterinary", "theatre", "nightclub",
+                    "cinema", "pub", "bar", "food_court", "car_rental", "car_wash",
+                    "bicycle_rental", "toilets", "drinking_water", "fountain", "recycling",
+                    "grave_yard", "public_building"],
+        "leisure": ["playground", "dog_park", "sports_centre", "pitch", "swimming_pool",
+                    "golf_course", "stadium", "ice_rink"],
+        "shop": ["bakery", "kiosk", "general", "clothes", "florist", "chemist", "books",
+                 "butcher", "shoes", "alcohol", "beverages", "optician", "jewelry", "gift",
+                 "sports", "stationery", "outdoor", "mobile_phone", "toys", "newsagent",
+                 "greengrocer", "beauty", "car", "bicycle", "doityourself", "furniture",
+                 "computer", "garden_centre", "hairdresser", "car_repair", "travel_agency",
+                 "laundry"],
+        "tourism": ["information", "artwork", "picnic_site", "zoo", "theme_park", "camp_site",
+                    "caravan_site", "chalet", "bed_and_breakfast"],
+        "historic": ["monument", "memorial", "castle", "ruins", "archaeological_site", "fort",
+                     "battlefield"]},
+        "as": "point", "type": "matched",
+        "what": "Every other point of interest in Geofabrik's 'pois' classes, as points. "
+                "Field 'type' is the OSM value, e.g. 'library', 'post_office', 'cinema', "
+                "'theatre', 'kindergarten', 'doctors', 'dentist', 'townhall', 'embassy', "
+                "'community_centre', 'playground', 'stadium', 'sports_centre', 'pitch', "
+                "'swimming_pool', 'golf_course', 'bakery', 'clothes', 'hairdresser', "
+                "'car_repair', 'monument', 'memorial', 'castle', 'ruins', 'zoo', "
+                "'toilets', 'recycling'. ALWAYS filter on 'type'. Hospitals, schools, shops "
+                "(supermarkets, malls), restaurants, hotels etc. have their own layers."},
+    "railways": {"tags": {"railway": ["rail", "light_rail", "subway", "tram", "monorail",
+                                      "narrow_gauge", "miniature", "funicular", "rack"]},
+                 "as": "line", "type": "matched",
+                 "what": "Railway, metro and tram tracks as LINES (Geofabrik 'railways'): "
+                         "field 'type' is 'rail', 'light_rail', 'subway' (metro), 'tram', "
+                         "'monorail', 'narrow_gauge', 'miniature', 'funicular' or 'rack'. "
+                         "Stations are in the transport layer."},
+    "waterways": {"tags": {"waterway": ["river", "stream", "canal", "drain"]},
+                  "as": "line", "type": "matched",
+                  "what": "Rivers, streams, canals and drains as LINES (Geofabrik "
+                          "'waterways'); field 'type'. Lakes are in the water layer."},
+    "protected_areas": {"tags": {"leisure": ["nature_reserve"],
+                                 "boundary": ["protected_area", "national_park"]},
+                        "as": "polygon", "type": "matched",
+                        "fields": {"protect_class": "protect_class"},
+                        "what": "Nature reserves, national parks and other protected areas "
+                                "(polygons; Geofabrik 'protected_areas'). Field 'type' is "
+                                "'nature_reserve', 'protected_area' or 'national_park'; "
+                                "'protect_class' is the IUCN category when known."},
 }
+
+# The geometry each shape keeps.
+_SHAPE_TYPES = {"polygon": ["Polygon", "MultiPolygon"],
+                "line": ["LineString", "MultiLineString"]}
 
 OSM_SOURCE = "OpenStreetMap (via Overpass / OSMnx)"
 OSM_LICENCE = "ODbL 1.0, (c) OpenStreetMap contributors"
@@ -450,7 +542,7 @@ def fetch_osm_features(place, progress=print):
     else:
         ox = _setup_osmnx()
 
-    for shape in ("point", "polygon"):
+    for shape in ("point", "polygon", "line"):
         group = {name: spec for name, spec in todo.items() if spec["as"] == shape}
         if not group:
             continue
@@ -464,6 +556,10 @@ def fetch_osm_features(place, progress=print):
                     tags[key] = sorted(set(tags.get(key, [])) | set(values))
         if everything is not None:
             frame = everything.reset_index(drop=True)
+            # rows read from the file's line layer are used by line layers only
+            # (as before 2026-11-24 for the point and polygon layers)
+            if "from_lines" in frame.columns:
+                frame = frame[frame["from_lines"] == (shape == "line")]
         else:
             progress(f"  OpenStreetMap (Overpass): downloading {', '.join(group)} ...")
             try:
@@ -486,8 +582,8 @@ def fetch_osm_features(place, progress=print):
                 if key in frame.columns:
                     mask |= frame[key].notna() if values is True else frame[key].isin(values)
             rows = frame[mask]
-            if shape == "polygon":
-                rows = rows[rows.geom_type.isin(["Polygon", "MultiPolygon"])]
+            if shape in _SHAPE_TYPES:
+                rows = rows[rows.geom_type.isin(_SHAPE_TYPES[shape])]
             records = []
             for _, row in rows.iterrows():
                 geometry = row.geometry
@@ -495,8 +591,18 @@ def fetch_osm_features(place, progress=print):
                     # One point per facility; inside the shape, not just its centre.
                     geometry = geometry.representative_point()
                 record = {"name": _osm_name(row), "osm_id": f"{row.get('element', '')}/{row.get('id', '')}"}
-                if spec.get("type"):
+                if spec.get("type") == "matched":
+                    # the value of whichever of the layer's tags selected this feature
+                    record["type"] = next((_text(row.get(key)) for key, values in spec["tags"].items()
+                                           if _text(row.get(key)) and (values is True or
+                                                                      _text(row.get(key)) in values)), "")
+                elif spec.get("type"):
                     record["type"] = _text(row.get(spec["type"]))
+                for field, key in spec.get("fields", {}).items():
+                    value = _text(row.get(key)).replace(",", "").strip()
+                    if field == "population":
+                        value = int(float(value)) if value.replace(".", "", 1).isdigit() else 0
+                    record[field] = value
                 record["geometry"] = geometry
                 records.append(record)
             layer = gpd.GeoDataFrame(records, geometry="geometry", crs="EPSG:4326") \

@@ -92,10 +92,20 @@ cover, satellite). Small places use the Overpass servers; big places use
 Geofabrik's daily regional files cut on our machine (the whole Sharjah emirate:
 5 minutes the first time, then reused). This follows OpenStreetMap's own advice.
 
+### "Which data layers, and who decided them?"
+OpenStreetMap has no layers, only tagged objects, so a mapping is needed. We follow
+Geofabrik's published standard ("OpenStreetMap Data in Layered GIS Format", 2026),
+the most widely used one: each of our 26 OSM layers is a set of its classes, and
+the class is kept in the field `type`. The layers keep task names (hospitals,
+schools, railways...) so the model sees directly what exists. The full mapping and
+every difference from the standard: docs/DATA_LAYERS.md.
+
 ### "What if a place name is ambiguous?"
 The most important match is used and the answer says which one, plus the
 alternatives ("I used Sharjah Emirate. Other places with this name: Sharjah
-(city)"). A country is refused as too large.
+(city)"). Places up to about 250,000 km2 (the size of the UAE) are prepared in full
+detail; this limit was measured (the whole UAE: 313 s, 405,736 road segments).
+Bigger countries (Oman, Egypt, Germany) are refused with a clear message.
 
 ### "What happens when it is wrong?"
 Several automatic checks: wrong field names are reported with the real ones;
@@ -104,8 +114,10 @@ must appear in what the code printed (otherwise it says it could not compute it)
 questions about missing data must be answered "not available", not "0".
 
 ### "What are the limitations?"
-- One model and three places in the main test; more places and models would make
-  the comparison stronger.
+- One model. The held-out test covers 17 areas; more models would make the
+  comparison stronger.
+- Countries bigger than about 250,000 km2 are not supported yet (a coarser
+  "country tier" from cloud-native files was tested but not built).
 - OpenStreetMap is incomplete in places (e.g. many schools without names).
 - Distances over whole continents need a different method than one UTM zone.
 - The model's code runs with full Python access (no sandbox), by design.

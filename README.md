@@ -108,6 +108,7 @@ For each place, `qgis_agent/data_fetch.py` saves into
 | Layer | Source |
 |---|---|
 | hospitals (and clinics), schools, pharmacies, universities, places of worship, police, fire stations, restaurants, shops, banks, fuel, hotels, attractions, bus stops, neighbourhoods, parks, water, land use | OpenStreetMap |
+| settlements (with population), transport (stations, airports, ferry terminals), traffic (traffic lights, crossings, parking), natural (peaks, springs, beaches), other_pois (libraries, post offices, cinemas, stadiums, doctors...), railways and waterways (lines), protected areas | OpenStreetMap (added 2026-11-24) |
 | roads (routable network with speeds and travel times) | OpenStreetMap (OSMnx) |
 | administrative areas | geoBoundaries |
 | overture_places, buildings (chat page only) | Overture Maps |
@@ -115,6 +116,10 @@ For each place, `qgis_agent/data_fetch.py` saves into
 | elevation (30 m) | Copernicus DEM |
 | land cover (2021) | ESA WorldCover |
 | satellite image and NDVI (chat page only) | Sentinel-2 |
+
+Every OpenStreetMap layer is defined by the classes of Geofabrik's published
+"Layered GIS Format" standard, with the class in the field `type`; the mapping
+and the differences are in `docs/DATA_LAYERS.md`.
 
 A `manifest.json` records each layer's source, licence, date and feature count;
 its descriptions are what the model reads. See `docs/reports/` for why these
