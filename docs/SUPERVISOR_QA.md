@@ -51,12 +51,39 @@ them away from the equator, so some published reference answers are off (e.g.
 And several of its "unsolvable" tasks are solvable with the data it provides,
 given a full GIS. We corrected the first and excluded the second.
 
+### "So how accurate is it?"
+On the fair test (307 new questions about 17 areas never used during development,
+run once on the frozen system): **79%** of final answers correct (95% confidence
+interval 74-83%). On a published benchmark (GeoBenchX subset): 70%. Counting and
+measuring questions were all correct; overlays, distances and raster questions are
+the weakest (about 50-60%). Accuracy falls with the number of steps (85% / 74% / 62%
+for levels 1 / 2 / 3), as in GIS Copilot.
+
+### "Why does accuracy differ between places?"
+Each area has only 13-20 questions, so each area's score has a wide uncertainty
+(about +/-20 points). The differences between areas are within that range, so
+they are mostly chance. The number to quote is the overall result with its
+confidence interval.
+
+### "How do you know the answer key is right if you wrote it?"
+Every answer is computed twice by unrelated software (QGIS, and geopandas/numpy);
+only answers where both agree are used (13 held-out questions were dropped for
+disagreeing). The computations are deterministic and can be re-run by anyone. And
+a random sample (evaluation/results/heldout_spot_checks.md) can be re-done by hand
+in QGIS Desktop, step by step.
+
+### "Why 3 attempts?"
+The agent fixes its own code automatically, up to 3 times. From the same runs:
+with 1 / 2 / 3 / 4 tries, held-out accuracy would be 72% / 78% / 78% / 79%. Only 1
+of 66 wrong answers was still crashing at the end; the rest ran but reasoned
+wrongly, which more tries cannot fix. So more attempts would not help.
+
 ### "What is the full prompt vs lookup comparison?"
 Two ways to teach the model QGIS's 440 algorithms: put all their documentation
 in every prompt (~83k tokens), or give a short prompt and let the model search
-for an algorithm when it needs one. Same model, same questions. [see results]
-A first pilot on 45 questions gave 56% (full) vs 69% (lookup); the final runs on
-fresh data decide.
+for an algorithm when it needs one. Same model, same questions. Held-out: 79% vs
+76% (not significant, p = 0.29); GeoBenchX: 70% vs 39% (significant, p = 0.013);
+lookup is 2.5x faster. So lookup is the default: at least as accurate, much cheaper.
 
 ### "Why can it now work for any place?"
 Places are looked up with OpenStreetMap's place search, and data is downloaded
