@@ -384,6 +384,19 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     terminal: `systemd-run --user --unit=NAME -p MemoryMax=30G --working-directory="$PWD"
     bash -c "source ~/anaconda3/etc/profile.d/conda.sh && conda activate gis-llm && <cmd>"`;
     check with `systemctl --user list-units "qgis-*"`; logs in evaluation/results/logs/.
+  - **2026-11-24 (morning, before the presentation):** Final results (held-out,
+    lookup) 79% (74-83), GeoBenchX 70%, default PROMPT_MODE=lookup. Fixes from the
+    robustness check; size rule measured (full detail up to 250,000 km2: the UAE
+    works, bigger countries refused). OSM layers now defined by the Geofabrik
+    "Layered GIS Format" standard (docs/DATA_LAYERS.md): 18 original layers kept,
+    8 added (settlements, transport, traffic, natural, other_pois, railways,
+    waterways, protected_areas); `scripts/add_standard_layers.py` backfills old
+    places. Guard against absurd pixel/cell sizes (a 3 GB heatmap hung a question).
+    Held-out re-run "afterfixes" is reported separately (not independent).
+    `scripts/demo_check.py` = start-screen examples + new-layer questions.
+    Open: country tier via cloud-native files (researched, not built);
+    `loginctl enable-linger` suggested to Kheiro (not done, awaiting yes).
+    QGIS Desktop on the VM: `conda activate gis-llm` then `qgis &`.
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 

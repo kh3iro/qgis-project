@@ -346,5 +346,24 @@ def run_step(algorithm_id, params):
     processing.run() then hands back a live QgsVectorLayer you can feed straight
     into the next algorithm as its INPUT.
     """
+    import threading
+
     import processing  # lazy: only exists after start_qgis()
-    return processing.run(algorithm_id, params)
+    from qgis.core import QgsProcessingFeedback
+
+    # A time limit per step (added 2026-11-24): a heatmap with millimetre pixels
+    # once ran for many minutes. QGIS algorithms check a "feedback" object for
+    # cancellation, so a timer cancels it; most tools then stop soon after.
+    limit = float(os.environ.get("STEP_TIME_LIMIT", "300"))
+    feedback = QgsProcessingFeedback()
+    timer = threading.Timer(limit, feedback.cancel)
+    timer.daemon = True
+    timer.start()
+    try:
+        result = processing.run(algorithm_id, params, feedback=feedback)
+    finally:
+        timer.cancel()
+    if feedback.isCanceled():
+        raise RuntimeError(f"{algorithm_id} was stopped after {limit:.0f} s: far too slow. "
+                           "Use a coarser pixel/cell size, a smaller area or fewer features.")
+    return result
