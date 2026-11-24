@@ -8,6 +8,25 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+## 2026-11-24: Fixes from the second robustness check and the demo check (morning)
+
+**Decision.** Two new helpers and one prompt rule, each from a real wrong answer:
+- `place_centre()`: "the hospital closest to the centre of Cairo" was measured to
+  the whole Cairo polygon (every hospital inside was 0 m away). The centre is the
+  point Nominatim gives for the place (now stored in place.json; old places filled
+  in by `scripts/add_place_centres.py`), else the place's own settlement point,
+  else the middle of the largest part of the outline (not an offshore island).
+- `closest(layer, other, n=1)`: the follow-up "schools within 1 km of that
+  hospital" buffered all 278 hospitals (sorted) instead of the closest one.
+- Place prompt: "Which town in the UAE has the largest population?" was looked
+  up as Dubai (a guess at the answer). The prompt now asks for the area to search
+  in; checked on 10 varied questions, all right.
+
+**Alternative rejected.** Changing what `nearest()` returns (only the first row)
+would break the many questions that need every feature's nearest distance.
+
+---
+
 ## 2026-11-24: Layers defined by the Geofabrik standard; 8 layers added (morning, to review with Kheiro)
 
 **Decision.** Every OpenStreetMap layer is now defined as a set of classes of
