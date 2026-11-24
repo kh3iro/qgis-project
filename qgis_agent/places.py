@@ -87,6 +87,9 @@ class Place:
     # Other places with the same name, so the agent can say which one it used,
     # e.g. "Sharjah (city)" vs "Sharjah Emirate (state)".
     alternatives: list = field(default_factory=list)
+    # The place's centre point from Nominatim (added 2026-11-24, for "the centre of X").
+    centre_lon: float = None
+    centre_lat: float = None
 
     @property
     def folder(self):
@@ -231,7 +234,9 @@ def find_place(query, refresh=False):
                   kind=found.get("addresstype") or found.get("type", ""),
                   date=datetime.date.today().isoformat(), has_outline=has_outline,
                   country_code=found.get("address", {}).get("country_code", ""),
-                  alternatives=others[:4])
+                  alternatives=others[:4],
+                  centre_lon=float(found["lon"]) if found.get("lon") else None,
+                  centre_lat=float(found["lat"]) if found.get("lat") else None)
 
     os.makedirs(place.folder, exist_ok=True)
     boundary = {"type": "FeatureCollection", "features": [{

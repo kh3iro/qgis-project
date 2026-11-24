@@ -59,6 +59,14 @@ measuring questions were all correct; overlays, distances and raster questions a
 the weakest (about 50-60%). Accuracy falls with the number of steps (85% / 74% / 62%
 for levels 1 / 2 / 3), as in GIS Copilot.
 
+### "Did you improve it after the test? What is it now?"
+Yes, a few fixes after reading the answers, and the same 307 questions were run
+again: 83% (78-87%). But that number is not independent any more, because the
+fixes were made after seeing the results. One fix even put the word "noise" into
+the prompt, and one test question is about noise data; without it the re-run is
+82% vs 80%. So the number I quote is the first, independent 79%. A fair new
+measurement would need a fresh set of areas and questions.
+
 ### "Why does accuracy differ between places?"
 Each area has only 13-20 questions, so each area's score has a wide uncertainty
 (about +/-20 points). The differences between areas are within that range, so

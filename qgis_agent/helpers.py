@@ -422,7 +422,7 @@ def join_by_location(layer, other, relation="intersects"):
 
 
 def nearest(layer, other):
-    """nearest(layer, other) -> layer. Copy of `layer` where each feature gets the closest feature of `other`: its name is in "nearest_name" (NOT "name", which is still the original feature), the distance in "distance_m" (METRES). Rows are sorted closest first.
+    """nearest(layer, other) -> layer. Copy of `layer` where each feature gets the closest feature of `other`: its name is in "nearest_name" (NOT "name", which is still the original feature), the distance in "distance_m" (METRES). Rows are sorted closest first. For just the closest one(s) as a layer use closest().
 
     Learned from testing: both the 3B and the 7B model read row["name"] (the
     ORIGINAL feature) instead of row["nearest_name"], and answered "the school
@@ -462,6 +462,17 @@ def nearest(layer, other):
                                                 "EXPRESSION": '"distance_m"', "ASCENDING": True,
                                                 "NULLS_FIRST": False})
     return _named(ordered, f"{layer.name()}_nearest")
+
+
+def closest(layer, other, n=1):
+    """closest(layer, other, n=1) -> layer. ONLY the n features of `layer` closest to `other` (e.g. closest("hospitals", place_centre())), as a layer to buffer, compare or save; distance in "distance_m"."""
+    # Added 2026-11-24: asked for "schools within 1 km of that hospital", the
+    # model buffered the whole result of nearest() (all 278 hospitals, sorted)
+    # instead of the closest one, and counted 211 schools.
+    from qgis.core import QgsFeatureRequest
+    ordered = nearest(layer, other)
+    picked = ordered.materialize(QgsFeatureRequest().setLimit(max(int(n), 1)))
+    return _named(picked, f"closest_{_layer(layer).name()}")
 
 
 def _as_raster(value):
@@ -535,6 +546,58 @@ def _add_measure(layer, field_name, measure):
         copy.changeAttributeValue(feature.id(), index, round(measure(calculator, feature.geometry()), 3))
     copy.commitChanges()
     return _named(copy, f"{layer.name()}_{field_name}")
+
+
+def place_centre():
+    """place_centre() -> layer. ONE point: the centre of the current place (for "the centre of Cairo", "distance from the city centre"). Never use the boundary polygon as a centre."""
+    # Added 2026-11-24: asked for the hospital "closest to the centre of Cairo",
+    # the model measured to the whole boundary polygon, so every hospital inside
+    # was 0 m away. The centre is, in order: the point OpenStreetMap's place
+    # search gives for the place (usually the historic or administrative
+    # centre); the place's own city/town point in the settlements layer; the
+    # middle of the outline.
+    import json
+    from qgis.core import QgsFeature, QgsPointXY
+    info = {}
+    path = os.path.join(config.DATA_DIR, "place.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as handle:
+            info = json.load(handle)
+    name = info.get("name", "")
+    point, source = None, ""
+    if info.get("centre_lon") is not None:
+        point = QgsPointXY(float(info["centre_lon"]), float(info["centre_lat"]))
+        source = "OpenStreetMap place search (Nominatim)"
+    if point is None and name:
+        try:
+            settlements = _layer("settlements")
+            for feature in settlements.getFeatures():
+                if str(feature["name"]).strip().lower() == name.strip().lower():
+                    point = feature.geometry().asPoint() if not feature.geometry().isMultipart() \
+                        else feature.geometry().centroid().asPoint()
+                    source = "the place's point in the settlements layer"
+                    break
+        except Exception:
+            pass
+    if point is None:
+        outline = _layer("boundary")
+        geometry = QgsGeometry.unaryUnion([f.geometry() for f in outline.getFeatures()])
+        # the largest part (an emirate's main territory, not an offshore island)
+        parts = [QgsGeometry(part.clone()) for part in geometry.constParts()]
+        geometry = max(parts, key=lambda g: g.area()) if parts else geometry
+        point = geometry.pointOnSurface().asPoint()
+        source = "the middle of the place's outline"
+    layer = QgsVectorLayer("Point?crs=EPSG:4326", "place_centre", "memory")
+    provider = layer.dataProvider()
+    provider.addAttributes([QgsField("name", QMetaType.Type.QString),
+                            QgsField("source", QMetaType.Type.QString)])
+    layer.updateFields()
+    feature = QgsFeature(layer.fields())
+    feature.setGeometry(QgsGeometry.fromPointXY(point))
+    feature["name"], feature["source"] = f"Centre of {name}".strip(), source
+    provider.addFeature(feature)
+    layer.updateExtents()
+    return _named(layer, "place_centre")
 
 
 def find_by_name(layer, text, field="name"):
@@ -1313,7 +1376,7 @@ HELPER_GROUPS = {
     "Open and inspect": [load, describe, count, rows, total, count_by, top, find_by_name,
                          describe_raster, read_table],
     "Distance and nearness (all in METRES)": [buffer_metres, within_distance, farther_than,
-                                              nearest, distance_m],
+                                              nearest, closest, distance_m, place_centre],
     "Select and combine": [filter_features, select_by_location, join_by_location, merge_layers,
                            points_in_polygons, clip, intersection, difference, dissolve],
     "Create shapes and measures": [centroids, convex_hull, service_areas, add_area_km2,

@@ -68,6 +68,16 @@ system with the label "afterfixes".
 the re-run is no longer an independent test. The first run (79%) stays the main
 result; `summarise.py` reports the re-run separately, paired with the first.
 
+**Result of the re-run.** 255/307 (83%, 95% CI 78-87) vs 241/307 on the same
+questions (24 newly right, 10 newly wrong, p = 0.024). But 7 of the 24 are the
+"noise data" refusal, and "noise" had been added to the prompt's examples after
+the first run; without that question it is 82% vs 80%. So the fixes helped a
+little, and the honest headline stays 79%. Two problems surfaced and were fixed
+afterwards: one question hung on a 3 GB heatmap (now refused, plus a 300 s limit
+per QGIS step; that question counts as wrong), and the new `buffer_metres`
+description led the model to choose `dissolve=False` and count people twice
+(description reworded).
+
 ---
 
 ## 2026-11-24: Default prompt mode is "lookup" (to discuss with the mentor)

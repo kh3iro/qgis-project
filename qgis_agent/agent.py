@@ -410,7 +410,7 @@ class Agent:
             # already cut to the place, so the place name must never be a filter.
             lines.append(f"PLACE: {self.place.display_name}. Every layer below covers only "
                          f"this place (already cut to its outline). Never filter by the "
-                         f"place's own name.")
+                         f"place's own name. Its centre: place_centre().")
         lines += [_describe_file(path) for path in _data_files()]
         lines += [_describe_raster_file(path) for path in _other_data_files(RASTER_EXTENSIONS)]
         lines += [_describe_table_file(path) for path in _other_data_files(TABLE_EXTENSIONS)]
