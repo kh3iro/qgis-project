@@ -87,7 +87,9 @@ MAX_REPLY_TOKENS = int(os.environ.get("MAX_REPLY_TOKENS", "2048"))
 #            one, with find_algorithms() / algorithm_help(), and sees the result
 #            before writing its real code.
 # Both are compared in evaluation/ (see docs/DECISIONS.md).
-PROMPT_MODE = os.environ.get("PROMPT_MODE", "full").strip().lower()
+# Default "lookup" since 2026-11-24 (evaluation: never less accurate, significantly
+# better on GeoBenchX and development, 2.5x faster; see docs/DECISIONS.md).
+PROMPT_MODE = os.environ.get("PROMPT_MODE", "lookup").strip().lower()
 
 # In "lookup" mode, how many look-up steps the model may take before it must
 # write the real code (each step = one search or help request, then its result).

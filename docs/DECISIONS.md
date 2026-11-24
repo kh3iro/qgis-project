@@ -8,6 +8,36 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+## 2026-11-24: Default prompt mode is "lookup" (to discuss with the mentor)
+
+**Decision.** `PROMPT_MODE=lookup` by default; the full prompt stays available.
+
+**Evidence** (`evaluation/results/SUMMARY.md`; same model, same questions,
+answer keys computed twice; exact McNemar test on paired questions):
+
+| Test | Lookup | Full | p |
+|---|---|---|---|
+| Held-out: 307 new questions, 17 new areas, frozen system, run once | 79% (95% CI 74-83) | 76% (70-80) | 0.29 |
+| External: GeoBenchX subset, 33 | 70% (53-83) | 39% (25-56) | 0.013 |
+| Development: 112 (tuned on, optimistic) | 88% (80-92) | 78% (69-84) | 0.007 |
+
+Lookup is never less accurate, significantly better on two of the three sets,
+and 2.4-2.7x faster (held-out 3 s vs 8 s per question) with a ~2,000-token
+prompt instead of ~83,000. On the held-out set the difference is not
+significant, so the claim is "at least as accurate and much cheaper".
+
+**Why it matters.** The full prompt was the mentor's request (2026-11-03); this
+evidence should be shown to the mentor before it is treated as final.
+Consistent with "Lost in the Middle" (Liu et al. 2023) and tool retrieval
+(Gorilla, ToolLLM): long tool lists in the prompt are not used better.
+
+**Attempts.** Kept at 3 automatic fixes (4 tries). Held-out, lookup: 72% / 78% /
+78% / 79% with a cap of 1 / 2 / 3 / 4 tries; only 1 of 66 wrong answers still
+ended in an error, so more tries would not help (most wrong answers ran but
+reasoned wrongly). Same table format as GIS Copilot (Akinboyewa et al. 2024).
+
+---
+
 > The entries from here down to "OpenStreetMap downloads: hybrid" were **made
 > overnight on 2026-11-23/24, while Kheiro was asleep**, after Kheiro asked to
 > "get things done with everything" before the presentation. Each is to be
