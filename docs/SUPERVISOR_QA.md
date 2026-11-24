@@ -124,6 +124,10 @@ questions about missing data must be answered "not available", not "0".
 ### "What are the limitations?"
 - One model. The held-out test covers 17 areas; more models would make the
   comparison stronger.
+- Totals of polygons that overlap (e.g. nature reserves inside larger protected
+  areas) are summed, so the overlap counts twice (Berlin protected areas: 214 km2
+  summed vs 193 km2 covered). The answer keys use the same definition, so the
+  scores are consistent; "area covered" (dissolve first) is the next improvement.
 - Countries bigger than about 250,000 km2 are not supported yet (a coarser
   "country tier" from cloud-native files was tested but not built).
 - OpenStreetMap is incomplete in places (e.g. many schools without names).

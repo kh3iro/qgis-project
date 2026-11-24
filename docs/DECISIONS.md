@@ -22,6 +22,12 @@ written up here yet; they will be added in the catch-up "Phase 2".
   up as Dubai (a guess at the answer). The prompt now asks for the area to search
   in; checked on 10 varied questions, all right.
 
+**Not changed (on purpose).** Totals of overlapping polygons are summed (Berlin
+protected areas 214 km2 summed vs 193 km2 covered). A prompt rule "dissolve first"
+was tried, but the evaluation's answer keys (e.g. residential land use) also sum
+the polygons, so changing the agent alone would make it disagree with its own
+answer keys. To change later together with the keys, then re-run.
+
 **Alternative rejected.** Changing what `nearest()` returns (only the first row)
 would break the many questions that need every feature's nearest distance.
 
