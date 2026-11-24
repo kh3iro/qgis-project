@@ -201,7 +201,9 @@ If a helper fits, use the helper and do not look anything up.
 PLACE_PROMPT = """Which geographic place (a city, district, region or country) is this \
 message asking about? Reply with ONLY the place name as you would type it into a map search, \
 in English, including the country if it helps (e.g. "Cairo, Egypt"). Do not name buildings, \
-parks, schools, hospitals or roads. If the message names no place, reply NONE.
+parks, schools, hospitals or roads. Name the area to SEARCH IN, never a guess at the answer: \
+"Which city in the UAE is the largest?" -> United Arab Emirates. If the message names no \
+place, reply NONE.
 
 Message: {request}"""
 
