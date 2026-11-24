@@ -149,50 +149,50 @@ Wrong answers still ending in an error after 4 attempts (the only ones more atte
 
 | Place | full | lookup |
 |---|---|---|
-| GeoBenchX | 14/33 (42%, 95% CI 27-59%) | 24/33 (73%, 95% CI 56-85%) |
-| **all** | **14/33 (42%, 95% CI 27-59%)** | **24/33 (73%, 95% CI 56-85%)** |
+| GeoBenchX | 14/33 (42%, 95% CI 27-59%) | 0/33 (0%, 95% CI 0-10%) |
+| **all** | **14/33 (42%, 95% CI 27-59%)** | **0/33 (0%, 95% CI 0-10%)** |
 
-Average seconds per question: full 55, lookup 23
+Average seconds per question: full 55, lookup 0
 
 ## By level
 
 | level | full | lookup |
 |---|---|---|
-| 1 | 10/26 (38%, 95% CI 22-57%) | 19/26 (73%, 95% CI 54-86%) |
-| 2 | 2/4 (50%, 95% CI 15-85%) | 3/4 (75%, 95% CI 30-95%) |
-| 3 | 2/3 (67%, 95% CI 21-94%) | 2/3 (67%, 95% CI 21-94%) |
+| 1 | 10/26 (38%, 95% CI 22-57%) | 0/26 (0%, 95% CI 0-13%) |
+| 2 | 2/4 (50%, 95% CI 15-85%) | 0/4 (0%, 95% CI 0-49%) |
+| 3 | 2/3 (67%, 95% CI 21-94%) | 0/3 (0%, 95% CI 0-56%) |
 
 ## By what the question needs
 
 | what the question needs | full | lookup |
 |---|---|---|
-| helper | 4/7 (57%, 95% CI 25-84%) | 5/7 (71%, 95% CI 36-92%) |
+| helper | 4/7 (57%, 95% CI 25-84%) | 0/7 (0%, 95% CI 0-35%) |
 | algorithm | - | - |
-| none | 10/26 (38%, 95% CI 22-57%) | 19/26 (73%, 95% CI 54-86%) |
+| none | 10/26 (38%, 95% CI 22-57%) | 0/26 (0%, 95% CI 0-13%) |
 
 ## By family
 
 | family | full | lookup |
 |---|---|---|
 | overlay | 0/1 (0%, 95% CI 0-79%) | 0/1 (0%, 95% CI 0-79%) |
-| raster | 4/6 (67%, 95% CI 30-90%) | 5/6 (83%, 95% CI 44-97%) |
-| refusal | 10/26 (38%, 95% CI 22-57%) | 19/26 (73%, 95% CI 54-86%) |
+| raster | 4/6 (67%, 95% CI 30-90%) | 0/6 (0%, 95% CI 0-39%) |
+| refusal | 10/26 (38%, 95% CI 22-57%) | 0/26 (0%, 95% CI 0-13%) |
 
 ## Paired comparison (same questions, both modes)
 
-- Questions answered in both modes: 33; only full right: 1; only lookup right: 11
-- Exact McNemar test: p = 0.0063 (a real difference at the 5% level)
+- Questions answered in both modes: 33; only full right: 14; only lookup right: 0
+- Exact McNemar test: p = 0.0001 (a real difference at the 5% level)
 
 ## Successes by attempt, lookup prompt (as in GIS Copilot's Table 1)
 
 | Level | Questions | 1st attempt | 2nd | 3rd | 4th | Failed | Success rate |
 |---|---|---|---|---|---|---|---|
-| 1 | 26 | 15 | 3 | 0 | 1 | 7 | 73% |
-| 2 | 4 | 2 | 0 | 1 | 0 | 1 | 75% |
-| 3 | 3 | 0 | 0 | 1 | 1 | 1 | 67% |
+| 1 | 26 | 0 | 0 | 0 | 0 | 26 | 0% |
+| 2 | 4 | 0 | 0 | 0 | 0 | 4 | 0% |
+| 3 | 3 | 0 | 0 | 0 | 0 | 3 | 0% |
 
-Accuracy if attempts were capped at 1 / 2 / 3 / 4: 52% / 61% / 67% / 73%
-Wrong answers still ending in an error after 4 attempts (the only ones more attempts could rescue): 0 of 9
+Accuracy if attempts were capped at 1 / 2 / 3 / 4: 0% / 0% / 0% / 0%
+Wrong answers still ending in an error after 4 attempts (the only ones more attempts could rescue): 0 of 33
 
 ## Successes by attempt, full prompt (as in GIS Copilot's Table 1)
 

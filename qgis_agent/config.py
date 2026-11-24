@@ -65,11 +65,12 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 MODEL = os.environ.get("MODEL", "qwen2.5-coder:3b")
 
 # How much text the model can "see" at once, in tokens (roughly 3/4 of a word
-# each). The system prompt describes EVERY QGIS tool (all 440 processing
-# algorithms with their full help and parameters), about 100,000 tokens, plus
-# the conversation and the reply. So the model must support a context of at
-# least 128k tokens (131,072), and the machine needs the memory for it.
-CONTEXT_TOKENS = int(os.environ.get("CONTEXT_TOKENS", "131072"))
+# each). The prompt in "lookup" mode is ~7,000 tokens with a 26-layer data list;
+# with the conversation, look-ups and code it stays well under 32k. Measured on
+# the L40S (2026-11-24): 32k -> 22 GB of GPU memory, 128k -> 31 GB.
+# (Until 2026-11-24 this was 131072, needed by the full prompt, now removed from
+# the app; the evaluation sets 131072 itself to reproduce full-prompt results.)
+CONTEXT_TOKENS = int(os.environ.get("CONTEXT_TOKENS", "32768"))
 
 # "Temperature" controls randomness. 0 = the model always picks its most likely
 # answer, so the same question gives the same code every time (reproducible
@@ -81,15 +82,15 @@ TEMPERATURE = float(os.environ.get("TEMPERATURE", "0"))
 # Code and answers here are much shorter; this stops a stuck model early.
 MAX_REPLY_TOKENS = int(os.environ.get("MAX_REPLY_TOKENS", "2048"))
 
-# How the model learns about the 440 QGIS algorithms (an experiment, 2026-11-23):
-#   "full"   every algorithm's full help is in the system prompt (~95k tokens).
-#   "lookup" a short prompt; the model searches for an algorithm when it needs
-#            one, with find_algorithms() / algorithm_help(), and sees the result
-#            before writing its real code.
-# Both are compared in evaluation/ (see docs/DECISIONS.md).
-# Default "lookup" since 2026-11-24 (evaluation: never less accurate, significantly
-# better on GeoBenchX and development, 2.5x faster; see docs/DECISIONS.md).
-PROMPT_MODE = os.environ.get("PROMPT_MODE", "lookup").strip().lower()
+# How the model learns about the 440 QGIS algorithms: "lookup" = a short prompt;
+# the model searches for an algorithm when it needs one (find_algorithms() /
+# algorithm_help()) and sees the result before writing its real code.
+# The other mode, "full" (every algorithm's help in the prompt, ~97k tokens), was
+# compared in the evaluation and dropped on 2026-11-24 (lookup was at least as
+# accurate, significantly better on GeoBenchX, 2.5x faster, 9 GB less GPU memory;
+# docs/DECISIONS.md). It is kept ONLY so evaluation/run_eval.py --mode full can
+# reproduce the published comparison; the app always uses lookup.
+PROMPT_MODE = "lookup"
 
 # In "lookup" mode, how many look-up steps the model may take before it must
 # write the real code (each step = one search or help request, then its result).

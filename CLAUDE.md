@@ -443,6 +443,20 @@ and briefs were moved OUT of the project on 2026-10-05, to `..\Docs\` and
     Laptop access: the page listens on 127.0.0.1 of the VM only; use it through
     Remote Desktop (no SSH on the VM). Deployment for others would need IT, HTTPS
     and logins (the page runs model-written code).
+  - **2026-11-24 ~07:40: STATE FOR THE PRESENTATION (read this first).**
+    Final results: held-out 2 (10 random cities, final system) **89%** (84-93);
+    held-out 1 80% (lookup) vs 78% (full); GeoBenchX 73% vs 42%; development 88/79.
+    Scored with a corrected checker applied to all runs (85/79/70 before the fix;
+    see DECISIONS.md). App is **lookup only** (full prompt removed from the chat
+    page and settings; kept in run_eval.py to reproduce the comparison);
+    CONTEXT_TOKENS 32768 -> model needs ~22 GB GPU (24 GB card). Slides (23):
+    `presentation/` in this repo (built by ~/qgis-slides-work/finalize.sh on the
+    VM). Q&A to rehearse: docs/SUPERVISOR_QA.md. Commits re-labelled from the
+    VM's shared identity "HomaizaSaud" to Kheireddine; repo has local user config.
+    Push to GitHub needs Kheiro's login on the VM (no credentials stored there).
+    Next ideas: make the nearest-name trap impossible (closest() returning names);
+    dissolve-before-total together with the answer keys; country tier; fix
+    geoBoundaries download via GDAL (GitHub redirect).
   - Committed as e9d3bc2 (2026-10-06). Month 2 slides: claude.ai artifact
     "QGIS Agent: Month 2 Progress" (10 slides, downloadable as PowerPoint).
 

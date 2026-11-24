@@ -211,6 +211,9 @@ def main():
                              "searches for algorithms itself (see config.PROMPT_MODE)")
     arguments = parser.parse_args()
     config.PROMPT_MODE = arguments.mode
+    if arguments.mode == "full":
+        # the full prompt (~97k tokens) needs the 128k context it was measured with
+        config.CONTEXT_TOKENS = max(config.CONTEXT_TOKENS, 131072)
 
     qgis_engine.start_qgis()
     if arguments.model not in llm_client.list_models():

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>QGIS Agent</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M16 6c-4 0-7 3-7 7 0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 10a3 3 0 110-6 3 3 0 010 6z' fill='white'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/static/style.css?v=3">
+  <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
 <div class="app" id="app">
@@ -33,13 +33,6 @@
     <nav class="history" id="history"></nav>
 
     <div class="sidebar-bottom">
-      <div class="setting">
-        <label for="modeSelect">How the model learns QGIS tools</label>
-        <select id="modeSelect">
-          <option value="lookup">Looks tools up when needed</option>
-          <option value="full">All 440 tools in the prompt</option>
-        </select>
-      </div>
       <div class="system" id="systemInfo">
         <span class="dot" id="statusDot"></span>
         <span id="statusText">Connecting…</span>
@@ -108,6 +101,6 @@
 <!-- Map viewer -->
 <div class="lightbox" id="lightbox" hidden><img id="lightboxImg" alt="Map"></div>
 
-<script src="/static/app.js?v=3"></script>
+<script src="/static/app.js?v=4"></script>
 </body>
 </html>

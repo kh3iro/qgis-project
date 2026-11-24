@@ -8,6 +8,39 @@ written up here yet; they will be added in the catch-up "Phase 2".
 
 ---
 
+## 2026-11-24: Full prompt removed from the app; context 32k (Kheiro's decision)
+
+**Decision.** The app (chat page, terminal, API) always uses lookup; the
+"how the model learns QGIS tools" menu is gone from the chat page.
+`CONTEXT_TOKENS` default 131,072 -> 32,768.
+
+**Why.** Lookup was at least as accurate on every test, significantly better on
+GeoBenchX (73% vs 42%, p = 0.006) and development, and 2.5x faster. Measured
+GPU memory for the model: 31 GB with a 128k context, 22 GB with 32k, 20 GB with 16k.
+The lookup prompt is ~7,000 tokens with a 26-layer data list, so 32k leaves
+room for the conversation, look-ups and code. So the system now runs on a 24 GB
+graphics card instead of needing 40-48 GB.
+
+**Kept on purpose.** `prompts.tool_reference()` and `run_eval.py --mode full`
+(which sets 131,072 itself), so the published full-vs-lookup comparison can be
+reproduced. Without them the comparison could not be checked by anyone.
+
+**Checked after the change.** Tests 42/42; demo check and robustness check re-run
+with 32k (see results/demo_check_* and robustness_* of 2026-11-24).
+
+---
+
+## 2026-11-24: Commits re-labelled with Kheiro's name; laptop commit merged
+
+The VM's shared git identity ("HomaizaSaud", another user of the shared VM) had
+been used for 44 commits made here. Before the first push they were re-labelled
+to Kheireddine (content and dates unchanged; backup branch
+`backup-before-author-fix`), and the project now sets its own `user.name` /
+`user.email`. GitHub had one commit from the laptop (2026-11-22, OSM download
+research notes) that the VM did not have: merged, nothing rewritten on GitHub.
+
+---
+
 ## 2026-11-24: Held-out 2 result, and a checker fix applied to every test (07:20)
 
 **Result.** 168 scored questions (4 left out: the two answer computations

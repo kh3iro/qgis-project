@@ -349,7 +349,7 @@ function ask(text) {
   $("thread").append(bot.el);
   scrollDown(true);
   renderHistory();
-  stream("/api/chat", { conversation_id: current.id, message: text, mode: $("modeSelect").value }, bot);
+  stream("/api/chat", { conversation_id: current.id, message: text }, bot);
 }
 function choosePlace(name) {
   if (!name || controller) return;
@@ -381,7 +381,6 @@ async function refreshStatus() {
     const share = s.gpu_share;
     $("statusDot").className = "dot " + (share === null || share === undefined ? "warn" : share > 0.9 ? "ok" : "warn");
     $("statusText").textContent = `${s.model} · ${share === null || share === undefined ? "model not loaded yet" : Math.round(share * 100) + "% on GPU"}`;
-    if (!localStorage.getItem("qgis-agent-mode")) $("modeSelect").value = s.mode;
   } catch {
     $("statusDot").className = "dot err";
     $("statusText").textContent = "Server not reachable";
@@ -426,9 +425,8 @@ $("themeToggle").onclick = () => {
   applyTheme(next);
   try { localStorage.setItem("qgis-agent-theme", next); } catch {}
 };
-$("modeSelect").onchange = () => { try { localStorage.setItem("qgis-agent-mode", $("modeSelect").value); } catch {} };
 
-try { applyTheme(localStorage.getItem("qgis-agent-theme")); $("modeSelect").value = localStorage.getItem("qgis-agent-mode") || "lookup"; } catch {}
+try { applyTheme(localStorage.getItem("qgis-agent-theme")); } catch {}
 // Demo/screenshot helper: /#load=/files/demo_chat.json opens saved conversations
 // (a JSON list in the same format the page stores). Used for the slides.
 // Options after the file: &chat=<id> opens that conversation, &theme=light|dark.

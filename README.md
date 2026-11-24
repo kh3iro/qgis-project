@@ -43,7 +43,6 @@ On the chat page:
   wrote, what QGIS printed, look-ups, download progress;
 - click the map to enlarge it; result files (.gpkg, .tif) are under the answer;
 - **Open in QGIS** opens the conversation's results in QGIS Desktop;
-- the menu at the bottom left switches between the two prompt modes (below).
 
 Follow-up questions work ("now only the ones within 1 km"): the agent remembers
 the conversation and the variables its code created.
@@ -94,9 +93,10 @@ et al. 2023) with code as the action (CodeAct, Wang et al. 2024).
 
 ---
 
-## The two prompt modes (an experiment)
+## How the model learns QGIS's tools (lookup)
 
-QGIS has 440 processing algorithms. The model can learn about them in two ways:
+QGIS has 440 processing algorithms. Two ways for the model to learn them were
+compared in the evaluation:
 
 - **full**: every algorithm's documentation is in every prompt (~97,000 tokens
   with the data list, measured 2026-11-24; needs a 128k-token model);
@@ -105,8 +105,19 @@ QGIS has 440 processing algorithms. The model can learn about them in two ways:
   algorithm (`find_algorithms("slope")`, `algorithm_help("native:slope")`), sees
   the answer, then writes the real code.
 
-Set in `.env` with `PROMPT_MODE=full` or `lookup`, or from the chat page menu.
-**Default: lookup** (never less accurate in the evaluation, 2.5x faster; below).
+**The app uses lookup only** (since 2026-11-24): it was never less accurate,
+significantly better on GeoBenchX, 2.5x faster, and needs 9 GB less GPU memory.
+The full prompt remains only in the evaluation (`run_eval.py --mode full`), so the
+comparison can be reproduced.
+
+### What it needs to run (measured on the VM, 2026-11-24)
+
+| | Needed |
+|---|---|
+| GPU memory | about 22 GB (model 18 GB + a 32k-token context): a 24 GB card, e.g. RTX 3090/4090, NVIDIA L4/A5000. The VM's L40S has 46 GB. |
+| System memory | 16 GB minimum, 32 GB recommended (QGIS + the data peaked at ~12 GB) |
+| Disk | ~20 GB for the model, plus 0.1-0.7 GB per OpenStreetMap region downloaded |
+| Software | Ollama, conda env `gis-llm` (QGIS 3.44, Python 3.12) |
 
 ---
 
@@ -237,5 +248,5 @@ api.py                         the Month 1 REST API (/docs)
   file is downloading (e.g. GCC States, 258 MB); later places in the same region
   reuse it for a week.
 - **On the Windows laptop**: `source fix_qgis_env.sh` is still needed there (see
-  CLAUDE.md); the 3B/7B models cannot hold the full prompt: set `PROMPT_MODE=lookup`
-  and `CONTEXT_TOKENS=16384` in `.env`.
+  CLAUDE.md); the 3B/7B models are much less accurate;
+  set `CONTEXT_TOKENS=16384` in `.env` there.

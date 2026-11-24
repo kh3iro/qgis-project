@@ -13,7 +13,7 @@ The page in web/ is plain HTML + CSS + JavaScript (no internet needed). It talks
 to this server:
 
     GET  /                 the chat page
-    GET  /api/status       model, prompt mode, whether the model is on the GPU
+    GET  /api/status       model, whether the model is on the GPU
     POST /api/chat         ask a question; the answer STREAMS back as events,
                            one JSON object per line ("step", "code", "answer",
                            "map", ...), so the page can show each step as it happens
@@ -51,7 +51,7 @@ _busy = threading.Lock()       # one question at a time (one model, one QGIS)
 class ChatRequest(BaseModel):
     conversation_id: str = ""
     message: str
-    mode: str = ""             # "full" or "lookup"; empty = the configured default
+    mode: str = ""             # ignored since 2026-11-24 (lookup only)
 
 
 class PlaceRequest(BaseModel):
@@ -124,11 +124,8 @@ def status():
 @app.post("/api/chat")
 def chat(request: ChatRequest):
     conversation_id = request.conversation_id or uuid.uuid4().hex
-    mode = request.mode if request.mode in ("full", "lookup") else None
 
     def events(agent):
-        if mode:
-            config.PROMPT_MODE = mode
         yield from agent.respond(request.message.strip())
     return _stream(conversation_id, events)
 

@@ -76,7 +76,7 @@ code prints. QGIS does every calculation.
 | `qgis_agent/data_fetch.py` | Downloads a place's layers (26 OpenStreetMap layers defined by the Geofabrik standard, see `docs/DATA_LAYERS.md`, plus rasters, Overture, boundaries); Overpass/Geofabrik hybrid; repairs invalid shapes. |
 | `qgis_agent/map_render.py` | Draws results (vectors and rasters) as a PNG over OpenStreetMap. |
 | `qgis_agent/qgis_project.py` | "Open in QGIS Desktop". |
-| `qgis_agent/config.py` | Every setting, read from `.env` (model, prompt mode, context, place...). |
+| `qgis_agent/config.py` | Every setting, read from `.env` (model, context size, place...; lookup only). |
 | `qgis_agent/qgis_engine.py` | Starts QGIS headless once and keeps it running. |
 
 ### From Month 1, still in use

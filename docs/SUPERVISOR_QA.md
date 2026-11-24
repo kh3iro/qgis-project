@@ -27,10 +27,16 @@ QGIS algorithms are available. Research supports code as the action format
 
 ### "Which model, and why?"
 qwen3-coder:30b, running locally with Ollama on the university VM's L40S GPU.
-It reads up to 256k tokens (needed for the version of the prompt with all 440
-tools), and it is a mixture-of-experts model: 30B parameters stored, about 3B
-used per word, so it is fast (4-10 s per question after the first). No paid API,
-no data leaves the machine.
+It is a mixture-of-experts model: 30B parameters stored, about 3B used per word,
+so it is fast (3-4 s per question). It was chosen when the full prompt (all 440
+tools, ~97k tokens) needed a 128k context; it still works well with the short
+lookup prompt. No paid API, no data leaves the machine.
+
+### "What computer does it need?"
+Measured on the VM: about 22 GB of GPU memory (18 GB model + 32k-token context),
+so any 24 GB graphics card (RTX 3090/4090, NVIDIA L4); 16-32 GB of normal memory;
+about 20 GB of disk plus the map data. Dropping the full prompt (128k context,
+31 GB) is what brought it down to a 24 GB card.
 
 ### "How do you know the answers are correct?"
 Every test question has a correct answer computed **twice**, with QGIS and
@@ -99,7 +105,8 @@ Two ways to teach the model QGIS's 440 algorithms: put all their documentation
 in every prompt (~97k tokens), or give a short prompt (~7k) and let the model search
 for an algorithm when it needs one. Same model, same questions. Held-out: 80% vs
 78% (not significant, p = 0.42); GeoBenchX: 73% vs 42% (significant, p = 0.006);
-lookup is 2.5x faster. So lookup is the default: at least as accurate, much cheaper.
+lookup is 2.5x faster and needs 9 GB less GPU memory. So the app now uses lookup only;
+the full prompt is kept in the evaluation code only, so the comparison can be re-run.
 
 ### "Why can it now work for any place?"
 Places are looked up with OpenStreetMap's place search, and data is downloaded
